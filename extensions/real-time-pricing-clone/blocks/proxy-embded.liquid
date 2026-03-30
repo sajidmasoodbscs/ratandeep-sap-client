@@ -217,7 +217,7 @@
   function startLongProcess() {
     console.log("[SAP Checkout] startLongProcess called with cartData:", cartData);
 
-    fetch('https://sap-app-testing-new-wo9j.onrender.com/apps/sap-price-test/createDraftOrder/', {
+    fetch('https://sap-app-2-0.onrender.com/apps/sap-price-test/createDraftOrder/', {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -255,7 +255,7 @@
 
   function pollJobStatus(jobId) {
     console.log(`[SAP Checkout] pollJobStatus called for Job ID: ${jobId}`);
-    const url = "https://sap-app-testing-new-wo9j.onrender.com/apps/sap-price-test/check-checkout-url";
+    const url = "https://sap-app-2-0.onrender.com/apps/sap-price-test/check-checkout-url";
 
     function hideLoader() {
       document.querySelector(".loaderBars").style.display = "none";
@@ -366,7 +366,7 @@
 
           console.log("Calling SAP webhook with all SKUs for logged-in customer...");
           
-          const url = 'https://sap-app-testing-new-wo9j.onrender.com/apps/sap-price-test/sapcall-all-skus';
+          const url = 'https://sap-app-2-0.onrender.com/apps/sap-price-test/sapcall-all-skus';
           
           var shopDomain = {{ shop.permanent_domain | json }};
           if (!shopDomain && typeof window.Shopify !== 'undefined' && window.Shopify.shop) {
@@ -465,7 +465,7 @@
 
             console.log("[SAP/Redis] Syncing prices for", cart.items.length, "items");
 
-            const syncUrl = "https://sap-app-testing-new-wo9j.onrender.com/apps/sap-price-test/cart-price-sync";
+            const syncUrl = "https://sap-app-2-0.onrender.com/apps/sap-price-test/cart-price-sync";
             console.log("[SAP/Redis] Calling sync endpoint:", syncUrl);
 
             // 1. Call our orchestrator endpoint

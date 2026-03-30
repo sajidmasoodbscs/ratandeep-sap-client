@@ -2,7 +2,7 @@
 
 client_id = "e3bebe207afdaf0dad7fbf261a4fe436"
 name = "Real Time Pricing Demo 1"
-application_url = "https://sap-app-testing-new-wo9j.onrender.com"
+application_url = "https://sap-app-2-0.onrender.com"
 embedded = true
 
 [build]
@@ -17,12 +17,12 @@ scopes = "read_checkouts,read_customers,read_draft_orders,read_orders,read_produ
 
 [auth]
 redirect_urls = [
-  "https://sap-app-testing-new-wo9j.onrender.com/auth/callback",
-  "https://sap-app-testing-new-wo9j.onrender.com/auth/shopify/callback",
-  "https://sap-app-testing-new-wo9j.onrender.com/api/auth/callback"
+  "https://sap-app-2-0.onrender.com/auth/callback",
+  "https://sap-app-2-0.onrender.com/auth/shopify/callback",
+  "https://sap-app-2-0.onrender.com/api/auth/callback"
 ]
 
 [app_proxy]
-url = "https://sap-app-testing-new-wo9j.onrender.com/apps/sap-price-test"
+url = "https://sap-app-2-0.onrender.com/apps/sap-price-test"
 subpath = "sap-price-test"
 prefix = "apps"
