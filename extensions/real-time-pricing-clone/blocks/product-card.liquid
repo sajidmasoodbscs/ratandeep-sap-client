@@ -1,0 +1,16 @@
+<div class="app-hello-world-text" style="color: #5c5c5c; font-size: 0.9em; margin-top: 5px;">
+    Hello World
+  </div>
+  
+  {% schema %}
+  {
+    "name": "product card",
+    "target": "section",
+    "enabled_on": {
+      "templates": ["collection", "index", "product"]
+    },
+    "settings": [
+      { "type": "color", "id": "text_color", "label": "Text Color", "default": "#000000" }
+    ]
+  }
+  {% endschema %}

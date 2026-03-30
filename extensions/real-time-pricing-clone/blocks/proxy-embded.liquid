@@ -1,0 +1,799 @@
+<div class="loaderBars">
+  <div class="jumpy-bars">
+    <div class="bar" id="bar1"></div>
+    <div class="bar" id="bar2"></div>
+    <div class="bar" id="bar3"></div>
+    <div class="bar" id="bar4"></div>
+    <div class="bar" id="bar5"></div>
+    <div class="bar" id="bar6"></div>
+    <div class="bar" id="bar7"></div>
+  </div>
+  <div class="sap-text">
+    <h5>Please wait while we fetch the latest prices for you. Thank you for your patience!</h5>
+  </div>
+</div>
+<style>
+  body.RunningLoader {
+    position: relative;
+    overflow: hidden;
+  }
+  .RunningLoader:after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    background: #000000c4;
+    z-index: 9;
+    overflow: hidden;
+    bottom: 0;
+  }
+  .loaderBars {
+    width: 100%;
+    display: none;
+    height: 100%;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    z-index: 999;
+  }
+  .overlay {
+    display: block !important;
+    background: #0000002b;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 999;
+  }
+  .jumpy-bars {
+    display: flex !important;
+    justify-content: space-evenly;
+    width: 4.5em;
+    height: 3.5em;
+    gap: 0.3em;
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    z-index: 99;
+  }
+
+  #bar1 {
+    animation-delay: 0.2s;
+  }
+  #bar2 {
+    animation-delay: 0.4s;
+  }
+  #bar3 {
+    animation-delay: 0.6s;
+  }
+  #bar4 {
+    animation-delay: 0.8s;
+  }
+  #bar5 {
+    animation-delay: 1s;
+  }
+  #bar6 {
+    animation-delay: 1.2s;
+  }
+  #bar7 {
+    animation-delay: 1.5s;
+  }
+  .bar {
+    width: 1em;
+    height: auto;
+    opacity: 0;
+    background-color: black;
+    border-radius: 100%;
+    animation: jumping-bars 1s linear infinite alternate-reverse;
+    display: block !important;
+  }
+  .sap-text {
+    position: absolute;
+    top: 60%;
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    max-width: 280px;
+    text-align: center;
+  }
+  .sap-text h5 {
+    color: white;
+    font-size: 18px;
+    margin-top: 40px;
+  }
+
+  @keyframes jumping-bars {
+    0% {
+      opacity: 1;
+      transform: scaleY(0);
+    }
+    50% {
+      opacity: 1;
+      transform: scaleY(0.5);
+    }
+    100% {
+      opacity: 1;
+      transform: scaleY(1.8);
+    }
+  }
+  .adressError p {
+    color: red;
+    margin-bottom: 30px;
+    margin-top: 0;
+  }
+</style>
+{% if customer %}
+  <script>
+
+    function isValidDefaultAddress(addresses) {
+      console.log("[SAP Checkout] isValidDefaultAddress called with addresses:", addresses);
+      const defaultAddress = addresses.find(address => address.default);
+      if (! defaultAddress) {
+        console.warn("[SAP Checkout] No default address found");
+        return false;
+      }
+      const requiredFields = [
+        "address1",
+        "city",
+        "province_code",
+        "country_code",
+        "zip"
+      ];
+      for (const field of requiredFields) {
+        if (! defaultAddress[field]) {
+          console.warn("[SAP Checkout] Default address missing field:", field, "address:", defaultAddress);
+          return false;
+        }
+      }
+      console.log("[SAP Checkout] Default address is valid");
+      return true;
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log("[SAP Checkout] DOMContentLoaded handler started");
+
+      // document.querySelector("#CartDrawer-Checkout")?.addEventListener('click', function(event) {
+      //   event.preventDefault();
+      //   console.log("we are change customer to main cart page")
+      //   window.location.href = "/cart";
+      // })
+
+      const buttons = document.querySelectorAll('button[name="checkout"]');
+
+      console.log("[SAP Checkout] Extension version: 1.1");
+      console.log("[SAP Checkout] Checkout buttons found:", buttons);
+
+      buttons.forEach(button => {
+        button.addEventListener('click', async (event) => {
+          event.preventDefault();
+          console.log("[SAP Checkout] Checkout button clicked");
+          const cust_addr = {{ customer.addresses | json }}
+          console.log("[SAP Checkout] Customer addresses are: ", cust_addr);
+          // const isValid = isValidDefaultAddress(cust_addr);
+          // console.log(`Address is valid: ${isValid}`);
+        //  if (! isValid) {
+          //  window.location.href = "/account/addresses?incomplete=true";
+       //   } else {
+           console.log("[SAP Checkout] Showing loader and starting cart fetch");
+           document.body.classList.add("RunningLoader");
+            document.querySelector(".loaderBars").style.display = "block";
+            let cartData = null;
+            try {
+              console.log("[SAP Checkout] Fetching cart.js");
+              var cartContents = await fetch(window.Shopify.routes.root + 'cart.js').then(response => {
+                console.log("[SAP Checkout] cart.js raw response status:", response.status);
+                return response.json();
+              }).then(data => {
+              cartData = JSON.parse(JSON.stringify(data));
+              cartData.customer_id = {{ customer.id | json }};
+              cartData.customer_adresses = {{ customer.addresses | json }};
+              cartData.shop = {{ shop.permanent_domain | json }};
+              console.log("[SAP Checkout] cartData prepared for backend:", cartData);
+              return data
+            });
+            console.log("[SAP Checkout] Cart Contents from /cart.js:", cartContents);
+          } catch (cartErr) {
+            console.error("[SAP Checkout] Error fetching cart.js:", cartErr);
+            document.querySelector(".loaderBars").style.display = "none";
+            document.body.classList.remove("RunningLoader");
+            window.location.href = "/cart";
+            return;
+          }
+
+
+
+  // Function to start long process and begin polling
+  function startLongProcess() {
+    console.log("[SAP Checkout] startLongProcess called with cartData:", cartData);
+
+    fetch('https://sap-app-testing-new-wo9j.onrender.com/apps/sap-price-test/createDraftOrder/', {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(
+        { data: cartData }
+      )
+    })
+      .then(response => {
+        console.log("[SAP Checkout] createDraftOrder raw response status:", response.status);
+        return response.json();
+      })
+      .then(data => {
+        console.log("[SAP Checkout] createDraftOrder JSON response:", data);
+        const jobId = data.jobId;
+        if (!jobId) {
+          console.error("[SAP Checkout] No jobId returned from createDraftOrder, redirecting to cart");
+          document.querySelector(".loaderBars").style.display = "none";
+          document.body.classList.remove("RunningLoader");
+          window.location.href = "/cart";
+          return;
+        }
+        console.log('[SAP Checkout] Job started with ID:', jobId);
+
+        // Start polling for job status
+        pollJobStatus(jobId);
+      })
+      .catch(error => {
+        console.error('[SAP Checkout] Error starting process (createDraftOrder):', error);
+        document.querySelector(".loaderBars").style.display = "none";
+        document.body.classList.remove("RunningLoader");
+        window.location.href = "/cart";
+      });
+  }
+
+  function pollJobStatus(jobId) {
+    console.log(`[SAP Checkout] pollJobStatus called for Job ID: ${jobId}`);
+    const url = "https://sap-app-testing-new-wo9j.onrender.com/apps/sap-price-test/check-checkout-url";
+
+    function hideLoader() {
+      document.querySelector(".loaderBars").style.display = "none";
+      document.body.classList.remove("RunningLoader");
+    }
+
+    const interval = setInterval(() => {
+      console.log("[SAP Checkout] Polling checkout status...");
+      fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ jobId, shop: {{ shop.permanent_domain | json }} }),
+      })
+        .then(response => {
+          console.log("[SAP Checkout] check-checkout-url raw response:", response);
+          if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+          }
+          return response.json();
+        })
+        .then(data => {
+          console.log("[SAP Checkout] Job status payload:", data);
+
+          if (data.status === "completed" && data.redirectUrl) {
+            clearInterval(interval);
+            hideLoader();
+            console.log("[SAP Checkout] Job completed, redirecting to checkout URL:", data.redirectUrl);
+            window.location.href = data.redirectUrl;
+          } else if (data.status === "failed") {
+            clearInterval(interval);
+            hideLoader();
+            console.error("[SAP Checkout] Checkout job failed:", data.error);
+            window.location.href = "/cart";
+          } else {
+            console.log("[SAP Checkout] Job still in progress or unknown status:", data.status);
+          }
+        })
+        .catch(error => {
+          console.error("[SAP Checkout] Error checking status (pollJobStatus):", error);
+          clearInterval(interval);
+          hideLoader();
+          window.location.href = "/cart";
+        });
+    }, 1000);
+
+    // Safety timeout: stop polling after 2 minutes and send back to cart
+    setTimeout(() => {
+      if (interval) {
+        clearInterval(interval);
+        hideLoader();
+        console.warn("[SAP Checkout] Checkout polling timed out. Redirecting to cart.");
+        window.location.href = "/cart";
+      }
+    }, 120000);
+  }
+
+
+  // Call this function to start the process
+
+
+
+            
+              (async () => {
+                  console.log("[SAP Checkout] About to start long process after cart + data prepared");
+                  // const fetchOptions = {
+                  //   method: "POST",
+                  //   headers: {
+                  //     "Content-Type": "application/json"
+                  //   },
+                  //   body: JSON.stringify(
+                  //     { data: cartData }
+                  //   )
+                  // };
+                  // fetch(`/apps/sap-price-test/createDraftOrder/`, fetchOptions).then((response) => response.json()).then((responseJSON) => {
+                  //   if (responseJSON) {
+                  //     $(".loaderBars").hide();
+                  //     $("body").removeClass("RunningLoader");
+                  //     console.log("we are receiving this from backend", responseJSON.content);
+                  //     window.location.href = responseJSON.content;
+                  //   }
+                  // });
+
+                  startLongProcess();
+                })();
+         // }
+        });
+
+      });
+      console.log("[SAP Checkout] Coming from theme app extension, customer id =>", {{ customer.id | json }});
+      console.log("[SAP Checkout] Customer addresses data =>", {{ customer.addresses | json }});
+
+      // Call SAP webhook with all SKUs when customer logs in
+      (async function() {
+        try {
+          const customerId = {{ customer.id | json }};
+          const customerAddresses = {{ customer.addresses | json }};
+          
+          // Check if we've already called this endpoint for this customer in this session
+          const storageKey = `sap_all_skus_called_${customerId}`;
+          const alreadyCalled = sessionStorage.getItem(storageKey);
+          
+          if (alreadyCalled) {
+            console.log("SAP webhook with all SKUs already called for this customer session");
+            return;
+          }
+
+          console.log("Calling SAP webhook with all SKUs for logged-in customer...");
+          
+          const url = 'https://sap-app-testing-new-wo9j.onrender.com/apps/sap-price-test/sapcall-all-skus';
+          
+          var shopDomain = {{ shop.permanent_domain | json }};
+          if (!shopDomain && typeof window.Shopify !== 'undefined' && window.Shopify.shop) {
+            shopDomain = window.Shopify.shop;
+          }
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ 
+              data: {
+                customer_id: customerId,
+                customer_addresses: customerAddresses,
+                shop: shopDomain
+              }
+            })
+          });
+
+          if (!response.ok) {
+            throw new Error('Webhook call failed with status: ' + response.status);
+          }
+
+          const result = await response.json();
+          console.log('SAP webhook call with all SKUs response:', result);
+          
+          // Mark as called for this session
+          sessionStorage.setItem(storageKey, 'true');
+        } catch (error) {
+          console.error('Error calling SAP webhook with all SKUs:', error);
+          // Don't block the page if this fails
+        }
+      })();
+    });
+  </script>
+
+{% else %}
+  <script>
+    console.log('Customer is not logged in');
+  </script>
+{% endif %}
+<script>
+  (function() {
+    var REDIRECT_PATH = '/cart';
+    var selector = '#create_customer, form[action$="/account"][method="post"]',
+      $form = document.querySelectorAll(selector)[0];
+    if ($form) {
+      $redirect = document.createElement('input');
+      $redirect.setAttribute('name', 'return_to');
+      $redirect.setAttribute('type', 'hidden');
+      $redirect.value = REDIRECT_PATH;
+      $form.appendChild($redirect);
+    }
+  })();
+
+  (function() {
+    console.log("Get incomplete from url")
+    const currentURL = new URL(window.location.href);
+
+    if (currentURL.searchParams.get("incomplete") === "true") { // Create a new div
+      const cust_addr = {{ customer.addresses | json }}
+      console.log("Customer addresses are: ", cust_addr);
+      const isValid = isValidDefaultAddress(cust_addr);
+      if (isValid) {
+        document.querySelectorAll(".adressError").forEach(el => el.style.display = "none");
+      } else {
+        console.log("Parameter incomplete is true found")
+        const newDiv = document.createElement("div");
+        newDiv.innerHTML = "<p><strong>Note</strong>: Please Complete Your Default Address</p>";
+        newDiv.className = "adressError";
+        const targetDiv = document.querySelector(".customer.addresses");
+        if (targetDiv) {
+          targetDiv.insertBefore(newDiv, targetDiv.firstChild);
+        }
+      }
+    }
+
+  })();
+</script>
+
+{% if customer and template.name == 'cart' %}
+  <script>
+      (function() {
+        console.log("[SAP/Redis] Cart page script started");
+
+        async function syncCartPrices() {
+          try {
+            console.log("[SAP/Redis] Starting cart price sync...");
+            const cartResponse = await fetch(window.Shopify.routes.root + 'cart.js');
+            const cart = await cartResponse.json();
+
+            if (!cart.items || cart.items.length === 0) {
+              console.log("[SAP/Redis] Cart is empty");
+              return;
+            }
+
+            console.log("[SAP/Redis] Syncing prices for", cart.items.length, "items");
+
+            const syncUrl = "https://sap-app-testing-new-wo9j.onrender.com/apps/sap-price-test/cart-price-sync";
+            console.log("[SAP/Redis] Calling sync endpoint:", syncUrl);
+
+            // 1. Call our orchestrator endpoint
+            const syncResponse = await fetch(syncUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                cart: cart,
+                customer: {
+                    id: {{ customer.id | json }},
+                    addresses: {{ customer.addresses | json }},
+                    shop: {{ shop.permanent_domain | json }}
+                }
+              })
+            });
+
+            const syncData = await syncResponse.json();
+            console.log("[SAP/Redis] Sync response data:", syncData);
+
+            if (!syncData.prices || Object.keys(syncData.prices).length === 0) {
+              console.log("[SAP/Redis] No price updates found in Redis for these SKUs");
+              return;
+            }
+
+            // 2. Update the DOM directly first for immediate feedback
+            cart.items.forEach((item, index) => {
+              const sku = item.sku || item.variant_sku;
+              const newPrice = syncData.prices[sku];
+              if (newPrice != null) {
+                const priceInCents = Math.round(newPrice * 100);
+                const formattedPrice = (typeof Shopify !== 'undefined' && Shopify.formatMoney) 
+                  ? Shopify.formatMoney(priceInCents) 
+                  : "$" + newPrice.toFixed(2);
+                
+                const lineTotalCents = priceInCents * item.quantity;
+                const formattedLineTotal = (typeof Shopify !== 'undefined' && Shopify.formatMoney) 
+                  ? Shopify.formatMoney(lineTotalCents) 
+                  : "$" + (lineTotalCents / 100).toFixed(2);
+
+                console.log(`[SAP/Redis] Updating DOM for SKU: ${sku}`);
+                
+                // Row identification
+                const itemKey = item.key;
+                const itemId = item.id;
+                const variantId = item.variant_id;
+                
+                const rowSelectors = [
+                  `.cart-item[data-key="${itemKey}"]`,
+                  `[data-cart-item-key="${itemKey}"]`,
+                  `[data-cart-item-id="${itemId}"]`,
+                  `[data-variant-id="${variantId}"]`,
+                  `#CartItem-${index + 1}`
+                ];
+                
+                let rows = [];
+                rowSelectors.forEach(sel => {
+                  document.querySelectorAll(sel).forEach(r => {
+                    if (!rows.includes(r)) rows.push(r);
+                  });
+                });
+
+                if (rows.length > 0) {
+                  rows.forEach(row => {
+                    // Update Unit Prices
+                    row.querySelectorAll('.cart-item__price, .price-item--regular, .price:not(.price--end):not(.price--last), .product-option').forEach(el => {
+                      if (!el.closest('.cart-item__totals')) {
+                        el.textContent = formattedPrice;
+                      }
+                    });
+                    // Update Line Totals
+                    row.querySelectorAll('.cart-item__total, .cart-item__totals .price, .price--end, .cart-item__totals .price-item--regular').forEach(el => {
+                      el.textContent = formattedLineTotal;
+                    });
+                  });
+                } else {
+                  // Global fallback if no rows found
+                  document.querySelectorAll(`[data-cart-item-key="${itemKey}"] .price`).forEach(el => {
+                    el.textContent = formattedPrice;
+                  });
+                }
+              }
+            });
+
+            // 3. Update subtotals
+            updateCartTotals(syncData.prices, cart);
+
+            // 4. Use Shopify AJAX API to persist line item properties (attributes)
+            // This is required for the Cart Transformer to see the custom price
+            const updates = {};
+            let needsUpdate = false;
+
+            cart.items.forEach((item) => {
+              const sku = item.sku || item.variant_sku;
+              const newPrice = syncData.prices[sku];
+              
+              if (newPrice != null && item.properties?.sap_price != String(newPrice)) {
+                updates[item.key] = {
+                  properties: {
+                    ...(item.properties || {}),
+                    sap_price: String(newPrice)
+                  }
+                };
+                needsUpdate = true;
+              }
+            });
+
+            if (!needsUpdate) {
+              console.log("[SAP/Redis] All items already have correct persistent attributes");
+              return;
+            }
+
+            // Loop protection: Check if we have recently reloaded
+            const lastReload = sessionStorage.getItem('sap_sync_reload');
+            const now = Date.now();
+            if (lastReload && (now - parseInt(lastReload)) < 10000) {
+              console.log("[SAP/Redis] Loop detected or sync already performed recently. Skipping persistence to prevent infinite reload.");
+              return;
+            }
+
+            console.log("[SAP/Redis] Updating cart line attributes via AJAX API...");
+            
+            // Mark that we are about to reload to prevent loop
+            sessionStorage.setItem('sap_sync_reload', now.toString());
+
+            // We must use /cart/change.js for each item to properly update properties
+            for (const key in updates) {
+               console.log(`[SAP/Redis] Persisting price for item key: ${key}`);
+               try {
+                 await fetch(window.Shopify.routes.root + 'cart/change.js', {
+                   method: "POST",
+                   headers: { "Content-Type": "application/json" },
+                   body: JSON.stringify({
+                     id: key,
+                     properties: updates[key].properties
+                   })
+                 });
+               } catch (err) {
+                 console.error(`[SAP/Redis] Failed to update item ${key}:`, err);
+               }
+            }
+
+            console.log("[SAP/Redis] State persisted, reloading page to apply Cart Transformer logic");
+            window.location.reload();
+          } catch (err) {
+            console.error("[SAP/Redis] Error in sync process:", err);
+          }
+        }
+
+        function updateCartTotals(priceMap, cartData) {
+          let newSubtotal = 0;
+          cartData.items.forEach((cartItem) => {
+            const sku = cartItem.sku || cartItem.variant_sku || (cartItem.variant && cartItem.variant.sku);
+            const quantity = cartItem.quantity || 1;
+            if (sku && priceMap[sku] != null) {
+              const newPrice = Number(priceMap[sku]);
+              if (Number.isFinite(newPrice)) {
+                newSubtotal += newPrice * quantity;
+                return;
+              }
+            }
+            newSubtotal += (cartItem.price / 100) * quantity;
+          });
+
+          const subtotalInCents = Math.round(newSubtotal * 100);
+          const formattedTotal = (typeof Shopify !== 'undefined' && Shopify.formatMoney) 
+            ? Shopify.formatMoney(subtotalInCents) 
+            : "$" + newSubtotal.toFixed(2);
+          
+          console.log(`[SAP/Redis] New subtotal: ${formattedTotal}`);
+
+          const selectors = [
+            '.cart__subtotal', 
+            '.cart-subtotal', 
+            '[data-cart-subtotal]', 
+            '.cart-total', 
+            '.cart__total', 
+            '.totals-subtotal-value',
+            '.totals__subtotal-value',
+            '.totals__total-value', // Dawn theme subtotal
+            '.totals__total-value--final', // Dawn theme total
+            '.cart__subtotal-value',
+            '.cart-subtotal__price',
+            '.js-cart-subtotal',
+            '#cart-subtotal'
+          ];
+
+          let updated = false;
+          selectors.forEach(sel => {
+            document.querySelectorAll(sel).forEach(el => {
+              el.textContent = formattedTotal;
+              updated = true;
+            });
+          });
+
+          if (!updated) {
+            console.log('[SAP/Redis] Subtotal not found by exact selectors, trying fuzzy match...');
+            document.querySelectorAll('[class*="total"], [class*="subtotal"]').forEach(el => {
+              if (updated) return;
+              const text = el.textContent.trim();
+              if (el.children.length === 0 && text.match(/^[\$\£\€\¥\d]/) && text.length < 20) {
+                el.textContent = formattedTotal;
+                updated = true;
+                console.log(`[SAP/Redis] Updated subtotal via fuzzy class match: ${el.className}`);
+              }
+            });
+          }
+
+          if (!updated) {
+            console.log('[SAP/Redis] Subtotal element matching common selectors not found.');
+          }
+        }
+
+        // Run on load
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", syncCartPrices);
+        } else {
+          syncCartPrices();
+        }
+      })();
+  </script>
+{% endif %}
+
+{% if template.name == 'product' and product %}
+  <script>
+    (function() {
+      console.log("[Redis pricing] Product page script started");
+      var redisCustomerId = {{ customer.id | json }};
+      var variants = {{ product.variants | json }};
+      var skus = variants.filter(function(v) { return v.sku && v.sku.trim(); }).map(function(v) { return v.sku.trim(); });
+      console.log("[Redis pricing] Variants:", variants.length, "SKUs:", skus);
+      if (skus.length === 0) {
+        console.log("[Redis pricing] No SKUs, exiting");
+        return;
+      }
+
+      var priceMap = {};
+      var redisUrl = "/apps/sap-price-test/redis-prices?customerId=" + encodeURIComponent(redisCustomerId) + "&skus=" + skus.map(encodeURIComponent).join(",") + "&shop=" + encodeURIComponent({{ shop.permanent_domain | json }});
+      console.log("[Redis pricing] Fetching Redis prices, customerId:", redisCustomerId, "url:", redisUrl);
+
+      fetch(redisUrl)
+        .then(function(r) {
+          console.log("[Redis pricing] Response status:", r.status);
+          return r.json();
+        })
+        .then(function(data) {
+          console.log("[Redis pricing] Redis response:", data);
+          if (data.prices) priceMap = data.prices;
+          console.log("[Redis pricing] Price map:", priceMap);
+          applyRedisPrice();
+        })
+        .catch(function(err) {
+          console.error("[Redis pricing] Fetch error:", err);
+        });
+
+      function formatMoney(cents) {
+        if (typeof cents !== "number") cents = parseFloat(cents) || 0;
+        if (window.Shopify && window.Shopify.formatMoney) return window.Shopify.formatMoney(Math.round(cents * 100));
+        return "$" + (cents).toFixed(2);
+      }
+
+      function getSelectedSku() {
+        var idInput = document.querySelector('input[name="id"], select[name="id"]');
+        if (!idInput) {
+          var fallback = (variants[0] && variants[0].sku) ? variants[0].sku.trim() : null;
+          console.log("[Redis pricing] No variant input found, using first variant SKU:", fallback);
+          return fallback;
+        }
+        var id = (idInput.tagName === "SELECT") ? idInput.value : idInput.value;
+        var v = variants.find(function(v) { return String(v.id) === String(id); });
+        var sku = (v && v.sku) ? v.sku.trim() : null;
+        console.log("[Redis pricing] Selected variant id:", id, "SKU:", sku);
+        return sku;
+      }
+
+      function applyRedisPrice() {
+        var sku = getSelectedSku();
+        console.log("[Redis pricing] applyRedisPrice, selected SKU:", sku, "priceMap[sku]:", sku ? priceMap[sku] : "N/A");
+        if (!sku || priceMap[sku] == null || priceMap[sku] === undefined) {
+          console.log("[Redis pricing] No Redis price for this SKU, skipping update");
+          return;
+        }
+        var redisPrice = parseFloat(priceMap[sku]);
+        if (isNaN(redisPrice)) {
+          console.log("[Redis pricing] Invalid price, skipping");
+          return;
+        }
+        var sel = ".price-item--regular, [data-product-price], .product__price .price, .product-price, #product-price, .product-single__price, .price";
+        var els = document.querySelectorAll(sel);
+        console.log("[Redis pricing] Updating price to", redisPrice, "formatted:", formatMoney(redisPrice), "elements found:", els.length);
+        els.forEach(function(el) {
+          el.textContent = formatMoney(redisPrice);
+        });
+      }
+
+      function onVariantChange() {
+        console.log("[Redis pricing] Variant change detected");
+        applyRedisPrice();
+      }
+
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", function() {
+          console.log("[Redis pricing] DOMContentLoaded");
+          var idInput = document.querySelector('input[name="id"], select[name="id"]');
+          if (idInput) {
+            idInput.addEventListener("change", onVariantChange);
+            idInput.addEventListener("input", onVariantChange);
+            console.log("[Redis pricing] Variant input listeners attached");
+          }
+          setTimeout(applyRedisPrice, 400);
+        });
+      } else {
+        console.log("[Redis pricing] DOM already ready");
+        var idInput = document.querySelector('input[name="id"], select[name="id"]');
+        if (idInput) {
+          idInput.addEventListener("change", onVariantChange);
+          idInput.addEventListener("input", onVariantChange);
+          console.log("[Redis pricing] Variant input listeners attached");
+        }
+        setTimeout(applyRedisPrice, 400);
+      }
+    })();
+  </script>
+{% endif %}
+
+{% schema %}
+{
+  "name": "App Embed",
+  "target": "body",
+  "settings": []
+}
+{% endschema %}

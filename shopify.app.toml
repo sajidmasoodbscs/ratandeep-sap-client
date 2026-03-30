@@ -1,0 +1,28 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "e3bebe207afdaf0dad7fbf261a4fe436"
+name = "Real Time Pricing Demo 1"
+application_url = "https://sap-app-testing-new-wo9j.onrender.com"
+embedded = true
+
+[build]
+automatically_update_urls_on_dev = true
+
+[webhooks]
+api_version = "2026-04"
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "read_checkouts,read_customers,read_draft_orders,read_orders,read_product_listings,read_products,read_purchase_options,read_shipping,write_cart_transforms,write_checkouts,write_customers,write_draft_orders,write_price_rules,write_products,write_purchase_options,write_shipping"
+
+[auth]
+redirect_urls = [
+  "https://sap-app-testing-new-wo9j.onrender.com/auth/callback",
+  "https://sap-app-testing-new-wo9j.onrender.com/auth/shopify/callback",
+  "https://sap-app-testing-new-wo9j.onrender.com/api/auth/callback"
+]
+
+[app_proxy]
+url = "https://sap-app-testing-new-wo9j.onrender.com/apps/sap-price-test"
+subpath = "sap-price-test"
+prefix = "apps"

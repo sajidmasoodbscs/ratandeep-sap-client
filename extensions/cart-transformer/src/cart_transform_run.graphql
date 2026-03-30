@@ -1,0 +1,35 @@
+query Input {
+  cart {
+    lines {
+      id
+      quantity
+      attribute(key: "sap_price") {
+        value
+      }
+      cost {
+        amountPerQuantity {
+          amount
+        }
+      }
+      merchandise {
+        __typename
+        ... on ProductVariant {
+          id
+          sku
+          title
+          product {
+            id
+            title
+            handle
+          }
+        }
+      }
+    }
+  }
+  cartTransform {
+    metafield(key: "functions-configurations", namespace: "$app:sap-price-test:cart-transform-run") {
+      jsonValue
+      value
+    }
+  }
+}

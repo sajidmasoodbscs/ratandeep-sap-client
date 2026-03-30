@@ -1,0 +1,503 @@
+<div
+  class="loaderBars"
+  data-customer-id="{{ customer.id }}"
+  data-customer-addresses="{{ customer.addresses | json | escape }}"
+  data-shop="{{ shop.permanent_domain }}"
+>
+  <div class="jumpy-bars">
+    <div class="bar" id="bar1"></div>
+    <div class="bar" id="bar2"></div>
+    <div class="bar" id="bar3"></div>
+    <div class="bar" id="bar4"></div>
+    <div class="bar" id="bar5"></div>
+    <div class="bar" id="bar6"></div>
+    <div class="bar" id="bar7"></div>
+  </div>
+  <div class="sap-text">
+    <h5>Please wait while we fetch the latest prices for you. Thank you for your patience!</h5>
+  </div>
+</div>
+<style>
+  body.RunningLoader {
+    position: relative;
+    overflow: hidden;
+  }
+  .RunningLoader:after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    background: #000000c4;
+    z-index: 9;
+    overflow: hidden;
+    bottom: 0;
+  }
+  .loaderBars {
+    width: 100%;
+    display: none;
+    height: 100%;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    z-index: 999;
+  }
+  .overlay {
+    display: block !important;
+    background: #0000002b;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 999;
+  }
+  .jumpy-bars {
+    display: flex !important;
+    justify-content: space-evenly;
+    width: 4.5em;
+    height: 3.5em;
+    gap: 0.3em;
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    z-index: 99;
+  }
+
+  #bar1 {
+    animation-delay: 0.2s;
+  }
+  #bar2 {
+    animation-delay: 0.4s;
+  }
+  #bar3 {
+    animation-delay: 0.6s;
+  }
+  #bar4 {
+    animation-delay: 0.8s;
+  }
+  #bar5 {
+    animation-delay: 1s;
+  }
+  #bar6 {
+    animation-delay: 1.2s;
+  }
+  #bar7 {
+    animation-delay: 1.5s;
+  }
+  .bar {
+    width: 1em;
+    height: auto;
+    opacity: 0;
+    background-color: black;
+    border-radius: 100%;
+    animation: jumping-bars 1s linear infinite alternate-reverse;
+    display: block !important;
+  }
+  .sap-text {
+    position: absolute;
+    top: 60%;
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    max-width: 280px;
+    text-align: center;
+  }
+  .sap-text h5 {
+    color: white;
+    font-size: 18px;
+    margin-top: 40px;
+  }
+
+  @keyframes jumping-bars {
+    0% {
+      opacity: 1;
+      transform: scaleY(0);
+    }
+    50% {
+      opacity: 1;
+      transform: scaleY(0.5);
+    }
+    100% {
+      opacity: 1;
+      transform: scaleY(1.8);
+    }
+  }
+</style>
+<script>
+  (async function () {
+    const loader = document.querySelector('.loaderBars');
+    const body = document.body;
+
+    function showLoader() {
+      if (loader) loader.style.display = 'block';
+      if (body) body.classList.add('RunningLoader');
+    }
+
+    function hideLoader() {
+      if (loader) loader.style.display = '';
+      if (body) body.classList.remove('RunningLoader');
+    }
+
+    function getCustomerData() {
+      var shopFromPage = (typeof window.Shopify !== 'undefined' && window.Shopify.shop) ? window.Shopify.shop : null;
+      if (!loader) {
+        var shopFromLiquid = {{ shop.permanent_domain | json }};
+        return { customer_id: null, customer_addresses: [], shop: shopFromLiquid || shopFromPage };
+      }
+
+      const idRaw = loader.getAttribute('data-customer-id');
+      const addressesRaw = loader.getAttribute('data-customer-addresses');
+      const shopRaw = loader.getAttribute('data-shop');
+
+      let id = null;
+      if (idRaw && idRaw !== 'null' && idRaw !== 'undefined') {
+        id = Number(idRaw);
+      }
+
+      let addresses = [];
+      if (addressesRaw && addressesRaw !== 'null' && addressesRaw !== 'undefined') {
+        try {
+          addresses = JSON.parse(addressesRaw);
+        } catch (e) {
+          console.error('Failed to parse customer addresses', e);
+        }
+      }
+
+      var shop = (shopRaw && shopRaw.trim()) || {{ shop.permanent_domain | json }} || shopFromPage;
+      return {
+        customer_id: id,
+        customer_addresses: addresses,
+        shop: shop
+      };
+    }
+
+    function formatMoney(cents) {
+      if (window.Shopify && typeof window.Shopify.formatMoney === 'function') {
+        return window.Shopify.formatMoney(cents);
+      }
+      const amount = (cents / 100).toFixed(2);
+      return `$${amount}`;
+    }
+
+    function updateDisplayedPrices(priceMap, cartData) {
+      console.log('[SAP/Redis] Updating displayed prices with map:', priceMap);
+
+      cartData.items.forEach((cartItem, index) => {
+        const sku = cartItem.sku || cartItem.variant_sku || (cartItem.variant && cartItem.variant.sku);
+
+        console.log(`[SAP/Redis] Checking item ${index}: SKU=${sku}`);
+
+        if (!sku || priceMap[sku] == null) {
+          console.log(`[SAP/Redis] No price in map for SKU: ${sku}`);
+          return;
+        }
+
+        const newPrice = Number(priceMap[sku]);
+        if (!Number.isFinite(newPrice)) {
+          console.log(`[SAP/Redis] Invalid price for ${sku}: ${priceMap[sku]}`);
+          return;
+        }
+
+        const priceInCents = Math.round(newPrice * 100);
+        const itemKey = cartItem.key || cartItem.id;
+        const itemId = cartItem.id;
+        const variantId = cartItem.variant_id;
+        const formattedPrice = formatMoney(priceInCents);
+        const lineTotalCents = priceInCents * cartItem.quantity;
+        const formattedLineTotal = formatMoney(lineTotalCents);
+
+        const rowSelectors = [
+          `[data-cart-item-key="${itemKey}"]`,
+          `[data-cart-item-id="${itemId}"]`,
+          `[data-variant-id="${variantId}"]`,
+          `#CartItem-${index + 1}`,
+          `.cart-item[data-key="${itemKey}"]`
+        ];
+
+        let rows = [];
+        rowSelectors.forEach(selector => {
+          const found = document.querySelectorAll(selector);
+          found.forEach(r => { if (!rows.includes(r)) rows.push(r); });
+        });
+
+        let foundPrice = false;
+        rows.forEach(row => {
+          if (foundPrice) return;
+          const details = row.querySelector('.cart-item__details');
+          if (!details) return;
+          // Only change the FIRST .product-option inside cart-item__details,
+          // and never touch anything inside a <dl>
+          const priceEl = details.querySelector('.product-option');
+          if (priceEl && !priceEl.closest('dl')) {
+            priceEl.textContent = formattedPrice;
+            priceEl.setAttribute('data-updated-price', String(priceInCents));
+            foundPrice = true;
+            console.log(`[SAP/Redis] Updated first .product-option inside .cart-item__details for SKU ${sku}`);
+          }
+        });
+
+        const lineTotalSelectors = [
+          '.cart-item__total',
+          '.cart-item__totals .price',
+          '.price--end',
+          '.cart-item__totals .price-item--regular',
+          '.price--regular'
+        ];
+
+        let foundLineTotal = false;
+        rows.forEach(row => {
+          lineTotalSelectors.forEach(selector => {
+            row.querySelectorAll(selector).forEach(el => {
+              el.textContent = formattedLineTotal;
+              foundLineTotal = true;
+              console.log(`[SAP/Redis] Updated Line Total for SKU ${sku} in row`);
+            });
+          });
+        });
+
+        if (!foundPrice || !foundLineTotal) {
+          console.log(`[SAP/Redis] Contextual update failed for ${sku}, trying global keyed selectors...`);
+          
+          if (!foundPrice) {
+            const globalPriceSelectors = [
+              `[data-cart-item-key="${itemKey}"] .cart-item__price`,
+              `#CartItem-${index + 1} .cart-item__price`,
+              `[data-cart-item-key="${itemKey}"] .price-item--regular`
+            ];
+            outerGlobalPrice:
+            for (const sel of globalPriceSelectors) {
+              const elements = document.querySelectorAll(sel);
+              for (const el of elements) {
+                if (el.closest('.cart-item__totals') || el.closest('dl')) continue;
+                el.textContent = formattedPrice;
+                el.setAttribute('data-updated-price', String(priceInCents));
+                foundPrice = true;
+                console.log(`[SAP/Redis] Updated Unit Price for SKU ${sku} via global selector (first non-dl match only)`);
+                break outerGlobalPrice;
+              }
+            }
+          }
+
+          if (!foundLineTotal) {
+            const globalLineSelectors = [
+              `[data-cart-item-key="${itemKey}"] .cart-item__total`,
+              `#CartItem-${index + 1} .cart-item__totals .price`,
+              `[data-cart-item-key="${itemKey}"] .price--end`
+            ];
+            globalLineSelectors.forEach(sel => {
+              document.querySelectorAll(sel).forEach(el => {
+                el.textContent = formattedLineTotal;
+                foundLineTotal = true;
+              });
+            });
+          }
+        }
+
+        if (!foundPrice || !foundLineTotal) {
+          console.log(`[SAP/Redis] Price or Total not found by selector for ${sku}, trying fallback...`);
+          const bodyText = document.body.textContent;
+          if (bodyText.includes(sku)) {
+            document.querySelectorAll('.cart-item, tr, div').forEach((container) => {
+              if (foundPrice && foundLineTotal) return;
+              if (container.textContent.includes(sku)) {
+                if (!foundPrice) {
+                  const priceEl = container.querySelector('.price, .cart-item__price, .price-item--regular');
+                  if (priceEl && !priceEl.closest('dl')) {
+                    priceEl.textContent = formattedPrice;
+                    priceEl.setAttribute('data-updated-price', String(priceInCents));
+                    foundPrice = true;
+                    console.log(`[SAP/Redis] Found price for ${sku} via container fallback (first non-dl match only)`);
+                  }
+                }
+                if (!foundLineTotal) {
+                  const totalEl = container.querySelector('.cart-item__total, .cart-item__totals .price');
+                  if (totalEl) {
+                    totalEl.textContent = formattedLineTotal;
+                    foundLineTotal = true;
+                    console.log(`[SAP/Redis] Found line total for ${sku} via container fallback`);
+                  }
+                }
+              }
+            });
+          }
+        }
+      });
+    }
+
+    function updateCartTotals(priceMap, cartData) {
+      let newSubtotal = 0;
+
+      cartData.items.forEach((cartItem) => {
+        const sku = cartItem.sku || cartItem.variant_sku || (cartItem.variant && cartItem.variant.sku);
+        const quantity = cartItem.quantity || 1;
+
+        if (sku && priceMap[sku] != null) {
+          const newPrice = Number(priceMap[sku]);
+          if (Number.isFinite(newPrice)) {
+            newSubtotal += newPrice * quantity;
+            return;
+          }
+        }
+        newSubtotal += (cartItem.price / 100) * quantity;
+      });
+
+      const subtotalInCents = Math.round(newSubtotal * 100);
+      const formattedTotal = formatMoney(subtotalInCents);
+      console.log(`[SAP/Redis] New subtotal calculated: ${formattedTotal}`);
+
+      const subtotalSelectors = [
+        '.cart__subtotal',
+        '.cart-subtotal',
+        '[data-cart-subtotal]',
+        '.cart-total',
+        '.cart__total',
+        '.totals-subtotal-value',
+        '.totals__subtotal-value',
+        '.totals__total-value',
+        '.totals__total-value--final',
+        '.cart__subtotal-value',
+        '.cart-subtotal__price',
+        '.js-cart-subtotal',
+        '#cart-subtotal'
+      ];
+
+      let updated = false;
+      subtotalSelectors.forEach((selector) => {
+        const elements = document.querySelectorAll(selector);
+        if (elements.length > 0) {
+          elements.forEach((el) => {
+            el.textContent = formattedTotal;
+            updated = true;
+            console.log(`[SAP/Redis] Updated subtotal element: ${selector}`);
+          });
+        }
+      });
+
+      if (!updated) {
+        console.log('[SAP/Redis] Subtotal not found by exact selectors, trying fuzzy match...');
+        document.querySelectorAll('[class*="total"], [class*="subtotal"]').forEach(el => {
+          if (updated) return;
+          const text = el.textContent.trim();
+          if (el.children.length === 0 && text.match(/^[\$\£\€\¥\d]/) && text.length < 20) {
+            el.textContent = formattedTotal;
+            updated = true;
+            console.log(`[SAP/Redis] Updated subtotal via fuzzy class match: ${el.className}`);
+          }
+        });
+      }
+
+      if (!updated) {
+        console.log('[SAP/Redis] Subtotal element matching common selectors not found. UI integrity maintained.');
+      }
+    }
+
+    function applyPriceUpdates(priceResults, originalCartData) {
+      try {
+        const priceMap = {};
+
+        priceResults.forEach((item) => {
+          if (item && item.sku && item.price != null) {
+            priceMap[item.sku] = item.price;
+          }
+        });
+
+        if (Object.keys(priceMap).length === 0) {
+          hideLoader();
+          return;
+        }
+
+        updateDisplayedPrices(priceMap, originalCartData);
+        updateCartTotals(priceMap, originalCartData);
+        hideLoader();
+      } catch (error) {
+        console.error('Error applying price updates', error);
+        hideLoader();
+      }
+    }
+
+    async function run() {
+      try {
+        showLoader();
+
+        const cartResponse = await fetch(`${window.Shopify.routes.root}cart.js`, { credentials: 'same-origin' });
+        const cartData = await cartResponse.json();
+
+        if (!cartData.items || cartData.items.length === 0) {
+          hideLoader();
+          return;
+        }
+
+        const customerData = getCustomerData();
+        const enrichedCartData = Object.assign({}, cartData, customerData);
+        if (!enrichedCartData.shop && typeof window.Shopify !== 'undefined' && window.Shopify.shop) {
+          enrichedCartData.shop = window.Shopify.shop;
+        }
+
+        const url = 'https://sap-app-testing-new-wo9j.onrender.com/apps/sap-price-test/sapcall';
+
+        const webhookResponse = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: enrichedCartData }),
+        });
+
+        if (!webhookResponse.ok) {
+          throw new Error(`Webhook call failed with status: ${webhookResponse.status}`);
+        }
+
+        const result = await webhookResponse.json();
+
+        const redisUrl = 'https://sap-app-testing-new-wo9j.onrender.com/apps/sap-price-test/redis-call';
+
+        const redisResponse = await fetch(redisUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            skus: result.skus,
+            customerId: result.customerId,
+            webhookResponse: result.webhookResponse,
+          }),
+        });
+
+        if (!redisResponse.ok) {
+          throw new Error(`Redis call failed with status: ${redisResponse.status}`);
+        }
+
+        const redisResult = await redisResponse.json();
+
+        if (redisResult.results && redisResult.results.length > 0) {
+          applyPriceUpdates(redisResult.results, cartData);
+        } else {
+          hideLoader();
+        }
+      } catch (error) {
+        console.error('Error in cart webhook section', error);
+        hideLoader();
+      }
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', run);
+    } else {
+      run();
+    }
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Cart Webhook",
+  "target": "section",
+  "settings": []
+}
+{% endschema %}

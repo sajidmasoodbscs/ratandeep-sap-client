@@ -1,0 +1,300 @@
+<div class="loaderBars">
+  <div class="jumpy-bars">
+    <div class="bar" id="bar1"></div>
+    <div class="bar" id="bar2"></div>
+    <div class="bar" id="bar3"></div>
+    <div class="bar" id="bar4"></div>
+    <div class="bar" id="bar5"></div>
+    <div class="bar" id="bar6"></div>
+    <div class="bar" id="bar7"></div>
+  </div>
+  <div class="sap-text">
+    <h5>Please wait while we fetch the latest prices for you. Thank you for your patience!</h5>
+  </div>
+</div>
+<style>
+  body.RunningLoader {
+    position: relative;
+    overflow: hidden;
+  }
+  .RunningLoader:after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    background: #000000c4;
+    z-index: 9;
+    overflow: hidden;
+    bottom: 0;
+  }
+  .loaderBars {
+    width: 100%;
+    display: none; /* shown by JS when fetching prices */
+    height: 100%;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    z-index: 999;
+  }
+  .overlay {
+    display: block !important;
+    background: #0000002b;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 999;
+  }
+  .jumpy-bars {
+    display: flex !important;
+    justify-content: space-evenly;
+    width: 4.5em;
+    height: 3.5em;
+    gap: 0.3em;
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    z-index: 99;
+  }
+
+  #bar1 {
+    animation-delay: 0.2s;
+  }
+  #bar2 {
+    animation-delay: 0.4s;
+  }
+  #bar3 {
+    animation-delay: 0.6s;
+  }
+  #bar4 {
+    animation-delay: 0.8s;
+  }
+  #bar5 {
+    animation-delay: 1s;
+  }
+  #bar6 {
+    animation-delay: 1.2s;
+  }
+  #bar7 {
+    animation-delay: 1.5s;
+  }
+  .bar {
+    width: 1em;
+    height: auto;
+    opacity: 0;
+    background-color: black;
+    border-radius: 100%;
+    animation: jumping-bars 1s linear infinite alternate-reverse;
+    display: block !important;
+  }
+  .sap-text {
+    position: absolute;
+    top: 60%;
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    max-width: 280px;
+    text-align: center;
+  }
+  .sap-text h5 {
+    color: white;
+    font-size: 18px;
+    margin-top: 40px;
+  }
+
+  @keyframes jumping-bars {
+    0% {
+      opacity: 1;
+      transform: scaleY(0);
+    }
+    50% {
+      opacity: 1;
+      transform: scaleY(0.5);
+    }
+    100% {
+      opacity: 1;
+      transform: scaleY(1.8);
+    }
+  }
+</style>
+<script>
+  (async function() {
+    var baseUrl = 'https://sap-app-testing-new-wo9j.onrender.com/apps/sap-price-test';
+    var loaderEl = document.querySelector('.loaderBars');
+    var bodyEl = document.body;
+
+    // Show loader immediately
+    if (loaderEl) { loaderEl.style.display = 'block'; }
+    if (bodyEl) { bodyEl.classList.add('RunningLoader'); }
+
+    function hideLoader() {
+      if (loaderEl) { loaderEl.style.display = ''; }
+      if (bodyEl) { bodyEl.classList.remove('RunningLoader'); }
+    }
+
+    // Product details from Liquid (available on product page)
+    var productDetails = {
+      id: {{ product.id | json }},
+      title: {{ product.title | json }},
+      handle: {{ product.handle | json }},
+      variants: [
+        {% for variant in product.variants %}
+        {
+          id: {{ variant.id | json }},
+          sku: {{ variant.sku | json }},
+          price: {{ variant.price | json }}
+        }{% unless forloop.last %},{% endunless %}
+        {% endfor %}
+      ]
+    };
+
+    var CUSTOMER_ID = {{ customer.id | json }};
+    var skus = productDetails.variants.map(function(v) { return v.sku; }).filter(Boolean);
+    var customerAddresses = {{ customer.addresses | json }} || [];
+
+    if (skus.length === 0) {
+      hideLoader();
+      return;
+    }
+
+    try {
+      // Step 1: Call SAP webhook with product SKUs (so SAP/Redis can be updated)
+      var sapPayload = {
+        data: {
+          items: productDetails.variants.map(function(v) {
+            return { sku: v.sku || '', quantity: 1 };
+          }).filter(function(item) { return item.sku; }),
+          customer_id: {{ customer.id | default: 'null' | json }},
+          customer_addresses: customerAddresses,
+          shop: {{ shop.permanent_domain | json }}
+        }
+      };
+
+      var sapRes = await fetch('https://sap-app-testing-new-wo9j.onrender.com/apps/sap-price-test/sapcall', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(sapPayload)
+      });
+
+      if (!sapRes.ok) {
+        var sapErr = await sapRes.text();
+        console.warn('SAP webhook call failed:', sapRes.status, sapErr);
+      }
+
+      // Step 2: Fetch Redis prices
+      var redisRes = await fetch('https://sap-app-testing-new-wo9j.onrender.com/apps/sap-price-test/redis-prices', {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ customerId: CUSTOMER_ID, skus: skus, shop: {{ shop.permanent_domain | json }} })
+      });
+
+      var text = await redisRes.text();
+      var data = {};
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        console.error('Redis response was not JSON. Status:', redisRes.status);
+        hideLoader();
+        return;
+      }
+
+      if (!redisRes.ok) {
+        console.error('Redis lookup failed:', data.message || redisRes.status);
+        hideLoader();
+        return;0
+
+      }
+
+      var priceMap = data.prices || {};
+      skus.forEach(function(sku) {
+        var redisKey = CUSTOMER_ID + '_' + sku;
+        var value = priceMap[sku];
+        if (value != null) {
+          console.log('Redis match — key: "' + redisKey + '", value: "' + value + '"');
+        } else {
+          console.log('Redis no match — key: "' + redisKey + '", value: (not set)');
+        }
+      });
+
+      // Step 3: Update displayed price
+      function formatMoney(price) {
+        if (typeof price !== 'number') price = parseFloat(price) || 0;
+        if (window.Shopify && window.Shopify.formatMoney) {
+          return window.Shopify.formatMoney(Math.round(price * 100));
+        }
+        return '$' + (price).toFixed(2);
+      }
+
+      function getSelectedSku() {
+        var idInput = document.querySelector('input[name="id"], select[name="id"]');
+        if (!idInput) {
+          return (productDetails.variants[0] && productDetails.variants[0].sku) ? productDetails.variants[0].sku : null;
+        }
+        var id = idInput.value;
+        var v = productDetails.variants.find(function(v) { return String(v.id) === String(id); });
+        return (v && v.sku) ? v.sku : null;
+      }
+
+      function applyRedisPrice() {
+        var sku = getSelectedSku();
+        if (!sku || priceMap[sku] == null) return;
+        var redisPrice = parseFloat(priceMap[sku]);
+        if (isNaN(redisPrice)) return;
+
+        var formatted = formatMoney(redisPrice);
+        console.log('[SAP/Redis] Applying price ' + formatted + ' to SKU: ' + sku);
+
+        var selectors = [
+          '.price-item--regular',
+          '[data-product-price]',
+          '.product__price .price',
+          '.product-price',
+          '#product-price',
+          '.product-single__price',
+          '.price',
+          '.price--regular .price-item',
+          '.price__regular .price-item',
+          '.product--price .price'
+        ].join(', ');
+
+        document.querySelectorAll(selectors).forEach(function(el) {
+          // Update the text content with formatted money
+          el.textContent = formatted;
+        });
+      }
+
+      applyRedisPrice();
+      var idInput = document.querySelector('input[name="id"], select[name="id"]');
+      if (idInput) {
+        idInput.addEventListener('change', applyRedisPrice);
+        idInput.addEventListener('input', applyRedisPrice);
+      }
+    } catch (err) {
+      console.error('Error fetching prices:', err);
+    } finally {
+      hideLoader();
+    }
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Product template",
+  "target": "section",
+  "settings": []
+}
+{% endschema %}
