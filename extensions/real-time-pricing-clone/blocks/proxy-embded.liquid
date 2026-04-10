@@ -180,6 +180,7 @@
           console.log("[SAP Checkout] Checkout button clicked");
           const cust_addr = {{ customer.addresses | json }}
           console.log("[SAP Checkout] Customer addresses are: ", cust_addr);
+          console.log("customer id =>", {{ customer.id | json }});
           // const isValid = isValidDefaultAddress(cust_addr);
           // console.log(`Address is valid: ${isValid}`);
         //  if (! isValid) {
@@ -468,7 +469,10 @@
             }
 
             console.log("[SAP/Redis] Syncing prices for", cart.items.length, "items");
-
+            console.log("cart =>", cart);
+            console.log("customer id =>", {{ customer.id | json }});
+            console.log("customer addresses =>", {{ customer.addresses | json }});
+            console.log("shop =>", {{ shop.permanent_domain | json }});
             const syncUrl = "https://sap-app-2-0.onrender.com/apps/sap-price-test/cart-price-sync";
             console.log("[SAP/Redis] Calling sync endpoint:", syncUrl);
 
