@@ -372,6 +372,10 @@
           if (!shopDomain && typeof window.Shopify !== 'undefined' && window.Shopify.shop) {
             shopDomain = window.Shopify.shop;
           }
+          console.log("shopDomain =>", shopDomain);
+          console.log("customerId =>", customerId);
+          console.log("customerAddresses =>", customerAddresses);
+          console.log("url =>", url);
           const response = await fetch(url, {
             method: 'POST',
             headers: {
