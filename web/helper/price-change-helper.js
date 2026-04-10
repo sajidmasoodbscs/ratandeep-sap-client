@@ -380,7 +380,7 @@ async function getSapCustomerIdLocal(session, custId) {
     const metafields = customerMetaFields.metafields || [];
     console.log(`[Local getSapCustomerId] Received ${metafields.length} metafields for customer ${custId}`);
 
-    const sapMetafield = metafields.find(m => m.key === 'sap_customer_number' || m.key === 'customerid' || m.key === process.env.SOLD_TO_NUMBER);
+    const sapMetafield = metafields.find(m => m.key === 'sap_account_number' || m.key === 'customerid' || m.key === process.env.SOLD_TO_NUMBER);
 
     if (sapMetafield && sapMetafield.value) {
       console.log(`[Local getSapCustomerId] Found SAP Customer ID: ${sapMetafield.value} in metafield ${sapMetafield.key}`);
@@ -401,7 +401,7 @@ function filterMetaFields(arr) {
     process.env.CUSTOMER_ROLE,
     process.env.SOLD_TO_NUMBER,
     process.env.SHIP_TO_NUMBER,
-    'sap_customer_number',
+    'sap_account_number',
     'customerid'
   ];
 

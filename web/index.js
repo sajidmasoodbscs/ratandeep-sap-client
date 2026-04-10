@@ -130,11 +130,11 @@ app.get("/api/customers", async (req, res) => {
           (metafield) =>
             metafield.key === "sold_to_number" ||
             metafield.key === "customerid" ||
-            metafield.key === "sap_customer_number"
+            metafield.key === "sap_account_number"
         );
         if (hasSoldToNumber) {
           for (const metafield of array) {
-            if (metafield.key === "sold_to_number" || metafield.key === "customerid" || metafield.key === "sap_customer_number") {
+            if (metafield.key === "sold_to_number" || metafield.key === "customerid" || metafield.key === "sap_account_number") {
               console.log("Found SAP/Customer ID metafield:", metafield.key);
               result["sold_to_number"] = metafield.value;
               result["customer_id"] = metafield.owner_id;
@@ -212,7 +212,7 @@ function doesSoldToNumberExist(metafieldsArray) {
     (metafield) =>
       metafield.key === "sold_to_number" ||
       metafield.key === "customerid" ||
-      metafield.key === "sap_customer_number"
+      metafield.key === "sap_account_number"
   );
 }
 
@@ -263,7 +263,7 @@ app.get("/api/customersdata", async (req, res) => {
           (metafield) =>
             metafield.key === "sold_to_number" ||
             metafield.key === "customerid" ||
-            metafield.key === "sap_customer_number"
+            metafield.key === "sap_account_number"
         );
         const soldToNumber = soldToMetafield
           ? soldToMetafield.value
