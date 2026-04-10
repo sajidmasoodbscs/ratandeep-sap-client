@@ -56,7 +56,7 @@ async function getSapCustomerId(session, custId) {
     const customerMetaFields = await response.json();
     const metafields = customerMetaFields.metafields || [];
     console.log(`[Local getSapCustomerId] Received ${metafields.length} metafields for customer ${custId}`);
-    const sapMetafield = metafields.find(m => m.key === 'sap_customer_id' || m.key === 'customerid' || m.key === process.env.SOLD_TO_NUMBER);
+    const sapMetafield = metafields.find(m => m.key === 'sap_customer_number' || m.key === 'customerid' || m.key === process.env.SOLD_TO_NUMBER);
 
     if (sapMetafield && sapMetafield.value) {
       console.log(`[Local getSapCustomerId] Found SAP Customer ID: ${sapMetafield.value} in metafield ${sapMetafield.key}`);
