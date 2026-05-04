@@ -28,6 +28,35 @@ export const getSession = async (shopName) => {
   return response;
 };
 
+/**
+ * xml2js output shape varies (legacy flat envelope vs SOAP with Envelops / namespaces).
+ * Finds the SAP cart payload object that carries line_items (and usually TotalShipping).
+ */
+function extractSapCartData(parsed) {
+  if (!parsed || typeof parsed !== "object") return null;
+  const stack = [parsed];
+  const seen = new Set();
+  while (stack.length) {
+    const node = stack.pop();
+    if (!node || typeof node !== "object") continue;
+    if (seen.has(node)) continue;
+    seen.add(node);
+    const li = node.line_items;
+    if (
+      li &&
+      typeof li === "object" &&
+      li.line_item !== undefined &&
+      li.line_item !== null
+    ) {
+      return node;
+    }
+    for (const v of Object.values(node)) {
+      if (v && typeof v === "object") stack.push(v);
+    }
+  }
+  return null;
+}
+
 export const getCheckout = async (shop, cartbody) => {
   try {
     console.log("************* Price simulation is running... *************");
@@ -111,36 +140,27 @@ export const getCheckout = async (shop, cartbody) => {
             let sapProducts;
             let shippingCost;
             let lineItemsFromSap;
-            let jsonPayload = null;
             try {
               console.log("[clientApi] API response received:", apiResponse);
-              if (
-                apiResponse &&
-                apiResponse.envelope.ZAPPSECONNECT_SALES_ORD_SIMUL.CART_DATA
-                  .line_items
-              ) {
-                cartItemsFromSap =
-                  apiResponse.envelope.ZAPPSECONNECT_SALES_ORD_SIMUL.CART_DATA;
-                shippingCost =
-                  apiResponse.envelope.ZAPPSECONNECT_SALES_ORD_SIMUL.CART_DATA
-                    .TotalShipping;
+              cartItemsFromSap = extractSapCartData(apiResponse);
+
+              if (cartItemsFromSap && cartItemsFromSap.line_items) {
+                shippingCost = cartItemsFromSap.TotalShipping;
 
                 lineItemsFromSap = cartItemsFromSap.line_items.line_item;
                 if (Array.isArray(lineItemsFromSap)) {
-                  sapProducts = cartItemsFromSap.line_items.line_item;
+                  sapProducts = lineItemsFromSap;
                 } else {
                   sapProducts = [lineItemsFromSap];
                 }
 
-                if (sapProducts) {
-
+                if (sapProducts && sapProducts.length) {
                   const discountValue = await calculateDiscountedPrice(
                     lineItems,
                     sapProducts
                   );
 
                   if (discountValue > 0) {
-
                     try {
                       const discountCode = await createDiscount(session, custId, discountValue);
                       console.log("Generated Discount Code:", discountCode);
@@ -150,27 +170,24 @@ export const getCheckout = async (shop, cartbody) => {
                         console.log("error in discount code generate");
                         return "/cart";
                       }
-
                     } catch (error) {
                       console.error("Error in create discount", error.message);
                       return "/cart";
                     }
-
                   } else {
                     console.log("Discount amount 0. normal checkout");
                     return `/checkout`;
                   }
-
                 } else {
                   return "/cart";
                 }
-
               } else {
                 console.log(
-                  "Error in client api call and error is =>",
-                  jsonPayload?.envelope?.ZAPPSECONNECT_SALES_ORD_SIMUL
+                  "Error in client api call: no CART_DATA / line_items in parsed response",
+                  apiResponse && typeof apiResponse === "object"
+                    ? Object.keys(apiResponse)
+                    : apiResponse
                 );
-
                 return "/cart";
               }
             } catch (error) {
