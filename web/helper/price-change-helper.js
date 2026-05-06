@@ -187,6 +187,12 @@ export const getCheckout = async (shop, cartbody) => {
                     };
                   });
                   console.log("[getCheckout] CHECKOUT vs SAP price comparison per product:", checkoutVsSap);
+                  try {
+                    const applyResult = await applySapPricesToCart(session, cartbody, sapProducts);
+                    console.log("[getCheckout] Cart Transform sap_price apply result:", applyResult);
+                  } catch (applyError) {
+                    console.error("[getCheckout] Failed to apply sap_price attributes:", applyError.message);
+                  }
                   return `/checkout`;
                 } else {
                   return "/cart";
@@ -301,6 +307,130 @@ function buildProductPriceUpdateCollectionXml(payLoad) {
   return xml;
 }
 
+async function storefrontGraphqlForCart(shop, query, variables) {
+  const token = process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN;
+  if (!token) {
+    throw new Error("SHOPIFY_STOREFRONT_ACCESS_TOKEN not set");
+  }
+  const shopDomain = shop.replace(/^https?:\/\//, "").split("/")[0];
+  const url = `https://${shopDomain}/api/2024-01/graphql.json`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Shopify-Storefront-Access-Token": token,
+    },
+    body: JSON.stringify({ query, variables }),
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    throw new Error(`Storefront API ${res.status}: ${text}`);
+  }
+  const json = JSON.parse(text);
+  if (json.errors?.length) {
+    throw new Error(json.errors.map((e) => e.message).join("; "));
+  }
+  return json.data;
+}
+
+function resolveCartIdFromBody(cartbody) {
+  const data = cartbody?.data || {};
+  return (
+    data.cartId ||
+    data.cart_id ||
+    data.cartToken ||
+    data.cart_token ||
+    data.token ||
+    null
+  );
+}
+
+async function applySapPricesToCart(session, cartbody, sapProducts) {
+  const cartIdRaw = resolveCartIdFromBody(cartbody);
+  if (!cartIdRaw) {
+    console.log("[CartTransform] No cart id/token found in request body. Cannot write sap_price attributes.");
+    return { updated: 0, reason: "missing_cart_id" };
+  }
+
+  const cartId = String(cartIdRaw).startsWith("gid://")
+    ? String(cartIdRaw)
+    : `gid://shopify/Cart/${String(cartIdRaw)}`;
+
+  const CART_QUERY = `
+    query CartById($id: ID!) {
+      cart(id: $id) {
+        id
+        lines(first: 250) {
+          nodes {
+            id
+            merchandise {
+              __typename
+              ... on ProductVariant {
+                sku
+              }
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  const CART_LINES_UPDATE_MUTATION = `
+    mutation CartLinesUpdate($cartId: ID!, $lines: [CartLineUpdateInput!]!) {
+      cartLinesUpdate(cartId: $cartId, lines: $lines) {
+        cart { id }
+        userErrors { field message }
+      }
+    }
+  `;
+
+  const data = await storefrontGraphqlForCart(session.shop, CART_QUERY, { id: cartId });
+  const lines = data?.cart?.lines?.nodes || [];
+  if (!lines.length) {
+    console.log("[CartTransform] Cart not found or no lines for cartId:", cartId);
+    return { updated: 0, reason: "cart_empty_or_not_found" };
+  }
+
+  const sapBySku = new Map();
+  for (const item of sapProducts || []) {
+    const sku = String(item?.sku || "").trim();
+    const qty = Number(item?.quantity || 0);
+    const total = Number(item?.totalitemprice || 0);
+    if (!sku || !Number.isFinite(total) || qty <= 0) continue;
+    sapBySku.set(sku, total / qty);
+  }
+
+  const updateLines = lines
+    .map((line) => {
+      const sku = String(line?.merchandise?.sku || "").trim();
+      const sapUnitPrice = sapBySku.get(sku);
+      if (!Number.isFinite(sapUnitPrice)) return null;
+      return {
+        id: line.id,
+        attributes: [{ key: "sap_price", value: String(sapUnitPrice) }],
+      };
+    })
+    .filter(Boolean);
+
+  if (!updateLines.length) {
+    console.log("[CartTransform] No matching cart lines by SKU to set sap_price.");
+    return { updated: 0, reason: "no_matching_lines" };
+  }
+
+  const updateData = await storefrontGraphqlForCart(
+    session.shop,
+    CART_LINES_UPDATE_MUTATION,
+    { cartId, lines: updateLines }
+  );
+  const errs = updateData?.cartLinesUpdate?.userErrors || [];
+  if (errs.length) {
+    console.error("[CartTransform] cartLinesUpdate userErrors:", errs);
+    return { updated: 0, reason: "user_errors", errors: errs };
+  }
+  console.log("[CartTransform] sap_price attributes updated on lines:", updateLines.length);
+  return { updated: updateLines.length, reason: "ok" };
+}
+
 async function clientApi(productPriceUpdateCollection, shop) {
 
   let payLoad = {
@@ -331,6 +461,7 @@ async function clientApi(productPriceUpdateCollection, shop) {
       console.log("[clientApi] SAP API response status:", response.status);
       const responseText = await response.text();
       console.log("[clientApi] Raw XML Response from SAP (first 500 chars):", responseText.slice(0, 500));
+      console.log("[clientApi] Raw XML Response from SAP (full):", responseText);
 
       const responseData = await convertXmlToJson(responseText);
       console.log("[clientApi] Parsed JSON Response from SAP:", JSON.stringify(responseData, null, 2));
