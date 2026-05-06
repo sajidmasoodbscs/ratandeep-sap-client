@@ -34,6 +34,9 @@ export const WelcomeCard = () => {
   const [redisPassword, setRedisPassword] = useState('');
   const [redisUsername, setRedisUsername] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [cartTransformGuid, setCartTransformGuid] = useState('');
+  const [cartTransformLoading, setCartTransformLoading] = useState(false);
+  const [cartTransformMessage, setCartTransformMessage] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -112,6 +115,37 @@ export const WelcomeCard = () => {
       setRedisSaveMessage({ success: false, text: err.message || 'Failed to save settings.' });
     } finally {
       setRedisSaving(false);
+    }
+  };
+
+  const handleActivateCartTransformer = async () => {
+    setCartTransformLoading(true);
+    setCartTransformMessage(null);
+    try {
+      const response = await fetch(`/api/carttransformer?shop=${shop}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ guid: cartTransformGuid || null }),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setCartTransformMessage({
+          success: true,
+          text: 'Cart transformer call completed successfully.',
+        });
+      } else {
+        setCartTransformMessage({
+          success: false,
+          text: data?.error || data?.message || 'Failed to call cart transformer.',
+        });
+      }
+    } catch (err) {
+      setCartTransformMessage({
+        success: false,
+        text: err.message || 'Failed to call cart transformer.',
+      });
+    } finally {
+      setCartTransformLoading(false);
     }
   };
 
@@ -309,7 +343,38 @@ export const WelcomeCard = () => {
                   <p>{redisSaveMessage.text}</p>
                 </Banner>
               )}
+
+              <Divider />
+
+              <TextField
+                label="Cart Transformer GUID"
+                value={cartTransformGuid}
+                onChange={setCartTransformGuid}
+                placeholder="Enter GUID / function handle"
+                autoComplete="off"
+              />
+
+              <InlineStack align="start">
+                <Button
+                  variant="secondary"
+                  onClick={handleActivateCartTransformer}
+                  loading={cartTransformLoading}
+                  disabled={cartTransformLoading}
+                >
+                  Hello World
+                </Button>
+              </InlineStack>
+
+              {cartTransformMessage && (
+                <Banner
+                  tone={cartTransformMessage.success ? 'success' : 'critical'}
+                  onDismiss={() => setCartTransformMessage(null)}
+                >
+                  <p>{cartTransformMessage.text}</p>
+                </Banner>
+              )}
             </BlockStack>
+
           </Card>
         </Layout.AnnotatedSection>
       </Layout>
