@@ -52,7 +52,7 @@ export const WelcomeCard = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ guid: functionId || null }),
       });
-
+console.log("[UI] /api/carttransformer/activate called");
       const result = await response.json();
 
       if (!response.ok) {
