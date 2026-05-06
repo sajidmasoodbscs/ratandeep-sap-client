@@ -21,7 +21,10 @@ const DEMO = {
 };
 
 export const WelcomeCard = () => {
-  const shop = new URLSearchParams(window.location.search).get("shop");
+  const shop =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("shop")
+      : "";
 
   const [loading, setLoading] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
@@ -35,8 +38,46 @@ export const WelcomeCard = () => {
   const [redisUsername, setRedisUsername] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [cartTransformGuid, setCartTransformGuid] = useState('');
+  const [functionId, setFunctionId] = useState('');
   const [cartTransformLoading, setCartTransformLoading] = useState(false);
   const [cartTransformMessage, setCartTransformMessage] = useState(null);
+
+  const handleActivateCartTransformers = async () => {
+    setCartTransformLoading(true);
+    setCartTransformMessage(null);
+    try {
+      console.log("[UI] Calling /api/carttransformer with guid:", functionId || null);
+      const response = await fetch("/api/carttransformer/activate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ guid: functionId || null }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result?.error || result?.message || "Failed to activate Cart Transformer.");
+      }
+
+      const userErrors = result?.cartTransformCreate?.userErrors || result?.userErrors || [];
+      if (userErrors.length > 0) {
+        throw new Error(userErrors[0].message);
+      }
+
+      const newTransformId = result?.cartTransformCreate?.cartTransform?.id || result?.cartTransform?.id;
+      setCartTransformMessage({
+        success: true,
+        text: `Cart Transformer activated! ID: ${newTransformId || "Success"}`,
+      });
+    } catch (error) {
+      setCartTransformMessage({
+        success: false,
+        text: error.message || "Failed to activate Cart Transformer.",
+      });
+    } finally {
+      setCartTransformLoading(false);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -115,37 +156,6 @@ export const WelcomeCard = () => {
       setRedisSaveMessage({ success: false, text: err.message || 'Failed to save settings.' });
     } finally {
       setRedisSaving(false);
-    }
-  };
-
-  const handleActivateCartTransformer = async () => {
-    setCartTransformLoading(true);
-    setCartTransformMessage(null);
-    try {
-      const response = await fetch(`/api/carttransformer?shop=${shop}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ guid: cartTransformGuid || null }),
-      });
-      const data = await response.json();
-      if (response.ok) {
-        setCartTransformMessage({
-          success: true,
-          text: 'Cart transformer call completed successfully.',
-        });
-      } else {
-        setCartTransformMessage({
-          success: false,
-          text: data?.error || data?.message || 'Failed to call cart transformer.',
-        });
-      }
-    } catch (err) {
-      setCartTransformMessage({
-        success: false,
-        text: err.message || 'Failed to call cart transformer.',
-      });
-    } finally {
-      setCartTransformLoading(false);
     }
   };
 
@@ -354,17 +364,22 @@ export const WelcomeCard = () => {
                 autoComplete="off"
               />
 
-              <InlineStack align="start">
-                <Button
-                  variant="secondary"
-                  onClick={handleActivateCartTransformer}
-                  loading={cartTransformLoading}
-                  disabled={cartTransformLoading}
-                >
-                  Hello World
-                </Button>
-              </InlineStack>
-
+              <input
+            type="text"
+            placeholder="e.g., imp-pricing-discount-function"
+            value={functionId}
+            onChange={(e) => setFunctionId(e.target.value)}
+            style={{ padding: "8px", borderRadius: "6px", border: "1px solid #c9cccf" }}
+          />
+          <button
+            onClick={handleActivateCartTransformers}
+            disabled={cartTransformLoading || !functionId}
+            style={{ padding: "8px 12px", borderRadius: "6px", border: "1px solid #c9cccf", cursor: "pointer" }}
+          >
+            {cartTransformLoading
+              ? "Activating..."
+              : "Activate Discount Pricing"}
+          </button>
               {cartTransformMessage && (
                 <Banner
                   tone={cartTransformMessage.success ? 'success' : 'critical'}

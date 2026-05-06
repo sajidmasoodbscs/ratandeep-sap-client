@@ -2,7 +2,7 @@
 
 client_id = "7615f25345e0e5c9287a3838913c0b22"
 name = "sap-app-test-2.0"
-application_url = "https://sap-app-2-0.onrender.com"
+application_url = "https://then-programmes-dimensional-slow.trycloudflare.com"
 embedded = true
 
 [build]
@@ -17,9 +17,9 @@ scopes = "read_checkouts,read_customers,read_draft_orders,read_orders,read_produ
 
 [auth]
 redirect_urls = [
-  "https://sap-app-2-0.onrender.com/auth/callback",
-  "https://sap-app-2-0.onrender.com/auth/shopify/callback",
-  "https://sap-app-2-0.onrender.com/api/auth/callback"
+  "https://then-programmes-dimensional-slow.trycloudflare.com/auth/callback",
+  "https://then-programmes-dimensional-slow.trycloudflare.com/auth/shopify/callback",
+  "https://then-programmes-dimensional-slow.trycloudflare.com/api/auth/callback"
 ]
 
 [app_proxy]

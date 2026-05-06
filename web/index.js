@@ -9,6 +9,7 @@ import { encrypt } from './middleware/Encryption.js';
 import verifyProxy from './middleware/verifyProxy.js';
 import { PriceChangeDB } from './price-change-db.js';
 import proxyRouter from './routes/app_proxy/index.js';
+import carttransformerRouter from './routes/carttransformer.js';
 import shopify from './shopify.js';
 import webhookHandlers from './webhook-handlers.js';
 import cors from 'cors';
@@ -215,7 +216,7 @@ function doesSoldToNumberExist(metafieldsArray) {
       metafield.key === "sap_account_number"
   );
 }
-
+app.use("/api/carttransformer", shopify.validateAuthenticatedSession(), carttransformerRouter);
 app.get("/api/customersdata", async (req, res) => {
   console.log("Customer request received");
 
@@ -405,6 +406,7 @@ app.put("/api/redis-settings", async (req, res) => {
 
 
 app.post("/api/carttransformer", async (req, res) => {
+  console.log("[carttransformer] API route hit. Body:", req.body);
   const session = res.locals.shopify?.session;
   const shop = session?.shop;
   const adminAccessToken = session?.accessToken;
