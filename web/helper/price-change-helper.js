@@ -155,29 +155,17 @@ export const getCheckout = async (shop, cartbody) => {
                 }
 
                 if (sapProducts && sapProducts.length) {
-                  const discountValue = await calculateDiscountedPrice(
-                    lineItems,
-                    sapProducts
+                  // Cart pricing is applied by Cart Transform from cart line sap_price attributes.
+                  // Here we only validate SAP pricing response and continue checkout flow.
+                  console.log(
+                    "[getCheckout] SAP line items received. Proceeding with Cart Transform pricing.",
+                    sapProducts.map((item) => ({
+                      sku: item.sku,
+                      quantity: item.quantity,
+                      totalitemprice: item.totalitemprice,
+                    }))
                   );
-
-                  if (discountValue > 0) {
-                    try {
-                      const discountCode = await createDiscount(session, custId, discountValue);
-                      console.log("Generated Discount Code:", discountCode);
-                      if (discountCode) {
-                        return `/checkout?discount=${discountCode}`;
-                      } else {
-                        console.log("error in discount code generate");
-                        return "/cart";
-                      }
-                    } catch (error) {
-                      console.error("Error in create discount", error.message);
-                      return "/cart";
-                    }
-                  } else {
-                    console.log("Discount amount 0. normal checkout");
-                    return `/checkout`;
-                  }
+                  return `/checkout`;
                 } else {
                   return "/cart";
                 }
