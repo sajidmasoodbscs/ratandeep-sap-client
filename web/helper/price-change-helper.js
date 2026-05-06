@@ -157,6 +157,7 @@ export const getCheckout = async (shop, cartbody) => {
                 if (sapProducts && sapProducts.length) {
                   // Cart pricing is applied by Cart Transform from cart line sap_price attributes.
                   // Here we only validate SAP pricing response and continue checkout flow.
+                  console.log("[getCheckout] NEW CART TRANSFORM FLOW ACTIVE: discount-code path is bypassed.");
                   console.log(
                     "[getCheckout] SAP line items received. Proceeding with Cart Transform pricing.",
                     sapProducts.map((item) => ({
@@ -165,6 +166,27 @@ export const getCheckout = async (shop, cartbody) => {
                       totalitemprice: item.totalitemprice,
                     }))
                   );
+                  const sapProductsBySku = new Map(
+                    sapProducts.map((item) => [String(item.sku || "").trim(), item])
+                  );
+                  const checkoutVsSap = lineItems.map((cartItem) => {
+                    const sku = String(cartItem.sku || "").trim();
+                    const sapItem = sapProductsBySku.get(sku);
+                    const cartQty = Number(cartItem.quantity || 0);
+                    const cartUnitPrice = Number(cartItem.price || 0) / 100;
+                    const sapQty = Number(sapItem?.quantity || 0);
+                    const sapTotal = Number(sapItem?.totalitemprice || 0);
+                    const sapUnitPrice = sapQty > 0 ? sapTotal / sapQty : null;
+                    return {
+                      sku,
+                      checkout_quantity: cartQty,
+                      checkout_unit_price: cartUnitPrice,
+                      sap_quantity: sapQty || null,
+                      sap_totalitemprice: Number.isFinite(sapTotal) ? sapTotal : null,
+                      sap_unit_price: Number.isFinite(sapUnitPrice) ? sapUnitPrice : null,
+                    };
+                  });
+                  console.log("[getCheckout] CHECKOUT vs SAP price comparison per product:", checkoutVsSap);
                   return `/checkout`;
                 } else {
                   return "/cart";
