@@ -1,8 +1,11 @@
-query CartTransformRunInput {
+query Input {
   cart {
     lines {
       id
       quantity
+      attribute(key: "sap_price") {
+        value
+      }
     }
   }
 }
