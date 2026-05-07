@@ -566,7 +566,7 @@ async function applySapPricesToCart(session, cartbody, sapProducts, totalTaxAmou
     })
     .filter(Boolean);
 
-  const taxVariantGid = `gid://shopify/Product/${TAX_VARIANT_ID}`;
+  const taxVariantGid = `gid://shopify/ProductVariant/${TAX_VARIANT_ID}`;
   const taxAmount = Number(totalTaxAmountFromSap || 0);
   const existingTaxLine = lines.find(
     (line) => String(line?.merchandise?.id || "") === taxVariantGid
