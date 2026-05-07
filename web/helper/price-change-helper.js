@@ -417,8 +417,9 @@ function buildProductPriceUpdateCollectionXml(payLoad) {
   return xml;
 }
 
-async function storefrontGraphqlForCart(shop, query, variables) {
+async function storefrontGraphqlForCart(shop, query, variables, tokenOverride = null) {
   const token =
+    tokenOverride ||
     process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN ||
     process.env.STOREFRONT_ACCESS_TOKEN;
   if (!token) {
@@ -496,7 +497,26 @@ async function applySapPricesToCart(session, cartbody, sapProducts) {
     }
   `;
 
-  const data = await storefrontGraphqlForCart(session.shop, CART_QUERY, { id: cartId });
+  const callStorefrontWithFallback = async (query, variables) => {
+    try {
+      return await storefrontGraphqlForCart(session.shop, query, variables);
+    } catch (err) {
+      const msg = String(err?.message || "");
+      if (!msg.includes("SHOPIFY_STOREFRONT_ACCESS_TOKEN")) {
+        throw err;
+      }
+      console.log("[CartTransform] Storefront token missing from env. Trying fallback token creation.");
+      const fallbackToken = await ensureStorefrontTokenForShop(
+        session.shop,
+        session.adminAccessToken || session.accessToken
+      );
+      const preview = `${String(fallbackToken).slice(0, 6)}...${String(fallbackToken).slice(-4)}`;
+      console.log("[CartTransform] Fallback storefront token created:", preview);
+      return await storefrontGraphqlForCart(session.shop, query, variables, fallbackToken);
+    }
+  };
+
+  const data = await callStorefrontWithFallback(CART_QUERY, { id: cartId });
   const lines = data?.cart?.lines?.nodes || [];
   if (!lines.length) {
     console.log("[CartTransform] Cart not found or no lines for cartId:", cartId);
@@ -529,8 +549,7 @@ async function applySapPricesToCart(session, cartbody, sapProducts) {
     return { updated: 0, reason: "no_matching_lines" };
   }
 
-  const updateData = await storefrontGraphqlForCart(
-    session.shop,
+  const updateData = await callStorefrontWithFallback(
     CART_LINES_UPDATE_MUTATION,
     { cartId, lines: updateLines }
   );
