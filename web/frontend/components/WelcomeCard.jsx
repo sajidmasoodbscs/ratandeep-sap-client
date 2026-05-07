@@ -334,7 +334,7 @@ export const WelcomeCard = () => {
                 </Banner>
               )}
 
-              <InlineStack align="start">
+              {/* <InlineStack align="start">
                 <Button
                   variant="secondary"
                   onClick={handleCreateTaxProduct}
@@ -343,7 +343,7 @@ export const WelcomeCard = () => {
                 >
                   Create Tax Product
                 </Button>
-              </InlineStack>
+              </InlineStack> */}
 
               {taxProductMessage && (
                 <Banner
