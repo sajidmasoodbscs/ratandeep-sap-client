@@ -400,7 +400,7 @@ export const WelcomeCard = () => {
               )}
 
               <InlineStack align="start" gap="300">
-                <Button
+                {/* <Button
                   variant="secondary"
                   onClick={handleListAllProducts}
                   loading={listProductsLoading}
@@ -415,7 +415,7 @@ export const WelcomeCard = () => {
                   disabled={updateTaxTitleLoading}
                 >
                   Update Tax Product Name
-                </Button>
+                </Button> */}
 
                 {/* <Button
                 <Button
