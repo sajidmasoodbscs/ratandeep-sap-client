@@ -9,6 +9,7 @@ const customerRoleFiled = process.env.CUSTOMER_ROLE;
 const soldToNumberField = process.env.SOLD_TO_NUMBER;
 const custRoleShipTo = process.env.CUSTOMER_ROLE_SHIP_TO;
 const custRoleSoldTo = process.env.CUSTOMER_ROLE_SOLD_TO;
+const TAX_VARIANT_ID = "10522189955374";
 
 export const getSession = async (shopName) => {
   let response = {
@@ -231,6 +232,7 @@ export const getCheckout = async (shop, cartbody) => {
             let cartItemsFromSap;
             let sapProducts;
             let shippingCost;
+            let totalTaxAmountFromSap;
             let lineItemsFromSap;
             try {
               console.log("[clientApi] API response received:", apiResponse);
@@ -238,6 +240,7 @@ export const getCheckout = async (shop, cartbody) => {
 
               if (cartItemsFromSap && cartItemsFromSap.line_items) {
                 shippingCost = cartItemsFromSap.TotalShipping;
+                totalTaxAmountFromSap = Number(cartItemsFromSap.TotalTaxAmount || 0);
 
                 lineItemsFromSap = cartItemsFromSap.line_items.line_item;
                 if (Array.isArray(lineItemsFromSap)) {
@@ -280,7 +283,12 @@ export const getCheckout = async (shop, cartbody) => {
                   });
                   console.log("[getCheckout] CHECKOUT vs SAP price comparison per product:", checkoutVsSap);
                   try {
-                    const applyResult = await applySapPricesToCart(session, cartbody, sapProducts);
+                    const applyResult = await applySapPricesToCart(
+                      session,
+                      cartbody,
+                      sapProducts,
+                      totalTaxAmountFromSap
+                    );
                     console.log("[getCheckout] Cart Transform sap_price apply result:", applyResult);
                     if (!applyResult || applyResult.updated <= 0) {
                       console.error(
@@ -458,7 +466,7 @@ function resolveCartIdFromBody(cartbody) {
   );
 }
 
-async function applySapPricesToCart(session, cartbody, sapProducts) {
+async function applySapPricesToCart(session, cartbody, sapProducts, totalTaxAmountFromSap = 0) {
   const cartIdRaw = resolveCartIdFromBody(cartbody);
   if (!cartIdRaw) {
     console.log("[CartTransform] No cart id/token found in request body. Cannot write sap_price attributes.");
@@ -476,9 +484,14 @@ async function applySapPricesToCart(session, cartbody, sapProducts) {
         lines(first: 250) {
           nodes {
             id
+            attributes {
+              key
+              value
+            }
             merchandise {
               __typename
               ... on ProductVariant {
+                id
                 sku
               }
             }
@@ -491,6 +504,15 @@ async function applySapPricesToCart(session, cartbody, sapProducts) {
   const CART_LINES_UPDATE_MUTATION = `
     mutation CartLinesUpdate($cartId: ID!, $lines: [CartLineUpdateInput!]!) {
       cartLinesUpdate(cartId: $cartId, lines: $lines) {
+        cart { id }
+        userErrors { field message }
+      }
+    }
+  `;
+
+  const CART_LINES_ADD_MUTATION = `
+    mutation CartLinesAdd($cartId: ID!, $lines: [CartLineInput!]!) {
+      cartLinesAdd(cartId: $cartId, lines: $lines) {
         cart { id }
         userErrors { field message }
       }
@@ -543,6 +565,41 @@ async function applySapPricesToCart(session, cartbody, sapProducts) {
       };
     })
     .filter(Boolean);
+
+  const taxVariantGid = `gid://shopify/ProductVariant/${TAX_VARIANT_ID}`;
+  const taxAmount = Number(totalTaxAmountFromSap || 0);
+  const existingTaxLine = lines.find(
+    (line) => String(line?.merchandise?.id || "") === taxVariantGid
+  );
+
+  if (existingTaxLine) {
+    const currentTaxSapPrice = (existingTaxLine.attributes || []).find(
+      (attr) => attr.key === "sap_price"
+    )?.value;
+    if (currentTaxSapPrice !== String(taxAmount)) {
+      updateLines.push({
+        id: existingTaxLine.id,
+        attributes: [{ key: "sap_price", value: String(taxAmount) }],
+      });
+    }
+  } else {
+    const addData = await callStorefrontWithFallback(CART_LINES_ADD_MUTATION, {
+      cartId,
+      lines: [
+        {
+          merchandiseId: taxVariantGid,
+          quantity: 1,
+          attributes: [{ key: "sap_price", value: String(taxAmount) }],
+        },
+      ],
+    });
+    const addErrs = addData?.cartLinesAdd?.userErrors || [];
+    if (addErrs.length) {
+      console.error("[CartTransform] cartLinesAdd userErrors for tax line:", addErrs);
+      return { updated: 0, reason: "tax_line_add_user_errors", errors: addErrs };
+    }
+    console.log("[CartTransform] Tax line added to cart with sap_price:", taxAmount);
+  }
 
   if (!updateLines.length) {
     console.log("[CartTransform] No matching cart lines by SKU to set sap_price.");
