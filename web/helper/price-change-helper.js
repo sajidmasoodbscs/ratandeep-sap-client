@@ -9,7 +9,7 @@ const customerRoleFiled = process.env.CUSTOMER_ROLE;
 const soldToNumberField = process.env.SOLD_TO_NUMBER;
 const custRoleShipTo = process.env.CUSTOMER_ROLE_SHIP_TO;
 const custRoleSoldTo = process.env.CUSTOMER_ROLE_SOLD_TO;
-const TAX_VARIANT_ID = process.env.TAX_VARIANT_ID || "10522189955374";
+const TAX_PRODUCT_ID = process.env.TAX_PRODUCT_ID || "10522189955374";
 
 export const getSession = async (shopName) => {
   let response = {
@@ -519,6 +519,20 @@ async function applySapPricesToCart(session, cartbody, sapProducts, totalTaxAmou
     }
   `;
 
+  const PRODUCT_VARIANT_LOOKUP_QUERY = `
+    query ProductVariantLookup($id: ID!) {
+      product(id: $id) {
+        id
+        title
+        variants(first: 1) {
+          nodes {
+            id
+          }
+        }
+      }
+    }
+  `;
+
   const callStorefrontWithFallback = async (query, variables) => {
     try {
       return await storefrontGraphqlForCart(session.shop, query, variables);
@@ -566,7 +580,16 @@ async function applySapPricesToCart(session, cartbody, sapProducts, totalTaxAmou
     })
     .filter(Boolean);
 
-  const taxVariantGid = `gid://shopify/ProductVariant/${TAX_VARIANT_ID}`;
+  const taxProductGid = `gid://shopify/Product/${TAX_PRODUCT_ID}`;
+  const variantLookup = await callStorefrontWithFallback(PRODUCT_VARIANT_LOOKUP_QUERY, {
+    id: taxProductGid,
+  });
+  const taxVariantGid = variantLookup?.product?.variants?.nodes?.[0]?.id || null;
+  if (!taxVariantGid) {
+    console.error("[CartTransform] Could not resolve variant for tax product:", taxProductGid);
+    return { updated: 0, reason: "tax_variant_not_found" };
+  }
+  console.log("[CartTransform] Resolved tax variant id:", taxVariantGid);
   const taxAmount = Number(totalTaxAmountFromSap || 0);
   const existingTaxLine = lines.find(
     (line) => String(line?.merchandise?.id || "") === taxVariantGid
