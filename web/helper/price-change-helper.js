@@ -28,6 +28,98 @@ export const getSession = async (shopName) => {
   return response;
 };
 
+
+async function ensureStorefrontTokenForShop(shop, adminAccessToken) {
+  try {
+    console.log("[StorefrontToken] ensureStorefrontTokenForShop called for:", shop);
+    if (!shop) {
+      throw new Error("shop is required");
+    }
+    if (!adminAccessToken) {
+      throw new Error("adminAccessToken is missing");
+    }
+
+    // 1. Check DB if we already have one for this shop (if DB helpers exist)
+    if (typeof PriceChangeDB.getStorefrontToken === "function") {
+      const existing = await PriceChangeDB.getStorefrontToken(shop);
+      if (existing) {
+        const preview = `${String(existing).slice(0, 6)}...${String(existing).slice(-4)}`;
+        console.log("[StorefrontToken] Reusing existing token from DB:", preview);
+        return existing;
+      }
+      console.log("[StorefrontToken] No existing token in DB, creating a new one.");
+    } else {
+      console.log("[StorefrontToken] PriceChangeDB.getStorefrontToken not implemented, skipping DB lookup.");
+    }
+
+    // 2. Otherwise, create one via Admin GraphQL
+    const adminGraphqlUrl = `https://${shop}/admin/api/2024-10/graphql.json`;
+    const query = `
+      mutation storefrontAccessTokenCreate($title: String!) {
+        storefrontAccessTokenCreate(input: {title: $title}) {
+          storefrontAccessToken {
+            accessToken
+            title
+          }
+          userErrors {
+            field
+            message
+          }
+        }
+      }
+    `;
+
+    const res = await fetch(adminGraphqlUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Shopify-Access-Token": adminAccessToken,
+      },
+      body: JSON.stringify({
+        query,
+        variables: { title: `sap-pricing-${shop}` },
+      }),
+    });
+
+    const raw = await res.text();
+    console.log("[StorefrontToken] Admin GraphQL status:", res.status);
+    console.log("[StorefrontToken] Admin GraphQL raw response:", raw);
+    const json = JSON.parse(raw);
+
+    if (json.errors?.length) {
+      throw new Error(`GraphQL errors: ${JSON.stringify(json.errors)}`);
+    }
+
+    const createResult = json.data?.storefrontAccessTokenCreate;
+    if (!createResult || createResult.userErrors?.length) {
+      throw new Error(
+        "Failed to create storefront token: " +
+          JSON.stringify(createResult?.userErrors || json, null, 2)
+      );
+    }
+
+    const token = createResult.storefrontAccessToken?.accessToken;
+    if (!token) {
+      throw new Error("storefrontAccessTokenCreate returned no accessToken");
+    }
+
+    const preview = `${String(token).slice(0, 6)}...${String(token).slice(-4)}`;
+    console.log("[StorefrontToken] Token created successfully:", preview);
+
+    // 3. Save in DB for reuse if helper exists
+    if (typeof PriceChangeDB.saveStorefrontToken === "function") {
+      await PriceChangeDB.saveStorefrontToken(shop, token);
+      console.log("[StorefrontToken] Token saved in DB for shop:", shop);
+    } else {
+      console.log("[StorefrontToken] PriceChangeDB.saveStorefrontToken not implemented, skipping DB save.");
+    }
+    return token;
+  } catch (error) {
+    console.error("[StorefrontToken] ensureStorefrontTokenForShop failed:", error.message);
+    throw error;
+  }
+}
+
 /**
  * xml2js output shape varies (legacy flat envelope vs SOAP with Envelops / namespaces).
  * Finds the SAP cart payload object that carries line_items (and usually TotalShipping).
@@ -190,8 +282,26 @@ export const getCheckout = async (shop, cartbody) => {
                   try {
                     const applyResult = await applySapPricesToCart(session, cartbody, sapProducts);
                     console.log("[getCheckout] Cart Transform sap_price apply result:", applyResult);
+                    if (!applyResult || applyResult.updated <= 0) {
+                      console.error(
+                        "[getCheckout] sap_price not written to cart lines, stopping checkout redirect.",
+                        applyResult
+                      );
+                      return "/cart";
+                    }
                   } catch (applyError) {
                     console.error("[getCheckout] Failed to apply sap_price attributes:", applyError.message);
+                    try {
+                      const fallbackToken = await ensureStorefrontTokenForShop(
+                        shop,
+                        session.adminAccessToken || session.accessToken
+                      );
+                      const preview = `${String(fallbackToken).slice(0, 6)}...${String(fallbackToken).slice(-4)}`;
+                      console.log("[getCheckout] Storefront token available after fallback creation:", preview);
+                    } catch (tokenError) {
+                      console.error("[getCheckout] Storefront token fallback creation failed:", tokenError.message);
+                    }
+                    return "/cart";
                   }
                   return `/checkout`;
                 } else {
@@ -308,9 +418,11 @@ function buildProductPriceUpdateCollectionXml(payLoad) {
 }
 
 async function storefrontGraphqlForCart(shop, query, variables) {
-  const token = process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN;
+  const token =
+    process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN ||
+    process.env.STOREFRONT_ACCESS_TOKEN;
   if (!token) {
-    throw new Error("SHOPIFY_STOREFRONT_ACCESS_TOKEN not set");
+    throw new Error("SHOPIFY_STOREFRONT_ACCESS_TOKEN (or STOREFRONT_ACCESS_TOKEN) not set");
   }
   const shopDomain = shop.replace(/^https?:\/\//, "").split("/")[0];
   const url = `https://${shopDomain}/api/2024-01/graphql.json`;
