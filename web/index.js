@@ -650,6 +650,45 @@ app.post("/api/create-tax-product", async (req, res) => {
   }
 });
 
+app.get("/api/list-all-products", async (req, res) => {
+  try {
+    const session = res.locals.shopify.session;
+    let allProducts = [];
+    let pageInfo = null;
+    let hasNextPage = true;
+
+    while (hasNextPage) {
+      const params = { session, limit: 250 };
+      if (pageInfo) {
+        params.page_info = pageInfo;
+      }
+
+      const products = await shopify.api.rest.Product.all(params);
+      const batch = products?.data || [];
+      allProducts = allProducts.concat(batch);
+
+      if (products?.pageInfo?.hasNextPage && products.pageInfo.nextPageUrl) {
+        pageInfo = new URL(products.pageInfo.nextPageUrl).searchParams.get("page_info");
+        hasNextPage = !!pageInfo;
+      } else {
+        hasNextPage = false;
+      }
+    }
+
+    return res.status(200).json({
+      message: "Products fetched successfully",
+      count: allProducts.length,
+      products: allProducts,
+    });
+  } catch (error) {
+    console.error("Error listing products:", error);
+    return res.status(500).json({
+      error: "Internal Server Error",
+      message: error.message,
+    });
+  }
+});
+
 app.use(shopify.cspHeaders());
 app.use(serveStatic(STATIC_PATH, { index: false }));
 

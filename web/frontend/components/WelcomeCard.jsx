@@ -42,6 +42,9 @@ export const WelcomeCard = () => {
   const [cartTransformMessage, setCartTransformMessage] = useState(null);
   const [taxProductLoading, setTaxProductLoading] = useState(false);
   const [taxProductMessage, setTaxProductMessage] = useState(null);
+  const [listProductsLoading, setListProductsLoading] = useState(false);
+  const [listProductsMessage, setListProductsMessage] = useState(null);
+  const [productsDump, setProductsDump] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -231,6 +234,35 @@ export const WelcomeCard = () => {
     }
   };
 
+  const handleListAllProducts = async () => {
+    setListProductsLoading(true);
+    setListProductsMessage(null);
+    setProductsDump(null);
+    try {
+      const response = await fetch("/api/list-all-products");
+      const data = await response.json();
+      if (response.ok) {
+        setProductsDump(data?.products || []);
+        setListProductsMessage({
+          success: true,
+          text: `Fetched ${data?.count ?? 0} products.`,
+        });
+      } else {
+        setListProductsMessage({
+          success: false,
+          text: data?.error || data?.message || "Failed to list products.",
+        });
+      }
+    } catch (err) {
+      setListProductsMessage({
+        success: false,
+        text: err.message || "Failed to list products.",
+      });
+    } finally {
+      setListProductsLoading(false);
+    }
+  };
+
   return (
     <BlockStack gap="500">
       <Layout>
@@ -334,7 +366,17 @@ export const WelcomeCard = () => {
                 </Banner>
               )}
 
-              {/* <InlineStack align="start">
+              <InlineStack align="start" gap="300">
+                <Button
+                  variant="secondary"
+                  onClick={handleListAllProducts}
+                  loading={listProductsLoading}
+                  disabled={listProductsLoading}
+                >
+                  List All Products
+                </Button>
+
+                {/* <Button
                 <Button
                   variant="secondary"
                   onClick={handleCreateTaxProduct}
@@ -342,8 +384,29 @@ export const WelcomeCard = () => {
                   disabled={taxProductLoading}
                 >
                   Create Tax Product
-                </Button>
-              </InlineStack> */}
+                </Button> */}
+              </InlineStack>
+
+              {listProductsMessage && (
+                <Banner
+                  tone={listProductsMessage.success ? "success" : "critical"}
+                  onDismiss={() => setListProductsMessage(null)}
+                >
+                  <p>{listProductsMessage.text}</p>
+                </Banner>
+              )}
+
+              {productsDump && (
+                <Box
+                  padding="300"
+                  background="bg-surface-secondary"
+                  borderRadius="200"
+                >
+                  <pre style={{ margin: 0, fontSize: "12px", overflow: "auto", maxHeight: "320px" }}>
+                    {JSON.stringify(productsDump, null, 2)}
+                  </pre>
+                </Box>
+              )}
 
               {taxProductMessage && (
                 <Banner
