@@ -628,6 +628,28 @@ app.post("/api/sync-products", async (req, res) => {
   }
 });
 
+app.post("/api/create-tax-product", async (req, res) => {
+  try {
+    const session = res.locals.shopify.session;
+    const product = new shopify.api.rest.Product({ session });
+    product.title = "tax";
+    product.variants = [{ price: "0.00" }];
+    await product.save({ update: true });
+
+    return res.status(200).json({
+      message: "Tax product created successfully",
+      productId: product.id,
+      title: product.title,
+    });
+  } catch (error) {
+    console.error("Error creating tax product:", error);
+    return res.status(500).json({
+      error: "Internal Server Error",
+      message: error.message,
+    });
+  }
+});
+
 app.use(shopify.cspHeaders());
 app.use(serveStatic(STATIC_PATH, { index: false }));
 

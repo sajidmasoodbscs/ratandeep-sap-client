@@ -40,6 +40,8 @@ export const WelcomeCard = () => {
   const [cartTransformGuid, setCartTransformGuid] = useState("");
   const [cartTransformLoading, setCartTransformLoading] = useState(false);
   const [cartTransformMessage, setCartTransformMessage] = useState(null);
+  const [taxProductLoading, setTaxProductLoading] = useState(false);
+  const [taxProductMessage, setTaxProductMessage] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -199,6 +201,36 @@ export const WelcomeCard = () => {
     }
   };
 
+  const handleCreateTaxProduct = async () => {
+    setTaxProductLoading(true);
+    setTaxProductMessage(null);
+    try {
+      const response = await fetch("/api/create-tax-product", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setTaxProductMessage({
+          success: true,
+          text: `Created product "${data?.title || "tax"}" successfully.`,
+        });
+      } else {
+        setTaxProductMessage({
+          success: false,
+          text: data?.error || data?.message || "Failed to create tax product.",
+        });
+      }
+    } catch (err) {
+      setTaxProductMessage({
+        success: false,
+        text: err.message || "Failed to create tax product.",
+      });
+    } finally {
+      setTaxProductLoading(false);
+    }
+  };
+
   return (
     <BlockStack gap="500">
       <Layout>
@@ -299,6 +331,26 @@ export const WelcomeCard = () => {
                       </InlineStack>
                     </Box>
                   </BlockStack>
+                </Banner>
+              )}
+
+              <InlineStack align="start">
+                <Button
+                  variant="secondary"
+                  onClick={handleCreateTaxProduct}
+                  loading={taxProductLoading}
+                  disabled={taxProductLoading}
+                >
+                  Create Tax Product
+                </Button>
+              </InlineStack>
+
+              {taxProductMessage && (
+                <Banner
+                  tone={taxProductMessage.success ? "success" : "critical"}
+                  onDismiss={() => setTaxProductMessage(null)}
+                >
+                  <p>{taxProductMessage.text}</p>
                 </Banner>
               )}
             </BlockStack>
