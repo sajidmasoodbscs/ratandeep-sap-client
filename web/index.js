@@ -689,6 +689,65 @@ app.get("/api/list-all-products", async (req, res) => {
   }
 });
 
+app.post("/api/update-tax-product-title", async (req, res) => {
+  try {
+    const session = res.locals.shopify.session;
+    const query = `
+      mutation UpdateTaxProductTitle($input: ProductInput!) {
+        productUpdate(input: $input) {
+          product {
+            id
+            title
+          }
+          userErrors {
+            field
+            message
+          }
+        }
+      }
+    `;
+
+    const variables = {
+      input: {
+        id: "gid://shopify/Product/10522189955374",
+        title: "Tax Amount",
+      },
+    };
+
+    const response = await fetch(`https://${session.shop}/admin/api/2026-04/graphql.json`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Shopify-Access-Token": session.accessToken,
+      },
+      body: JSON.stringify({ query, variables }),
+    });
+
+    const result = await response.json();
+    const userErrors = result?.data?.productUpdate?.userErrors || [];
+    if (!response.ok || result.errors?.length || userErrors.length) {
+      return res.status(500).json({
+        error: "Failed to update tax product title",
+        message:
+          userErrors[0]?.message ||
+          result?.errors?.[0]?.message ||
+          "Unknown Shopify error",
+      });
+    }
+
+    return res.status(200).json({
+      message: "Tax product title updated successfully",
+      product: result.data.productUpdate.product,
+    });
+  } catch (error) {
+    console.error("Error updating tax product title:", error);
+    return res.status(500).json({
+      error: "Internal Server Error",
+      message: error.message,
+    });
+  }
+});
+
 app.use(shopify.cspHeaders());
 app.use(serveStatic(STATIC_PATH, { index: false }));
 

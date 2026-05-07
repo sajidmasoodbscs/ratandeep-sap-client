@@ -45,6 +45,8 @@ export const WelcomeCard = () => {
   const [listProductsLoading, setListProductsLoading] = useState(false);
   const [listProductsMessage, setListProductsMessage] = useState(null);
   const [productsDump, setProductsDump] = useState(null);
+  const [updateTaxTitleLoading, setUpdateTaxTitleLoading] = useState(false);
+  const [updateTaxTitleMessage, setUpdateTaxTitleMessage] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -263,6 +265,37 @@ export const WelcomeCard = () => {
     }
   };
 
+  const handleUpdateTaxProductTitle = async () => {
+    setUpdateTaxTitleLoading(true);
+    setUpdateTaxTitleMessage(null);
+    try {
+      const response = await fetch("/api/update-tax-product-title", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setUpdateTaxTitleMessage({
+          success: true,
+          text: `Updated product title to "${data?.product?.title || "Tax Amount"}".`,
+        });
+      } else {
+        setUpdateTaxTitleMessage({
+          success: false,
+          text:
+            data?.error || data?.message || "Failed to update tax product title.",
+        });
+      }
+    } catch (err) {
+      setUpdateTaxTitleMessage({
+        success: false,
+        text: err.message || "Failed to update tax product title.",
+      });
+    } finally {
+      setUpdateTaxTitleLoading(false);
+    }
+  };
+
   return (
     <BlockStack gap="500">
       <Layout>
@@ -375,6 +408,14 @@ export const WelcomeCard = () => {
                 >
                   List All Products
                 </Button>
+                <Button
+                  variant="secondary"
+                  onClick={handleUpdateTaxProductTitle}
+                  loading={updateTaxTitleLoading}
+                  disabled={updateTaxTitleLoading}
+                >
+                  Update Tax Product Name
+                </Button>
 
                 {/* <Button
                 <Button
@@ -393,6 +434,15 @@ export const WelcomeCard = () => {
                   onDismiss={() => setListProductsMessage(null)}
                 >
                   <p>{listProductsMessage.text}</p>
+                </Banner>
+              )}
+
+              {updateTaxTitleMessage && (
+                <Banner
+                  tone={updateTaxTitleMessage.success ? "success" : "critical"}
+                  onDismiss={() => setUpdateTaxTitleMessage(null)}
+                >
+                  <p>{updateTaxTitleMessage.text}</p>
                 </Banner>
               )}
 
@@ -571,7 +621,7 @@ export const WelcomeCard = () => {
 
               <Divider />
 
-              <BlockStack gap="300">
+              {/* <BlockStack gap="300">
                 <TextField
                   label="Cart Transformer GUID"
                   value={cartTransformGuid}
@@ -588,7 +638,7 @@ export const WelcomeCard = () => {
                 >
                   Activate Cart Transformer
                 </Button>
-              </BlockStack>
+              </BlockStack> */}
               {cartTransformMessage && (
                 <Banner
                   tone={cartTransformMessage.success ? "success" : "critical"}
