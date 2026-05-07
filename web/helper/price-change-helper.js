@@ -9,7 +9,7 @@ const customerRoleFiled = process.env.CUSTOMER_ROLE;
 const soldToNumberField = process.env.SOLD_TO_NUMBER;
 const custRoleShipTo = process.env.CUSTOMER_ROLE_SHIP_TO;
 const custRoleSoldTo = process.env.CUSTOMER_ROLE_SOLD_TO;
-const TAX_VARIANT_ID = "10522189955374";
+const TAX_VARIANT_ID = process.env.TAX_VARIANT_ID || "10522189955374";
 
 export const getSession = async (shopName) => {
   let response = {
@@ -566,7 +566,7 @@ async function applySapPricesToCart(session, cartbody, sapProducts, totalTaxAmou
     })
     .filter(Boolean);
 
-  const taxVariantGid = `gid://shopify/ProductVariant/${TAX_VARIANT_ID}`;
+  const taxVariantGid = `gid://shopify/Product/${TAX_VARIANT_ID}`;
   const taxAmount = Number(totalTaxAmountFromSap || 0);
   const existingTaxLine = lines.find(
     (line) => String(line?.merchandise?.id || "") === taxVariantGid
