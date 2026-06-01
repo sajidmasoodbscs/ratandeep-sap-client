@@ -177,6 +177,22 @@
       if (loader) loader.style.display = "none";
     }
 
+    function isCartPage() {
+      const path = window.location.pathname;
+      return path === "/cart" || path.endsWith("/cart");
+    }
+
+    function isProductPage() {
+      return /\/products\/[^/]+/.test(window.location.pathname);
+    }
+
+    function getCheckoutFallbackUrl() {
+      if (isProductPage()) {
+        return window.location.pathname + window.location.search;
+      }
+      return "/cart";
+    }
+
     function isCheckoutElement(el) {
       if (!el || !el.closest) return false;
       const node = el.closest('button, a, input[type="submit"]');
@@ -187,6 +203,77 @@
       const href = node.getAttribute("href") || "";
       if (href === "/checkout" || href.endsWith("/checkout")) return true;
       return false;
+    }
+
+    function nodeIsBuyNowButton(node) {
+      if (!node || !node.classList) return false;
+      if (node.classList.contains("bss-b2b-btn-buyitnow")) return true;
+      if (
+        node.classList.contains("shopify-payment-button__button") &&
+        node.classList.contains("bss-b2b-cp-dynamic")
+      ) {
+        return true;
+      }
+      return false;
+    }
+
+    function isBuyNowElement(el) {
+      if (!el) return false;
+
+      const composedPath = typeof el.composedPath === "function" ? el.composedPath() : null;
+      if (composedPath) {
+        for (let i = 0; i < composedPath.length; i++) {
+          if (nodeIsBuyNowButton(composedPath[i])) return true;
+        }
+      }
+
+      if (!el.closest) return false;
+      const node = el.closest(
+        "button, a, input[type='submit'], .shopify-payment-button__button, [role='button']"
+      );
+      if (!node) return false;
+      if (nodeIsBuyNowButton(node)) return true;
+      if (node.closest(".bss-b2b-btn-buyitnow")) return true;
+      return false;
+    }
+
+    function getProductLineForBuyNow() {
+      const form = document.querySelector(
+        'form[action*="/cart/add"], product-form form, .product-form form, form.product-form'
+      );
+      let variantId = null;
+      let quantity = 1;
+
+      if (form) {
+        const idField = form.querySelector('[name="id"]');
+        if (idField) {
+          variantId = idField.value;
+        }
+        const qtyField = form.querySelector('[name="quantity"]');
+        if (qtyField && qtyField.value) {
+          const parsed = parseInt(qtyField.value, 10);
+          if (parsed > 0) quantity = parsed;
+        }
+      }
+
+      if (!variantId) {
+        const selected = document.querySelector('input[name="id"]:checked, select[name="id"]');
+        if (selected) variantId = selected.value;
+      }
+
+      if (!variantId) {
+        const variantParam = new URLSearchParams(window.location.search).get("variant");
+        if (variantParam) variantId = variantParam;
+      }
+
+      if (!variantId && window.ShopifyAnalytics?.meta?.selectedVariantId) {
+        variantId = String(window.ShopifyAnalytics.meta.selectedVariantId);
+      }
+
+      return {
+        variantId: variantId ? Number(variantId) : null,
+        quantity: quantity,
+      };
     }
 
     async function applyCheckoutLineProperties(linePropertyUpdates) {
@@ -251,14 +338,14 @@
               clearInterval(interval);
               hideCheckoutLoader();
               console.error("[SAP Checkout] Job failed:", data.reason || data.error);
-              window.location.href = "/cart";
+              window.location.href = getCheckoutFallbackUrl();
             }
           })
           .catch((err) => {
             console.error("[SAP Checkout] Poll error:", err);
             clearInterval(interval);
             hideCheckoutLoader();
-            window.location.href = "/cart";
+            window.location.href = getCheckoutFallbackUrl();
           });
       }, 1000);
 
@@ -266,7 +353,7 @@
         clearInterval(interval);
         hideCheckoutLoader();
         console.warn("[SAP Checkout] Poll timeout");
-        window.location.href = "/cart";
+        window.location.href = getCheckoutFallbackUrl();
       }, 120000);
     }
 
@@ -292,8 +379,23 @@
         .catch((err) => {
           console.error("[SAP Checkout] createDraftOrder failed:", err);
           hideCheckoutLoader();
-          window.location.href = "/cart";
+          window.location.href = getCheckoutFallbackUrl();
         });
+    }
+
+    function enrichCartData(cartData) {
+      cartData.customer_id = CUSTOMER_ID;
+      cartData.customer_adresses = CUSTOMER_ADDRESSES;
+      cartData.shop = SHOP_DOMAIN;
+      return cartData;
+    }
+
+    async function startCheckoutFromCart() {
+      const cartRes = await fetch(window.Shopify.routes.root + "cart.js");
+      console.log("[SAP Checkout] cart.js status:", cartRes.status);
+      const cartData = enrichCartData(await cartRes.json());
+      console.log("[SAP Checkout] cart items:", cartData.items?.length, "token:", cartData.token);
+      startCheckoutJob(cartData);
     }
 
     async function handleCheckoutClick(event) {
@@ -304,18 +406,54 @@
       showCheckoutLoader();
 
       try {
-        const cartRes = await fetch(window.Shopify.routes.root + "cart.js");
-        console.log("[SAP Checkout] cart.js status:", cartRes.status);
-        const cartData = await cartRes.json();
-        cartData.customer_id = CUSTOMER_ID;
-        cartData.customer_adresses = CUSTOMER_ADDRESSES;
-        cartData.shop = SHOP_DOMAIN;
-        console.log("[SAP Checkout] cart items:", cartData.items?.length, "token:", cartData.token);
-        startCheckoutJob(cartData);
+        await startCheckoutFromCart();
       } catch (err) {
         console.error("[SAP Checkout] cart.js failed:", err);
         hideCheckoutLoader();
-        window.location.href = "/cart";
+        window.location.href = getCheckoutFallbackUrl();
+      }
+    }
+
+    async function handleBuyNowClick(event) {
+      event.preventDefault();
+      event.stopPropagation();
+      console.log("[SAP Checkout] Intercepted Buy Now click:", event.target);
+
+      showCheckoutLoader();
+
+      try {
+        const line = getProductLineForBuyNow();
+        if (!line.variantId) {
+          throw new Error("Could not resolve variant for Buy Now");
+        }
+
+        console.log("[SAP Checkout] Buy Now variant:", line.variantId, "qty:", line.quantity);
+
+        await fetch(window.Shopify.routes.root + "cart/clear.js", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        });
+
+        const addRes = await fetch(window.Shopify.routes.root + "cart/add.js", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            items: [{ id: line.variantId, quantity: line.quantity }],
+          }),
+        });
+
+        if (!addRes.ok) {
+          const addErr = await addRes.json().catch(function () {
+            return {};
+          });
+          throw new Error(addErr.description || addErr.message || "cart/add.js failed");
+        }
+
+        await startCheckoutFromCart();
+      } catch (err) {
+        console.error("[SAP Checkout] Buy Now flow failed:", err);
+        hideCheckoutLoader();
+        window.location.href = getCheckoutFallbackUrl();
       }
     }
 
@@ -329,6 +467,8 @@
         "#CartDrawer-Checkout",
         ".cart__checkout-button",
         'a[href="/checkout"]',
+        ".bss-b2b-btn-buyitnow",
+        ".shopify-payment-button__button.bss-b2b-btn-buyitnow",
       ];
       selectorList.forEach((sel) => {
         const found = document.querySelectorAll(sel);
@@ -338,17 +478,18 @@
       document.addEventListener(
         "click",
         function (event) {
-          const onCart =
-            window.location.pathname === "/cart" ||
-            window.location.pathname.endsWith("/cart");
-          if (!onCart) return;
-          if (!isCheckoutElement(event.target)) return;
-          handleCheckoutClick(event);
+          if (isCartPage() && isCheckoutElement(event.target)) {
+            handleCheckoutClick(event);
+            return;
+          }
+          if (isProductPage() && isBuyNowElement(event.target)) {
+            handleBuyNowClick(event);
+          }
         },
         true
       );
 
-      console.log("[SAP Checkout] Delegated click listener active on /cart");
+      console.log("[SAP Checkout] Delegated click listener active (cart checkout + product Buy Now)");
       console.log("[SAP Checkout] Customer addresses:", CUSTOMER_ADDRESSES);
 
       // Call SAP webhook with all SKUs when customer logs in
