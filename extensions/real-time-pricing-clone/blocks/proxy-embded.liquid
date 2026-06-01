@@ -689,7 +689,7 @@
             cart.items.forEach((item, index) => {
               const sku = item.sku || item.variant_sku;
               const newPrice = syncData.prices[sku];
-              if (newPrice != null) {
+              if (newPrice != null && Number(newPrice) > 0) {
                 const priceInCents = Math.round(newPrice * 100);
                 const formattedPrice = (typeof Shopify !== 'undefined' && Shopify.formatMoney) 
                   ? Shopify.formatMoney(priceInCents) 
@@ -767,7 +767,7 @@
               const sku = item.sku || item.variant_sku;
               const newPrice = syncData.prices[sku];
               
-              if (newPrice != null && item.properties?.sap_price != String(newPrice)) {
+              if (newPrice != null && Number(newPrice) > 0 && item.properties?.sap_price != String(newPrice)) {
                 updates[item.key] = {
                   quantity: item.quantity,
                   properties: {
@@ -840,7 +840,7 @@
             const quantity = cartItem.quantity || 1;
             if (sku && priceMap[sku] != null) {
               const newPrice = Number(priceMap[sku]);
-              if (Number.isFinite(newPrice)) {
+              if (Number.isFinite(newPrice) && newPrice > 0) {
                 newSubtotal += newPrice * quantity;
                 return;
               }
@@ -968,8 +968,8 @@
           return;
         }
         var redisPrice = parseFloat(priceMap[sku]);
-        if (isNaN(redisPrice)) {
-          console.log("[Redis pricing] Invalid price, skipping");
+        if (isNaN(redisPrice) || redisPrice <= 0) {
+          console.log("[Redis pricing] SAP price zero/missing — keeping Shopify price");
           return;
         }
         var sel = ".price-item--regular, [data-product-price], .product__price .price, .product-price, #product-price, .product-single__price, .price";

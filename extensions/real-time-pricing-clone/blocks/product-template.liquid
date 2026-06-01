@@ -253,7 +253,10 @@
         var sku = getSelectedSku();
         if (!sku || priceMap[sku] == null) return;
         var redisPrice = parseFloat(priceMap[sku]);
-        if (isNaN(redisPrice)) return;
+        if (isNaN(redisPrice) || redisPrice <= 0) {
+          console.log('[SAP/Redis] SAP price zero — keeping Shopify variant price');
+          return;
+        }
 
         var formatted = formatMoney(redisPrice);
         console.log('[SAP/Redis] Applying price ' + formatted + ' to SKU: ' + sku);

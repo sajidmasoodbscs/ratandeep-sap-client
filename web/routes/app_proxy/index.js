@@ -12,6 +12,8 @@ import {
   createRedisClient,
   getRedisConfigFromEnv,
   getRedisPricesForSkus,
+  isUsableSapUnitPrice,
+  mergeCartDefaultPrices,
   pollRedisForPrices,
 } from '../../helper/redis-pricing.js';
 
@@ -219,7 +221,9 @@ proxyRouter.post("/sapcall", async (req, res) => {
     const { priceMap } = await getRedisPricesForSkus(redis, sapRedisId, cartSkus);
     await redis.quit();
 
-    const itemsMissingInRedis = validItems.filter(item => priceMap[item.sku] === undefined || priceMap[item.sku] === null);
+    const itemsMissingInRedis = validItems.filter(
+      (item) => !isUsableSapUnitPrice(priceMap[item.sku])
+    );
 
     if (itemsMissingInRedis.length === 0) {
       console.log(`[Proxy] /sapcall: Redis has data for all ${cartSkus.length} SKUs, skipping SAP webhook`);
@@ -711,16 +715,17 @@ proxyRouter.post("/cart-price-sync", async (req, res) => {
     const { priceMap: redisPrices } = await getRedisPricesForSkus(redisSync, sapRedisId, syncSkus);
     await redisSync.quit();
 
-    const missingSkusInRedis = cart.items.filter(item => {
+    const missingSkusInRedis = cart.items.filter((item) => {
       const sku = item.sku || item.variant_sku;
-      return !sku || redisPrices[sku] === undefined || redisPrices[sku] === null;
+      return !sku || !isUsableSapUnitPrice(redisPrices[sku]);
     });
 
     if (missingSkusInRedis.length === 0) {
       console.log(`[Proxy] /cart-price-sync: Redis has data for all ${syncSkus.length} SKUs, skipping SAP webhook`);
+      const prices = mergeCartDefaultPrices(cart.items, redisPrices);
       return res.status(200).json({
         message: "Sync completed (Redis cache)",
-        prices: redisPrices
+        prices,
       });
     }
 
@@ -743,9 +748,10 @@ proxyRouter.post("/cart-price-sync", async (req, res) => {
     const { priceMap: finalPriceMap } = await getRedisPricesForSkus(finalRedis, sapRedisId, syncSkus);
     await finalRedis.quit();
 
+    const prices = mergeCartDefaultPrices(cart.items, finalPriceMap);
     return res.status(200).json({
       message: "Sync completed",
-      prices: finalPriceMap
+      prices,
     });
   } catch (error) {
     console.error("Cart price sync error:", error.message);

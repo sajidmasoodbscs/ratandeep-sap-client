@@ -41,6 +41,23 @@ export function createRedisClient(config) {
   return new Redis(config);
 }
 
+/**
+ * SAP/Redis unit price is used only when > 0.
+ * Zero (or invalid) means keep the original Shopify catalog/cart price.
+ */
+export function isUsableSapUnitPrice(price) {
+  const n = Number(price);
+  return Number.isFinite(n) && n > 0;
+}
+
+/** Prefer SAP price when > 0; otherwise Shopify unit price (dollars). */
+export function resolveUnitPrice(sapPrice, shopifyUnitPrice = null) {
+  if (isUsableSapUnitPrice(sapPrice)) return Number(sapPrice);
+  const shopify = shopifyUnitPrice != null ? Number(shopifyUnitPrice) : null;
+  if (shopify !== null && Number.isFinite(shopify) && shopify >= 0) return shopify;
+  return null;
+}
+
 /** Shopify cart.js unit price (cents → dollars) when Redis has no price. */
 export function cartLineDefaultUnitPrice(item) {
   const cents = item?.price ?? item?.original_price ?? item?.final_line_price;
@@ -49,16 +66,20 @@ export function cartLineDefaultUnitPrice(item) {
   return Number.isFinite(unit) && unit >= 0 ? unit : null;
 }
 
-/** Fill missing SKUs from cart line Shopify prices. */
+/** Fill missing SKUs and replace SAP zero prices with cart line Shopify prices. */
 export function mergeCartDefaultPrices(lineItems, priceMap = {}) {
   const merged = { ...priceMap };
   for (const item of lineItems || []) {
     const sku = String(item.sku || item.variant_sku || "").trim();
-    if (!sku || merged[sku] !== undefined) continue;
+    if (!sku) continue;
     const fallback = cartLineDefaultUnitPrice(item);
-    if (fallback !== null) {
+    if (fallback === null) continue;
+    if (merged[sku] === undefined) {
       merged[sku] = fallback;
       console.log("[Redis] default price (cart) for", sku, "=>", fallback);
+    } else if (!isUsableSapUnitPrice(merged[sku])) {
+      console.log("[Redis] SAP price zero/invalid — Shopify cart price for", sku, "=>", fallback);
+      merged[sku] = fallback;
     }
   }
   return merged;
@@ -90,9 +111,20 @@ export async function lookupSkuPriceInRedis(redis, redisKeyPrefix, sku) {
     }
     const price = parseFloat(rawValue);
     if (!Number.isFinite(price)) {
-      return { available: false, price: null, redisKey, rawValue: String(rawValue) };
+      return { available: false, price: null, redisKey, rawValue: String(rawValue), sapPriceZero: false };
     }
-    return { available: true, price, redisKey, rawValue: String(rawValue) };
+    if (!isUsableSapUnitPrice(price)) {
+      return {
+        available: false,
+        price: null,
+        redisKey,
+        rawValue: String(rawValue),
+        sapPriceInRedis: price,
+        sapPriceZero: price === 0,
+        useShopifyPrice: true,
+      };
+    }
+    return { available: true, price, redisKey, rawValue: String(rawValue), sapPriceZero: false };
   } catch (error) {
     console.error("[Redis] lookupSkuPriceInRedis error:", redisKey, error.message);
     throw error;
@@ -121,12 +153,17 @@ export async function getRedisPricesForSkus(redis, redisKeyPrefix, skuList) {
       const price = await redis.get(redisKey);
       console.log("[Redis] GET", redisKey, "=>", price);
       if (price !== null && price !== undefined) {
-        priceMap[s] = parseFloat(price);
+        const parsed = parseFloat(price);
+        if (isUsableSapUnitPrice(parsed)) {
+          priceMap[s] = parsed;
+        } else {
+          console.log("[Redis] SAP price zero/invalid for", s, "— use Shopify fallback");
+        }
       }
     }
 
     const allFound =
-      requested.length > 0 && requested.every((s) => priceMap[s] !== undefined);
+      requested.length > 0 && requested.every((s) => isUsableSapUnitPrice(priceMap[s]));
     console.log("[Redis] getRedisPricesForSkus — allFound:", allFound, "priceMap:", priceMap);
     return { allFound, priceMap };
   } catch (error) {
@@ -255,10 +292,7 @@ export function buildAjaxLinePropertyUpdates(cartItems, priceMap) {
   const updates = [];
   for (const item of cartItems || []) {
     const sku = String(item.sku || item.variant_sku || "").trim();
-    let price = priceMap[sku];
-    if (price === undefined || price === null) {
-      price = cartLineDefaultUnitPrice(item);
-    }
+    const price = resolveUnitPrice(priceMap[sku], cartLineDefaultUnitPrice(item));
     if (!sku || price === undefined || price === null) {
       console.log("[Redis] buildAjaxLinePropertyUpdates — skip item (no sku/price):", {
         key: item.key,
@@ -283,10 +317,7 @@ export function redisPriceMapToSapProducts(lineItems, priceMap) {
   const products = [];
   for (const item of lineItems || []) {
     const sku = String(item.sku || "").trim();
-    let unit = priceMap[sku];
-    if (unit === undefined || unit === null) {
-      unit = cartLineDefaultUnitPrice(item);
-    }
+    const unit = resolveUnitPrice(priceMap[sku], cartLineDefaultUnitPrice(item));
     if (!sku || unit === undefined || unit === null) continue;
     const qty = Number(item.quantity) || 1;
     unit = Number(unit);

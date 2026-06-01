@@ -209,8 +209,8 @@
         }
 
         const newPrice = Number(priceMap[sku]);
-        if (!Number.isFinite(newPrice)) {
-          console.log(`[SAP/Redis] Invalid price for ${sku}: ${priceMap[sku]}`);
+        if (!Number.isFinite(newPrice) || newPrice <= 0) {
+          console.log(`[SAP/Redis] SAP price zero/invalid for SKU ${sku} — keeping Shopify cart price`);
           return;
         }
 
@@ -349,7 +349,7 @@
 
         if (sku && priceMap[sku] != null) {
           const newPrice = Number(priceMap[sku]);
-          if (Number.isFinite(newPrice)) {
+          if (Number.isFinite(newPrice) && newPrice > 0) {
             newSubtotal += newPrice * quantity;
             return;
           }

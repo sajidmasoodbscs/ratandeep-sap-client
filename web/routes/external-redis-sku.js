@@ -86,14 +86,19 @@ async function handleExternalRedisSku(req, res) {
     }
 
     if (!lookup.available) {
+      const message = lookup.useShopifyPrice
+        ? "SAP price is zero; use Shopify catalog price"
+        : "SKU not found in Redis for this customer";
       return res.status(200).json({
         sku,
         customerId,
         available: false,
         price: null,
+        sapPriceInRedis: lookup.sapPriceInRedis ?? null,
+        useShopifyPrice: Boolean(lookup.useShopifyPrice),
         redisKey: lookup.redisKey,
         url: apiUrl,
-        message: "SKU not found in Redis for this customer",
+        message,
       });
     }
 
