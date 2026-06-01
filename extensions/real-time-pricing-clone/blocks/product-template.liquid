@@ -130,7 +130,7 @@
 </style>
 <script>
   (async function() {
-    var baseUrl = 'https://sap-app-2-0.onrender.com/apps/sap-price-test';
+    var baseUrl = 'https://ratandeep-sap-client.onrender.com/apps/sap-price-test';
     var loaderEl = document.querySelector('.loaderBars');
     var bodyEl = document.body;
 
@@ -181,7 +181,7 @@
         }
       };
 
-      var sapRes = await fetch('https://sap-app-2-0.onrender.com/apps/sap-price-test/sapcall', {
+      var sapRes = await fetch('https://ratandeep-sap-client.onrender.com/apps/sap-price-test/sapcall', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(sapPayload)
@@ -193,7 +193,7 @@
       }
 
       // Step 2: Fetch Redis prices
-      var redisRes = await fetch('https://sap-app-2-0.onrender.com/apps/sap-price-test/redis-prices', {
+      var redisRes = await fetch('https://ratandeep-sap-client.onrender.com/apps/sap-price-test/redis-prices', {
         method: 'POST',
         headers: {
           'Accept': 'application/json',

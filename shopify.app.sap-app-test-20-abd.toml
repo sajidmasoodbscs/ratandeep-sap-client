@@ -2,7 +2,7 @@
 
 client_id = "7615f25345e0e5c9287a3838913c0b22"
 name = "sap-app-test-2.0"
-application_url = "https://sap-app-2-0.onrender.com"
+application_url = "https://ratandeep-sap-client.onrender.com"
 embedded = true
 
 [build]
@@ -17,12 +17,12 @@ scopes = "read_checkouts,read_customers,read_draft_orders,read_orders,read_produ
 
 [auth]
 redirect_urls = [
-  "https://sap-app-2-0.onrender.com/auth/callback",
-  "https://sap-app-2-0.onrender.com/auth/shopify/callback",
-  "https://sap-app-2-0.onrender.com/api/auth/callback"
+  "https://ratandeep-sap-client.onrender.com/auth/callback",
+  "https://ratandeep-sap-client.onrender.com/auth/shopify/callback",
+  "https://ratandeep-sap-client.onrender.com/api/auth/callback"
 ]
 
 [app_proxy]
-url = "https://sap-app-2-0.onrender.com/apps/sap-price-test"
+url = "https://ratandeep-sap-client.onrender.com/apps/sap-price-test"
 subpath = "sap-price-test"
 prefix = "apps"
