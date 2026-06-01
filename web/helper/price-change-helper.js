@@ -4,12 +4,11 @@ import fetch from 'node-fetch';
 import { v4 as uuidv4 } from 'uuid';
 import xml2js from 'xml2js';
 import { PriceChangeDB } from '../price-change-db.js';
+import { logRedisConnectionFromEnv } from './sap-api.js';
 import {
-  buildSapRootCustomerXml,
-  logRedisConnectionFromEnv,
-  normalizeShopifyCustomerId,
-  resolveRedisKeyPrefix,
-} from './sap-api.js';
+  fetchCartPricesFromRedis,
+  redisPriceMapToSapProducts,
+} from './redis-pricing.js';
 
 const customerRoleFiled = process.env.CUSTOMER_ROLE;
 const soldToNumberField = process.env.SOLD_TO_NUMBER;
@@ -209,130 +208,50 @@ export const getCheckout = async (shop, cartbody) => {
         const productSkus = await filterCartLineItems(lineItems);
 
         if (productSkus.length !== 0) {
-          const shopifyCustomerId = normalizeShopifyCustomerId(custId);
-          console.log("[PriceChangeHelper] Shopify customer id for SAP XML:", shopifyCustomerId);
+          const skus = lineItems
+            .map((item) => String(item.sku || "").trim())
+            .filter(Boolean);
 
-          const redisKey = await resolveRedisKeyPrefix(session, custId);
-          console.log("[PriceChangeHelper] Redis key prefix resolved:", redisKey);
+          console.log("[PriceChangeHelper] Cart Transform flow — loading prices from Redis (not CLIENT_API_URL)");
+          const redisResult = await fetchCartPricesFromRedis(session, custId, skus, {
+            triggerSapIfMissing: true,
+          });
 
-          if (!redisKey.prefix) {
-            console.error("[PriceChangeHelper] Could not resolve Redis key prefix. Aborting.");
+          console.log("[PriceChangeHelper] Redis pricing result:", redisResult);
+
+          if (!redisResult.ok || !Object.keys(redisResult.priceMap).length) {
+            console.error("[PriceChangeHelper] No Redis prices for cart. Aborting checkout.");
             return "/cart";
           }
 
-          if (redisKey.source === "shopify_fallback" || redisKey.source === "shopify_fallback_no_session") {
-            console.warn(
-              "[PriceChangeHelper] No SAP metafield on customer — using Shopify customer id for Redis:",
-              redisKey.prefix
-            );
+          const sapProducts = redisPriceMapToSapProducts(lineItems, redisResult.priceMap);
+          if (!sapProducts.length) {
+            console.error("[PriceChangeHelper] No matching SKUs between cart and Redis. Aborting.");
+            return "/cart";
           }
 
-          console.log("[PriceChangeHelper] Calling SAP API (CLIENT_API_URL)...");
-          const apiResponse = await clientApi(shopifyCustomerId, shop);
-          console.log("[PriceChangeHelper] SAP API returned:", apiResponse === 0 ? "0 (env missing)" : typeof apiResponse);
-
-            let cartItemsFromSap;
-            let sapProducts;
-            let shippingCost;
-            let totalTaxAmountFromSap;
-            let lineItemsFromSap;
-            try {
-              console.log("[clientApi] API response received:", apiResponse);
-              cartItemsFromSap = extractSapCartData(apiResponse);
-
-              if (cartItemsFromSap && cartItemsFromSap.line_items) {
-                shippingCost = cartItemsFromSap.TotalShipping;
-                totalTaxAmountFromSap = Number(cartItemsFromSap.TotalTaxAmount || 0);
-
-                lineItemsFromSap = cartItemsFromSap.line_items.line_item;
-                if (Array.isArray(lineItemsFromSap)) {
-                  sapProducts = lineItemsFromSap;
-                } else {
-                  sapProducts = [lineItemsFromSap];
-                }
-
-                if (sapProducts && sapProducts.length) {
-                  // Cart pricing is applied by Cart Transform from cart line sap_price attributes.
-                  // Here we only validate SAP pricing response and continue checkout flow.
-                  console.log("[getCheckout] NEW CART TRANSFORM FLOW ACTIVE: discount-code path is bypassed.");
-                  console.log(
-                    "[getCheckout] SAP line items received. Proceeding with Cart Transform pricing.",
-                    sapProducts.map((item) => ({
-                      sku: item.sku,
-                      quantity: item.quantity,
-                      totalitemprice: item.totalitemprice,
-                    }))
-                  );
-                  const sapProductsBySku = new Map(
-                    sapProducts.map((item) => [String(item.sku || "").trim(), item])
-                  );
-                  const checkoutVsSap = lineItems.map((cartItem) => {
-                    const sku = String(cartItem.sku || "").trim();
-                    const sapItem = sapProductsBySku.get(sku);
-                    const cartQty = Number(cartItem.quantity || 0);
-                    const cartUnitPrice = Number(cartItem.price || 0) / 100;
-                    const sapQty = Number(sapItem?.quantity || 0);
-                    const sapTotal = Number(sapItem?.totalitemprice || 0);
-                    const sapUnitPrice = sapQty > 0 ? sapTotal / sapQty : null;
-                    return {
-                      sku,
-                      checkout_quantity: cartQty,
-                      checkout_unit_price: cartUnitPrice,
-                      sap_quantity: sapQty || null,
-                      sap_totalitemprice: Number.isFinite(sapTotal) ? sapTotal : null,
-                      sap_unit_price: Number.isFinite(sapUnitPrice) ? sapUnitPrice : null,
-                    };
-                  });
-                  console.log("[getCheckout] CHECKOUT vs SAP price comparison per product:", checkoutVsSap);
-                  try {
-                    const applyResult = await applySapPricesToCart(
-                      session,
-                      cartbody,
-                      sapProducts,
-                      totalTaxAmountFromSap
-                    );
-                    console.log("[getCheckout] Cart Transform sap_price apply result:", applyResult);
-                    if (!applyResult || applyResult.updated <= 0) {
-                      console.error(
-                        "[getCheckout] sap_price not written to cart lines, stopping checkout redirect.",
-                        applyResult
-                      );
-                      return "/cart";
-                    }
-                  } catch (applyError) {
-                    console.error("[getCheckout] Failed to apply sap_price attributes:", applyError.message);
-                    try {
-                      const fallbackToken = await ensureStorefrontTokenForShop(
-                        shop,
-                        session.adminAccessToken || session.accessToken
-                      );
-                      const preview = `${String(fallbackToken).slice(0, 6)}...${String(fallbackToken).slice(-4)}`;
-                      console.log("[getCheckout] Storefront token available after fallback creation:", preview);
-                    } catch (tokenError) {
-                      console.error("[getCheckout] Storefront token fallback creation failed:", tokenError.message);
-                    }
-                    return "/cart";
-                  }
-                  return `/checkout`;
-                } else {
-                  return "/cart";
-                }
-              } else {
-                console.log(
-                  "Error in client api call: no CART_DATA / line_items in parsed response",
-                  apiResponse && typeof apiResponse === "object"
-                    ? Object.keys(apiResponse)
-                    : apiResponse
-                );
-                return "/cart";
-              }
-            } catch (error) {
-              console.log(
-                "Error in converting client API XML response to JSON =>",
-                error
+          console.log("[getCheckout] Applying Redis prices to cart sap_price attributes for Cart Transform");
+          try {
+            const applyResult = await applySapPricesToCart(
+              session,
+              cartbody,
+              sapProducts,
+              0
+            );
+            console.log("[getCheckout] Cart Transform sap_price apply result:", applyResult);
+            if (!applyResult || applyResult.updated <= 0) {
+              console.error(
+                "[getCheckout] sap_price not written to cart lines, stopping checkout redirect.",
+                applyResult
               );
               return "/cart";
             }
+          } catch (applyError) {
+            console.error("[getCheckout] Failed to apply Redis sap_price attributes:", applyError.message);
+            return "/cart";
+          }
+
+          return `/checkout`;
         } else {
           console.log("All items in the cart are without sku's");
 

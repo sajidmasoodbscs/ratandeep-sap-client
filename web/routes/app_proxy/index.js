@@ -1,52 +1,25 @@
 import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import Redis from 'ioredis';
 import { getCheckout, getSession } from '../../helper/price-change-helper.js';
 import { PriceChangeDB } from '../../price-change-db.js';
 import {
   buildSapRootCustomerXml,
-  logRedisConnectionFromEnv,
   normalizeShopifyCustomerId,
   postSapWebhook,
   resolveRedisKeyPrefix,
 } from '../../helper/sap-api.js';
+import {
+  createRedisClient,
+  getRedisConfigFromEnv,
+  getRedisPricesForSkus,
+  pollRedisForPrices,
+} from '../../helper/redis-pricing.js';
 
 const proxyRouter = Router();
 const jobs = {};
 
-/** Redis connection from REDIS_STRING (e.g. redis://user:pass@host:port). Shop is ignored. */
 function getRedisConfigForShop(_shop) {
-  logRedisConnectionFromEnv("Proxy");
-  const redisString = process.env.REDIS_STRING?.trim();
-  if (!redisString) {
-    console.warn("[Proxy] REDIS_STRING environment variable is not set");
-    return null;
-  }
-  try {
-    const url = new URL(redisString);
-    if (url.protocol !== "redis:" && url.protocol !== "rediss:") {
-      console.error("[Proxy] REDIS_STRING must use redis:// or rediss://");
-      return null;
-    }
-    const port = url.port ? parseInt(url.port, 10) : 6379;
-    if (!url.hostname || Number.isNaN(port)) return null;
-    return {
-      host: url.hostname,
-      port,
-      password: url.password ? decodeURIComponent(url.password) : undefined,
-      username: url.username ? decodeURIComponent(url.username) : undefined,
-      ...(url.protocol === "rediss:" ? { tls: {} } : {}),
-      retryStrategy: (times) => Math.min(times * 50, 2000),
-      maxRetriesPerRequest: 3,
-    };
-  } catch (e) {
-    console.error("[Proxy] Failed to parse REDIS_STRING:", e.message);
-    return null;
-  }
-}
-
-function createRedisClient(config) {
-  return new Redis(config);
+  return getRedisConfigFromEnv();
 }
 
 function normalizeShop(shop) {
@@ -78,71 +51,6 @@ function extractShop(req, res) {
   return null;
 }
 
-async function getRedisPricesForSkus(redis, customerId, skuList) {
-  const priceMap = {};
-  if (!skuList || skuList.length === 0) {
-    return { allFound: true, priceMap };
-  }
-  try {
-    for (const sku of skuList) {
-      let s = '';
-      if (typeof sku === 'string') {
-        s = sku.trim();
-      } else if (sku && sku.sku) {
-        s = sku.sku.trim();
-      }
-      if (!s) continue;
-      const price = await redis.get(`${customerId}_${s}`);
-      if (price !== null && price !== undefined) {
-        priceMap[s] = parseFloat(price);
-      }
-    }
-
-    const requested = skuList.map(sku => {
-      if (typeof sku === 'string') return sku.trim();
-      if (sku && sku.sku) return sku.sku.trim();
-      return '';
-    }).filter(Boolean);
-
-    const allFound = requested.length > 0 && requested.every(s => priceMap[s] !== undefined);
-    return { allFound, priceMap };
-  } catch (error) {
-    console.error(`[Redis] Error getting prices for customer ${customerId}:`, error.message);
-    return { allFound: false, priceMap, error: error.message };
-  }
-}
-
-async function pollRedisForPrices(shop, customerId, skuList, maxRetries = 3, interval = 2000) {
-  const config = getRedisConfigForShop(shop);
-  if (!config) {
-    console.warn("[Redis Polling] REDIS_STRING is not configured");
-    return { allFound: false, priceMap: {} };
-  }
-  const redis = createRedisClient(config);
-  try {
-    for (let i = 0; i < maxRetries; i++) {
-      const { allFound, priceMap } = await getRedisPricesForSkus(redis, customerId, skuList);
-      if (allFound) {
-        console.log(`[Redis Polling] All prices found for customer ${customerId} on attempt ${i + 1}`);
-        return { allFound, priceMap };
-      }
-      console.log(`[Redis Polling] Attempt ${i + 1}/${maxRetries}: Missing prices for customer ${customerId}. Retrying in ${interval}ms...`);
-      if (i < maxRetries - 1) {
-        await new Promise(resolve => setTimeout(resolve, interval));
-      }
-    }
-    return await getRedisPricesForSkus(redis, customerId, skuList);
-  } catch (error) {
-    console.error("[Redis Polling] Error:", error.message);
-    return { allFound: false, priceMap: {} };
-  } finally {
-    try {
-      await redis.quit();
-    } catch (e) {
-      console.error("[Redis Polling] Error quitting redis:", e.message);
-    }
-  }
-}
 proxyRouter.get("/testapi", async (req, res) => {
   console.log("Query parameters from front end => ", req.query);
   console.log("Output from the json!");
@@ -292,7 +200,7 @@ proxyRouter.post("/sapcall", async (req, res) => {
 
     if (ok) {
       console.log(`[Proxy] /sapcall: Webhook successful. Polling Redis for ${itemsMissingInRedis.length} SKUs...`);
-      await pollRedisForPrices(shop, sapRedisId, itemsMissingInRedis.map(i => i.sku));
+      await pollRedisForPrices(sapRedisId, itemsMissingInRedis.map(i => i.sku));
     } else {
       console.warn(`[Proxy] /sapcall: Webhook returned non-OK status`);
     }
@@ -700,7 +608,7 @@ async function handleAllSkusSync(req, res, source) {
 
     if (ok) {
       console.log(`[Proxy] /${source}: Webhook successful. Polling Redis...`);
-      await pollRedisForPrices(shop, sapRedisId, skusMissingInRedis);
+      await pollRedisForPrices(sapRedisId, skusMissingInRedis);
     }
 
     const skus = allSKUs.map(sku => ({ sku: sku.trim(), quantity: 1 }));
@@ -784,7 +692,7 @@ proxyRouter.post("/cart-price-sync", async (req, res) => {
       const { ok } = await postSapWebhook(sapXmlData, "/cart-price-sync");
       if (ok) {
         console.log("[Proxy] /cart-price-sync: SAP call successful. Polling Redis...");
-        await pollRedisForPrices(shop, sapRedisId, missingSkusInRedis.map(i => i.sku || i.variant_sku));
+        await pollRedisForPrices(sapRedisId, missingSkusInRedis.map(i => i.sku || i.variant_sku));
       } else {
         console.error("[Proxy] /cart-price-sync: SAP call failed");
       }
@@ -858,7 +766,7 @@ proxyRouter.post("/get-price-by-sku", async (req, res) => {
 
     if (sapOk) {
       console.log(`[Proxy] /get-price-by-sku: SAP call successful. Polling Redis...`);
-      const { priceMap: polledPriceMap } = await pollRedisForPrices(shop, sapRedisId, [trimmedSku]);
+      const { priceMap: polledPriceMap } = await pollRedisForPrices(sapRedisId, [trimmedSku]);
       const finalPrice = polledPriceMap[trimmedSku];
 
       return res.status(200).json({
