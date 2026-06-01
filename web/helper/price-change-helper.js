@@ -5,12 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import xml2js from 'xml2js';
 import { PriceChangeDB } from '../price-change-db.js';
 import { logRedisConnectionFromEnv } from './sap-api.js';
-import {
-  buildAjaxLinePropertyUpdates,
-  fetchCartPricesFromRedis,
-  redisPriceMapToSapProducts,
-} from './redis-pricing.js';
-import { fetchShopPlan } from './shop-plan.js';
+import { fetchCartPricesFromRedis, redisPriceMapToSapProducts } from './redis-pricing.js';
 
 function checkoutFailure(shop, reason, details = {}) {
   console.error("[getCheckout] FAILED:", reason, details);
@@ -22,12 +17,17 @@ function checkoutFailure(shop, reason, details = {}) {
   };
 }
 
-function checkoutSuccess(shop, payload) {
+function checkoutSuccess(shop, payload = {}) {
   const shopHost = String(shop || "")
     .replace(/^https?:\/\//, "")
     .replace(/\/$/, "");
-  const redirectUrl = shopHost ? `https://${shopHost}/checkout` : "/checkout";
-  console.log("[getCheckout] SUCCESS — redirectUrl:", redirectUrl, "payload:", payload);
+  let redirectUrl = shopHost ? `https://${shopHost}/checkout` : "/checkout";
+  const discountCode = payload.discountCode;
+  if (discountCode) {
+    const sep = redirectUrl.includes("?") ? "&" : "?";
+    redirectUrl = `${redirectUrl}${sep}discount=${encodeURIComponent(discountCode)}`;
+  }
+  console.log("[getCheckout] SUCCESS — redirectUrl:", redirectUrl);
   return {
     ok: true,
     redirectUrl,
@@ -210,20 +210,6 @@ export const getCheckout = async (shop, cartbody) => {
     }
 
     const session = response.session;
-    const shopPlan = await fetchShopPlan(session);
-    console.log(
-      "[getCheckout] Shopify Plus:",
-      shopPlan.isShopifyPlus,
-      "plan:",
-      shopPlan.displayName || shopPlan.planName || "unknown"
-    );
-    if (!shopPlan.isShopifyPlus) {
-      console.warn(
-        "[getCheckout] Store is not Shopify Plus — Cart Transform may not apply at checkout.",
-        "Relying on sap_price line properties + cart/change.js."
-      );
-    }
-
     const lineItems = cartData?.items || [];
 
     if (!cartData?.customer_id) {
@@ -234,12 +220,8 @@ export const getCheckout = async (shop, cartbody) => {
     const productSkus = await filterCartLineItems(lineItems);
 
     if (productSkus.length === 0) {
-      console.log("[getCheckout] No SKUs on cart lines — proceeding to checkout anyway");
-      return checkoutSuccess(shop, {
-        linePropertyUpdates: [],
-        priceMap: {},
-        shopPlan,
-      });
+      console.log("[getCheckout] No SKUs on cart lines — proceeding to checkout without discount");
+      return checkoutSuccess(shop, { priceMap: {}, discountValue: 0 });
     }
 
     const skus = lineItems.map((item) => String(item.sku || "").trim()).filter(Boolean);
@@ -257,43 +239,49 @@ export const getCheckout = async (shop, cartbody) => {
       return checkoutFailure(shop, "no_prices", { redisResult });
     }
 
-    const linePropertyUpdates = buildAjaxLinePropertyUpdates(lineItems, priceMap);
-    if (!linePropertyUpdates.length) {
-      return checkoutFailure(shop, "no_line_property_updates", { priceMap });
-    }
+    const totals = summarizeCartVsRedis(lineItems, priceMap);
+    console.log("[getCheckout] Cart subtotal:", totals.cartSubtotal, "Redis subtotal:", totals.redisSubtotal);
 
     const sapProducts = redisPriceMapToSapProducts(lineItems, priceMap);
-    let storefrontApply = { updated: 0, reason: "not_attempted" };
+    const discountValue = roundMoney(calculateDiscountedPrice(lineItems, sapProducts));
+    console.log("[getCheckout] Discount amount (cart − Redis):", discountValue);
 
-    console.log("[getCheckout] Optional Storefront cartLinesUpdate (may fail for Ajax cart token)...");
+    const MIN_DISCOUNT = 0.01;
+    if (discountValue < MIN_DISCOUNT) {
+      console.log("[getCheckout] No discount needed — standard checkout");
+      return checkoutSuccess(shop, {
+        priceMap,
+        discountValue: 0,
+        cartSubtotal: totals.cartSubtotal,
+        redisSubtotal: totals.redisSubtotal,
+        redisKeyPrefix: redisResult.redisKeyPrefix,
+        checkoutMode: "standard",
+      });
+    }
+
     try {
-      storefrontApply = await applySapPricesToCart(session, cartbody, sapProducts, 0);
-      console.log("[getCheckout] Storefront apply result:", storefrontApply);
-    } catch (applyError) {
-      console.warn(
-        "[getCheckout] Storefront apply failed (browser will set line properties):",
-        applyError.message
-      );
-      storefrontApply = { updated: 0, reason: "storefront_error", error: applyError.message };
+      const discountCode = await createDiscount(session, custId, discountValue);
+      console.log("[getCheckout] Created discount code:", discountCode);
+      return checkoutSuccess(shop, {
+        priceMap,
+        discountCode,
+        discountValue,
+        cartSubtotal: totals.cartSubtotal,
+        redisSubtotal: totals.redisSubtotal,
+        redisKeyPrefix: redisResult.redisKeyPrefix,
+        checkoutMode: "discount_code",
+      });
+    } catch (discountError) {
+      console.error("[getCheckout] createDiscount failed:", discountError.message);
+      return checkoutSuccess(shop, {
+        priceMap,
+        discountValue,
+        cartSubtotal: totals.cartSubtotal,
+        redisSubtotal: totals.redisSubtotal,
+        checkoutMode: "standard",
+        discountError: discountError.message,
+      });
     }
-
-    if (storefrontApply.updated <= 0) {
-      console.warn(
-        "[getCheckout] Storefront did not update lines — checkout relies on theme applying",
-        "linePropertyUpdates via cart/change.js before redirect. Reason:",
-        storefrontApply.reason
-      );
-    }
-
-    return checkoutSuccess(shop, {
-      priceMap,
-      linePropertyUpdates,
-      redisKeyPrefix: redisResult.redisKeyPrefix,
-      usedDefaults: redisResult.usedDefaults,
-      storefrontApply,
-      shopPlan,
-      cartTransformSupported: shopPlan.isShopifyPlus,
-    });
   } catch (error) {
     console.error("[getCheckout] Unhandled error:", error?.stack || error);
     return checkoutFailure(shop, "exception", { error: error.message });
@@ -774,49 +762,90 @@ function createProductPriceUpdateCollection(
   return productPriceUpdateCollection;
 }
 
-function calculateDiscountedPrice(A, B) {
+function roundMoney(amount) {
+  return Math.round(Number(amount) * 100) / 100;
+}
+
+/** Compare cart.js line prices (cents) with Redis unit prices (dollars). */
+export function summarizeCartVsRedis(lineItems, priceMap) {
+  let cartSubtotal = 0;
+  let redisSubtotal = 0;
+
+  for (const item of lineItems || []) {
+    const sku = String(item.sku || item.variant_sku || "").trim();
+    const qty = Number(item.quantity) || 1;
+    const cartUnit = Number(item.price) / 100;
+    if (!Number.isFinite(cartUnit)) continue;
+
+    cartSubtotal += cartUnit * qty;
+    const redisUnit = priceMap[sku];
+    if (redisUnit !== undefined && redisUnit !== null && Number.isFinite(Number(redisUnit))) {
+      redisSubtotal += Number(redisUnit) * qty;
+    } else {
+      redisSubtotal += cartUnit * qty;
+    }
+  }
+
+  return {
+    cartSubtotal: roundMoney(cartSubtotal),
+    redisSubtotal: roundMoney(redisSubtotal),
+    discount: roundMoney(Math.max(0, cartSubtotal - redisSubtotal)),
+  };
+}
+
+function calculateDiscountedPrice(cartItems, redisProducts) {
   let totalDiscount = 0;
 
   try {
-    A.forEach((itemA) => {
-
-      let matchingItemB = B.find((itemB) => itemB.sku === itemA.sku);
+    for (const itemA of cartItems || []) {
+      const sku = String(itemA.sku || itemA.variant_sku || "").trim();
+      const matchingItemB = (redisProducts || []).find((itemB) => itemB.sku === sku);
 
       if (matchingItemB) {
-        let totalItemPrice = matchingItemB.totalitemprice;
-        let quantity = matchingItemB.quantity;
-
-        let priceOfOneItem = totalItemPrice / quantity;
-        let cartItemPrice = itemA.price / 100;
+        const totalItemPrice = matchingItemB.totalitemprice;
+        const quantity = matchingItemB.quantity || 1;
+        const priceOfOneItem = totalItemPrice / quantity;
+        const cartItemPrice = Number(itemA.price) / 100;
 
         if (priceOfOneItem < cartItemPrice) {
-          let discountValue = Math.abs(cartItemPrice - priceOfOneItem);
-          totalDiscount += discountValue * quantity;
+          totalDiscount += Math.abs(cartItemPrice - priceOfOneItem) * quantity;
         }
       }
-    });
+    }
 
     return totalDiscount;
   } catch (error) {
-    console.error("Error in calculating total discount:", error);
+    console.error("[getCheckout] Error calculating discount:", error);
     return 0;
   }
 }
 
 async function createDiscount(session, customerId, discountValue) {
-  const { shop, accessToken } = session;
+  const shop = session.shop;
+  const accessToken = session.accessToken || session.access_token;
+  if (!shop || !accessToken) {
+    throw new Error("Missing shop or access token for discount creation");
+  }
+
+  const customerIdNum = Number(String(customerId).replace(/\D/g, ""));
+  if (!Number.isFinite(customerIdNum)) {
+    throw new Error(`Invalid customer id for discount: ${customerId}`);
+  }
+
+  const amount = roundMoney(discountValue);
+  if (amount < 0.01) {
+    throw new Error("Discount amount too small");
+  }
 
   const randomString = Math.random().toString(36).substring(2, 10).toUpperCase();
   const priceRuleTitle = `Sap-Discount-${randomString}`;
-  const discountCode = `DISCOUNT-${randomString}`;
+  const discountCode = `SAP-${randomString}`;
 
   const currentDateTime = new Date().toISOString();
-
-  const now = new Date();
-  const endsAt = new Date(now.getTime() + 60 * 60 * 1000);
+  const endsAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
 
   try {
-    const priceRuleResponse = await fetch(`https://${shop}/admin/api/2023-01/price_rules.json`, {
+    const priceRuleResponse = await fetch(`https://${shop}/admin/api/2024-01/price_rules.json`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -829,12 +858,12 @@ async function createDiscount(session, customerId, discountValue) {
           target_selection: "all",
           allocation_method: "across",
           value_type: "fixed_amount",
-          value: `-${discountValue}`, 
+          value: `-${amount.toFixed(2)}`,
           customer_selection: "prerequisite",
-          prerequisite_customer_ids: [customerId],
+          prerequisite_customer_ids: [customerIdNum],
           usage_limit: 1,
           starts_at: currentDateTime,
-          ends_at: endsAt.toISOString(),
+          ends_at: endsAt,
         }
       })
     });
@@ -848,7 +877,7 @@ async function createDiscount(session, customerId, discountValue) {
     const priceRuleId = priceRuleData.price_rule.id;
 
     const discountCodeResponse = await fetch(
-      `https://${shop}/admin/api/2023-01/price_rules/${priceRuleId}/discount_codes.json`,
+      `https://${shop}/admin/api/2024-01/price_rules/${priceRuleId}/discount_codes.json`,
       {
         method: 'POST',
         headers: {

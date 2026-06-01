@@ -91,12 +91,12 @@ async function handleCreateDraftOrder(req, res) {
     jobs[jobId] = {
       status: "completed",
       redirectUrl: response.redirectUrl || "/cart",
-      linePropertyUpdates: response.linePropertyUpdates || [],
       priceMap: response.priceMap || {},
-      storefrontApply: response.storefrontApply,
-      shopPlan: response.shopPlan || null,
-      isShopifyPlus: response.shopPlan?.isShopifyPlus ?? response.cartTransformSupported ?? null,
-      cartTransformSupported: response.cartTransformSupported ?? response.shopPlan?.isShopifyPlus ?? null,
+      discountCode: response.discountCode || null,
+      discountValue: response.discountValue ?? null,
+      checkoutMode: response.checkoutMode || null,
+      cartSubtotal: response.cartSubtotal ?? null,
+      redisSubtotal: response.redisSubtotal ?? null,
       diagnostics: response,
     };
     console.log(`Job ${jobId} completed. Redirect:`, jobs[jobId].redirectUrl, "line updates:", jobs[jobId].linePropertyUpdates?.length);
@@ -131,13 +131,11 @@ function handleCheckCheckoutUrl(req, res) {
     res.status(200).send({
       status: job.status,
       redirectUrl: job.redirectUrl,
-      linePropertyUpdates: job.linePropertyUpdates || [],
       priceMap: job.priceMap || {},
+      discountCode: job.discountCode || null,
+      discountValue: job.discountValue ?? null,
+      checkoutMode: job.checkoutMode || null,
       reason: job.reason,
-      storefrontApply: job.storefrontApply,
-      shopPlan: job.shopPlan || null,
-      isShopifyPlus: job.isShopifyPlus ?? null,
-      cartTransformSupported: job.cartTransformSupported ?? null,
       diagnostics: job.diagnostics,
       error: job.error,
     });
