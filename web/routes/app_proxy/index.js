@@ -722,10 +722,12 @@ proxyRouter.post("/cart-price-sync", async (req, res) => {
 
     if (missingSkusInRedis.length === 0) {
       console.log(`[Proxy] /cart-price-sync: Redis has data for all ${syncSkus.length} SKUs, skipping SAP webhook`);
+      const sapPrices = { ...redisPrices };
       const prices = mergeCartDefaultPrices(cart.items, redisPrices);
       return res.status(200).json({
         message: "Sync completed (Redis cache)",
         prices,
+        sapPrices,
       });
     }
 
@@ -748,10 +750,12 @@ proxyRouter.post("/cart-price-sync", async (req, res) => {
     const { priceMap: finalPriceMap } = await getRedisPricesForSkus(finalRedis, sapRedisId, syncSkus);
     await finalRedis.quit();
 
+    const sapPrices = { ...finalPriceMap };
     const prices = mergeCartDefaultPrices(cart.items, finalPriceMap);
     return res.status(200).json({
       message: "Sync completed",
       prices,
+      sapPrices,
     });
   } catch (error) {
     console.error("Cart price sync error:", error.message);

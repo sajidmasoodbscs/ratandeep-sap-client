@@ -600,8 +600,6 @@
         console.log("[SAP/Redis] Cart page script started");
 
         let cartSyncPromise = null;
-        let sapCartReloadTimer = null;
-        const SAP_CART_RELOAD_DELAY_MS = 800;
 
         function showCartLoader() {
           document.body.classList.add("RunningLoader");
@@ -615,35 +613,10 @@
           if (loader) loader.style.display = "none";
         }
 
-        function scheduleCartReloadAfterChange() {
-          if (window.__sapCartInternalUpdate) return;
-          clearTimeout(sapCartReloadTimer);
-          sapCartReloadTimer = setTimeout(function() {
-            console.log("[SAP/Redis] Cart changed — reloading for updated SAP prices");
-            window.location.reload();
-          }, SAP_CART_RELOAD_DELAY_MS);
-        }
-
-        function setupCartChangeReload() {
-          if (window.__sapCartChangeReloadSetup) return;
-          window.__sapCartChangeReloadSetup = true;
-          const originalFetch = window.fetch.bind(window);
-          window.fetch = async function(input, init) {
-            const url = typeof input === "string" ? input : (input && input.url) || "";
-            const isCartMutation = /\/cart\/(change|update|add|clear)(\.js)?/i.test(url);
-            const response = await originalFetch(input, init);
-            if (isCartMutation && response.ok && !window.__sapCartInternalUpdate) {
-              scheduleCartReloadAfterChange();
-            }
-            return response;
-          };
-        }
-
         async function syncCartPrices() {
           if (cartSyncPromise) return cartSyncPromise;
 
           cartSyncPromise = (async function() {
-          let willReload = false;
           try {
             showCartLoader();
             console.log("[SAP/Redis] Starting cart price sync...");
@@ -758,74 +731,61 @@
             // 3. Update subtotals
             updateCartTotals(syncData.prices, cart);
 
-            // 4. Use Shopify AJAX API to persist line item properties (attributes)
-            // This is required for the Cart Transformer to see the custom price
+            // 4. Persist sap_price only for real SAP prices (>0). Clear when SAP is 0/missing.
+            const sapPrices = syncData.sapPrices || {};
             const updates = {};
-            let needsUpdate = false;
 
             cart.items.forEach((item) => {
               const sku = item.sku || item.variant_sku;
-              const newPrice = syncData.prices[sku];
-              
-              if (newPrice != null && Number(newPrice) > 0 && item.properties?.sap_price != String(newPrice)) {
+              const sapUnit = sapPrices[sku];
+              const hasSap = sapUnit != null && Number(sapUnit) > 0;
+              const currentSap = item.properties?.sap_price;
+
+              if (hasSap && currentSap !== String(sapUnit)) {
                 updates[item.key] = {
                   quantity: item.quantity,
                   properties: {
                     ...(item.properties || {}),
-                  }
+                    sap_price: String(sapUnit),
+                  },
                 };
-                needsUpdate = true;
+              } else if (!hasSap && currentSap) {
+                const props = { ...(item.properties || {}) };
+                delete props.sap_price;
+                updates[item.key] = {
+                  quantity: item.quantity,
+                  properties: props,
+                };
               }
             });
 
-            if (!needsUpdate) {
-              console.log("[SAP/Redis] All items already have correct persistent attributes");
+            const updateKeys = Object.keys(updates);
+            if (updateKeys.length === 0) {
+              console.log("[SAP/Redis] Line properties already in sync (no page reload)");
               return;
             }
 
-            // Loop protection: Check if we have recently reloaded
-            const lastReload = sessionStorage.getItem('sap_sync_reload');
-            const now = Date.now();
-            if (lastReload && (now - parseInt(lastReload)) < 10000) {
-              console.log("[SAP/Redis] Loop detected or sync already performed recently. Skipping persistence to prevent infinite reload.");
-              return;
-            }
-
-            console.log("[SAP/Redis] Updating cart line attributes via AJAX API...");
-            
-            // Mark that we are about to reload to prevent loop
-            sessionStorage.setItem('sap_sync_reload', now.toString());
-
-            // We must use /cart/change.js for each item to properly update properties
-            window.__sapCartInternalUpdate = true;
-            try {
-              for (const key in updates) {
-                console.log(`[SAP/Redis] Persisting price for item key: ${key}`);
-                try {
-                  await fetch(window.Shopify.routes.root + 'cart/change.js', {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      id: key,
-                      quantity: updates[key].quantity,
-                      properties: updates[key].properties
-                    })
-                  });
-                } catch (err) {
-                  console.error(`[SAP/Redis] Failed to update item ${key}:`, err);
-                }
+            console.log("[SAP/Redis] Updating cart line properties (no reload):", updateKeys.length);
+            for (const key of updateKeys) {
+              try {
+                await fetch(window.Shopify.routes.root + 'cart/change.js', {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    id: key,
+                    quantity: updates[key].quantity,
+                    properties: updates[key].properties,
+                  }),
+                });
+              } catch (err) {
+                console.error(`[SAP/Redis] Failed to update item ${key}:`, err);
               }
-            } finally {
-              window.__sapCartInternalUpdate = false;
             }
-
-            console.log("[SAP/Redis] State persisted, reloading page to apply Cart Transformer logic");
-            willReload = true;
-            window.location.reload();
+            console.log("[SAP/Redis] Properties saved — checkout can proceed without reload");
           } catch (err) {
             console.error("[SAP/Redis] Error in sync process:", err);
           } finally {
-            if (!willReload) hideCartLoader();
+            hideCartLoader();
             cartSyncPromise = null;
           }
           })();
@@ -896,8 +856,6 @@
             console.log('[SAP/Redis] Subtotal element matching common selectors not found.');
           }
         }
-
-        setupCartChangeReload();
 
         if (document.readyState === "loading") {
           document.addEventListener("DOMContentLoaded", syncCartPrices);

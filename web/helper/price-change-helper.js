@@ -239,6 +239,7 @@ export const getCheckout = async (shop, cartbody) => {
     console.log("[getCheckout] Redis result:", redisResult);
 
     const priceMap = redisResult.priceMap || {};
+    const sapPriceMap = redisResult.sapPriceMap || {};
     if (!Object.keys(priceMap).length) {
       return checkoutFailure(shop, "no_prices", { redisResult });
     }
@@ -246,15 +247,20 @@ export const getCheckout = async (shop, cartbody) => {
     const totals = summarizeCartVsRedis(lineItems, priceMap);
     console.log("[getCheckout] Cart subtotal:", totals.cartSubtotal, "Redis subtotal:", totals.redisSubtotal);
 
-    const sapProducts = redisPriceMapToSapProducts(lineItems, priceMap);
+    const sapProducts = redisPriceMapToSapProducts(lineItems, sapPriceMap);
     const discountValue = roundMoney(calculateDiscountedPrice(lineItems, sapProducts));
-    console.log("[getCheckout] Discount amount (cart − Redis):", discountValue);
+    console.log("[getCheckout] Discount amount (cart − SAP Redis):", discountValue);
+    console.log("[getCheckout] SAP price map (>0 only):", sapPriceMap);
 
     const MIN_DISCOUNT = 0.01;
-    if (discountValue < MIN_DISCOUNT) {
-      console.log("[getCheckout] No discount needed — standard checkout");
+    const hasSapPrices = Object.keys(sapPriceMap).some((sku) => isUsableSapUnitPrice(sapPriceMap[sku]));
+    if (!hasSapPrices || discountValue < MIN_DISCOUNT) {
+      console.log(
+        "[getCheckout] No discount — SAP price missing/zero or cart already at SAP price"
+      );
       return checkoutSuccess(shop, {
         priceMap,
+        sapPriceMap,
         discountValue: 0,
         cartSubtotal: totals.cartSubtotal,
         redisSubtotal: totals.redisSubtotal,

@@ -217,13 +217,25 @@ export async function fetchCartPricesFromRedis(_session, shopifyCustId, skuList,
 
   if (!redisKey.prefix) {
     const priceMap = mergeCartDefaultPrices(lineItems, {});
-    return { ok: Object.keys(priceMap).length > 0, priceMap, reason: "no_customer_id", allFound: false };
+    return {
+      ok: Object.keys(priceMap).length > 0,
+      priceMap,
+      sapPriceMap: {},
+      reason: "no_customer_id",
+      allFound: false,
+    };
   }
 
   const config = getRedisConfigFromEnv();
   if (!config) {
     const priceMap = mergeCartDefaultPrices(lineItems, {});
-    return { ok: Object.keys(priceMap).length > 0, priceMap, reason: "redis_not_configured", allFound: false };
+    return {
+      ok: Object.keys(priceMap).length > 0,
+      priceMap,
+      sapPriceMap: {},
+      reason: "redis_not_configured",
+      allFound: false,
+    };
   }
 
   const redis = createRedisClient(config);
@@ -265,10 +277,18 @@ export async function fetchCartPricesFromRedis(_session, shopifyCustId, skuList,
       await redis.quit();
     } catch (_) {}
     console.error("[Redis] fetchCartPricesFromRedis error:", e.message);
+    const sapPriceMap = { ...priceMap };
     priceMap = mergeCartDefaultPrices(lineItems, priceMap);
-    return { ok: Object.keys(priceMap).length > 0, priceMap, reason: e.message, allFound: false };
+    return {
+      ok: Object.keys(priceMap).length > 0,
+      priceMap,
+      sapPriceMap,
+      reason: e.message,
+      allFound: false,
+    };
   }
 
+  const sapPriceMap = { ...priceMap };
   priceMap = mergeCartDefaultPrices(lineItems, priceMap);
   const requested = skuList
     .map((s) => (typeof s === "string" ? s.trim() : String(s?.sku || "").trim()))
@@ -279,6 +299,7 @@ export async function fetchCartPricesFromRedis(_session, shopifyCustId, skuList,
   return {
     ok: Object.keys(priceMap).length > 0,
     priceMap,
+    sapPriceMap,
     redisKeyPrefix: redisKey.prefix,
     allFound: allResolved,
     allFoundInRedis: allFound,
