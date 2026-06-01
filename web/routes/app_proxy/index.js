@@ -537,7 +537,6 @@ proxyRouter.post("/set-cart-line-prices", async (req, res) => {
         if (price == null || !Number.isFinite(Number(price))) return null;
         return {
           id: node.id,
-          attributes: [{ key: "sap_price", value: String(price) }],
         };
       })
       .filter(Boolean);
