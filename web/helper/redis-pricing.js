@@ -338,11 +338,11 @@ export function redisPriceMapToSapProducts(lineItems, priceMap) {
   const products = [];
   for (const item of lineItems || []) {
     const sku = String(item.sku || "").trim();
-    const unit = resolveUnitPrice(priceMap[sku], cartLineDefaultUnitPrice(item));
+    let unit = resolveUnitPrice(priceMap[sku], cartLineDefaultUnitPrice(item));
     if (!sku || unit === undefined || unit === null) continue;
     const qty = Number(item.quantity) || 1;
     unit = Number(unit);
-    if (!Number.isFinite(unit)) continue;
+    if (!Number.isFinite(unit) || !isUsableSapUnitPrice(unit)) continue;
     products.push({
       sku,
       quantity: qty,
