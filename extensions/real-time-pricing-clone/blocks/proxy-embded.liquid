@@ -179,7 +179,7 @@
 
     let checkoutNavigated = false;
     let checkoutFallbackTimer = null;
-    const CHECKOUT_MAX_WAIT_MS = 15000;
+    const CHECKOUT_MAX_WAIT_MS = 30000;
 
     function getStandardCheckoutUrl() {
       const root = window.Shopify && window.Shopify.routes && window.Shopify.routes.root;
@@ -203,7 +203,7 @@
     function armCheckoutFallbackTimer() {
       if (checkoutFallbackTimer) clearTimeout(checkoutFallbackTimer);
       checkoutFallbackTimer = setTimeout(function() {
-        console.warn("[SAP Checkout] Discount job timeout — using standard checkout");
+        console.warn("[SAP Checkout] Discount job timeout — opening checkout (discount may not apply)");
         goToCheckoutNow();
       }, CHECKOUT_MAX_WAIT_MS);
     }
@@ -336,6 +336,7 @@
     function pollJobStatus(jobId) {
       const url = SAP_APP_PROXY + "/check-checkout-url";
       console.log("[SAP Checkout] Polling", url, "jobId:", jobId);
+      armCheckoutFallbackTimer();
 
       const interval = setInterval(() => {
         fetch(url, {
@@ -385,7 +386,6 @@
 
     function startCheckoutJob(cartData) {
       checkoutNavigated = false;
-      armCheckoutFallbackTimer();
 
       const url = SAP_APP_PROXY + "/createDraftOrder";
       console.log("[SAP Checkout] POST", url);
@@ -863,10 +863,8 @@
             // 2. Update displayed line prices (DOM only — no sap_price line properties on /cart)
             cart.items.forEach((item, index) => {
               const sku = item.sku || item.variant_sku;
-              const sapUnit = syncData.sapPrices && syncData.sapPrices[sku];
               const effectivePrice = syncData.prices[sku];
               if (effectivePrice == null || Number(effectivePrice) <= 0) return;
-              if (sapUnit != null && Number(sapUnit) <= 0) return;
 
               const newPrice = Number(effectivePrice);
               if (Number.isFinite(newPrice) && newPrice > 0) {
@@ -935,12 +933,11 @@
               }
             });
 
-            // 3. Update subtotals from effective prices (Redis when >0, else Shopify)
-            updateCartTotals(syncData.prices, cart);
-
             const cartRefresh = await fetch(window.Shopify.routes.root + "cart.js");
             const cartAfter = await cartRefresh.json();
             await removeSapPropertiesFromCart(cartAfter);
+
+            scheduleCartTotalsRefresh(syncData.prices, cartAfter);
 
             console.log("[SAP/Redis] Cart display updated — no sap_price properties on cart lines");
           } catch (err) {
@@ -954,12 +951,43 @@
           return cartSyncPromise;
         }
 
+        function scheduleCartTotalsRefresh(priceMap, cartData) {
+          const run = function() {
+            updateCartTotals(priceMap, cartData);
+          };
+          run();
+          setTimeout(run, 400);
+          setTimeout(run, 1200);
+          setTimeout(run, 2500);
+
+          const footer =
+            document.querySelector("#main-cart-footer, .cart__footer, .totals, cart-items") ||
+            document.body;
+          if (window.__sapTotalsObserver) {
+            window.__sapTotalsObserver.disconnect();
+          }
+          window.__sapTotalsObserver = new MutationObserver(function() {
+            run();
+          });
+          window.__sapTotalsObserver.observe(footer, {
+            childList: true,
+            subtree: true,
+            characterData: true,
+          });
+          setTimeout(function() {
+            if (window.__sapTotalsObserver) {
+              window.__sapTotalsObserver.disconnect();
+              window.__sapTotalsObserver = null;
+            }
+          }, 12000);
+        }
+
         function updateCartTotals(priceMap, cartData) {
           hideCartLevelDiscountUi();
 
           const merchandiseCents = computeMerchandiseTotalCents(priceMap, cartData);
           const formattedMerchandise = formatMoneyFromCents(merchandiseCents);
-          console.log("[SAP/Redis] Cart merchandise total (no cart discount):", formattedMerchandise);
+          console.log("[SAP/Redis] Cart estimated total (no cart discount):", formattedMerchandise);
 
           const subtotalSelectors = [
             ".totals__subtotal-value",
@@ -984,12 +1012,23 @@
             ".cart__total",
             "#cart-total-price",
             "[data-cart-total]",
+            ".bss-b2b-cart-total",
+            ".order-total__price",
+            ".cart-summary__total",
+            "main-cart-footer .price--end",
           ];
 
           let estimatedUpdated = false;
           estimatedSelectors.forEach(function(sel) {
             document.querySelectorAll(sel).forEach(function(el) {
-              if (el.closest(".cart-item, .cart-item__totals, line-item")) return;
+              if (el.closest(".cart-item, .cart-item__totals, line-item, .cart-item__price")) return;
+              setPriceText(el, formattedMerchandise);
+              estimatedUpdated = true;
+            });
+          });
+
+          document.querySelectorAll("main-cart-footer .totals, .cart__footer .totals").forEach(function(totals) {
+            totals.querySelectorAll(".totals__total-value, .totals__total-value--final").forEach(function(el) {
               setPriceText(el, formattedMerchandise);
               estimatedUpdated = true;
             });
@@ -1027,9 +1066,9 @@
 
           if (!estimatedUpdated) {
             console.log("[SAP/Redis] Estimated total — fuzzy price match in footer");
-            document.querySelectorAll(".totals, .cart__footer, #main-cart-footer").forEach(function(footer) {
-              footer.querySelectorAll(".price, [class*='total-value']").forEach(function(el) {
-                if (el.closest(".cart-item")) return;
+            document.querySelectorAll(".totals, .cart__footer, #main-cart-footer, .cart__blocks").forEach(function(footer) {
+              footer.querySelectorAll(".price, [class*='total-value'], .money").forEach(function(el) {
+                if (el.closest(".cart-item, line-item")) return;
                 const text = (el.textContent || "").trim();
                 if (text.match(/^[\$\£\€\¥]/) && text.length < 24) {
                   setPriceText(el, formattedMerchandise);
@@ -1038,6 +1077,23 @@
               });
             });
           }
+
+          const estimatedLabelNodes = document.querySelectorAll(
+            "h2, h3, dt, .totals__label, .totals__total-label, legend, span, p"
+          );
+          estimatedLabelNodes.forEach(function(label) {
+            if (!/estimated\s+total/i.test(label.textContent || "")) return;
+            let valueEl = label.nextElementSibling;
+            if (!valueEl || !valueEl.textContent.match(/^[\$\£\€\¥]/)) {
+              valueEl = label.parentElement && label.parentElement.querySelector(
+                ".totals__total-value, .price-item--regular, .price, .money"
+              );
+            }
+            if (valueEl) {
+              setPriceText(valueEl, formattedMerchandise);
+              estimatedUpdated = true;
+            }
+          });
 
           hideCartLevelDiscountUi();
         }

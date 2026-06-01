@@ -247,31 +247,23 @@ export const getCheckout = async (shop, cartbody) => {
     const totals = summarizeCartVsRedis(lineItems, priceMap);
     console.log("[getCheckout] Cart subtotal:", totals.cartSubtotal, "Redis subtotal:", totals.redisSubtotal);
 
-    const missingSap = skus.filter((sku) => !isUsableSapUnitPrice(sapPriceMap[sku]));
-    if (missingSap.length > 0) {
-      console.log("[getCheckout] No discount — SAP/Redis price missing or zero for:", missingSap);
-      return checkoutSuccess(shop, {
-        priceMap,
-        sapPriceMap,
-        discountValue: 0,
-        cartSubtotal: totals.cartSubtotal,
-        redisSubtotal: totals.redisSubtotal,
-        redisKeyPrefix: redisResult.redisKeyPrefix,
-        checkoutMode: "standard",
-        reason: "sap_price_zero_or_missing",
-      });
-    }
-
     const sapProducts = redisPriceMapToSapProducts(lineItems, sapPriceMap);
     const discountValue = roundMoney(calculateDiscountedPrice(lineItems, sapProducts));
     console.log("[getCheckout] Discount amount (cart − SAP Redis):", discountValue);
     console.log("[getCheckout] SAP price map (>0 only):", sapPriceMap);
 
-    const MIN_DISCOUNT = 0.01;
-    const hasSapPrices = Object.keys(sapPriceMap).some((sku) => isUsableSapUnitPrice(sapPriceMap[sku]));
-    if (!hasSapPrices || discountValue < MIN_DISCOUNT) {
+    const zeroOrMissingSap = skus.filter((sku) => !isUsableSapUnitPrice(sapPriceMap[sku]));
+    if (zeroOrMissingSap.length > 0) {
       console.log(
-        "[getCheckout] No discount — SAP price zero or cart already at SAP price"
+        "[getCheckout] Lines with SAP/Redis 0 or missing (no discount on those lines):",
+        zeroOrMissingSap
+      );
+    }
+
+    const MIN_DISCOUNT = 0.01;
+    if (discountValue < MIN_DISCOUNT) {
+      console.log(
+        "[getCheckout] No checkout discount — savings below minimum or cart already at/below SAP price"
       );
       return checkoutSuccess(shop, {
         priceMap,
