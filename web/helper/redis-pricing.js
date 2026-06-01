@@ -235,10 +235,8 @@ export function buildAjaxLinePropertyUpdates(cartItems, priceMap) {
     updates.push({
       lineKey: item.key,
       sku,
-      sap_price: sapPrice,
       properties: {
         ...(item.properties || {}),
-        sap_price: sapPrice,
       },
     });
   }
