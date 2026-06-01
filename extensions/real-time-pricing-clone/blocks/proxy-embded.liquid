@@ -538,12 +538,23 @@
 
                 if (rows.length > 0) {
                   rows.forEach(row => {
-                    // Update Unit Prices
-                    row.querySelectorAll('.cart-item__price, .price-item--regular, .price:not(.price--end):not(.price--last), .product-option').forEach(el => {
+                    // Update Unit Prices (standard price nodes only)
+                    row.querySelectorAll('.cart-item__price, .price-item--regular, .price:not(.price--end):not(.price--last)').forEach(el => {
                       if (!el.closest('.cart-item__totals')) {
                         el.textContent = formattedPrice;
                       }
                     });
+                    // One unit-price slot in details — not variant options inside <dl>
+                    const details = row.querySelector('.cart-item__details');
+                    if (details) {
+                      const options = details.querySelectorAll('.product-option');
+                      for (const priceEl of options) {
+                        if (!priceEl.closest('dl')) {
+                          priceEl.textContent = formattedPrice;
+                          break;
+                        }
+                      }
+                    }
                     // Update Line Totals
                     row.querySelectorAll('.cart-item__total, .cart-item__totals .price, .price--end, .cart-item__totals .price-item--regular').forEach(el => {
                       el.textContent = formattedLineTotal;
