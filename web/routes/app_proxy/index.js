@@ -5,9 +5,10 @@ import { getCheckout, getSession } from '../../helper/price-change-helper.js';
 import { PriceChangeDB } from '../../price-change-db.js';
 import {
   buildSapRootCustomerXml,
-  fetchSapIdFromCustomerMetafields,
+  logRedisConnectionFromEnv,
   normalizeShopifyCustomerId,
   postSapWebhook,
+  resolveRedisKeyPrefix,
 } from '../../helper/sap-api.js';
 
 const proxyRouter = Router();
@@ -15,6 +16,7 @@ const jobs = {};
 
 /** Redis connection from REDIS_STRING (e.g. redis://user:pass@host:port). Shop is ignored. */
 function getRedisConfigForShop(_shop) {
+  logRedisConnectionFromEnv("Proxy");
   const redisString = process.env.REDIS_STRING?.trim();
   if (!redisString) {
     console.warn("[Proxy] REDIS_STRING environment variable is not set");
@@ -251,14 +253,14 @@ proxyRouter.post("/sapcall", async (req, res) => {
     const shopifyCustomerId = normalizeShopifyCustomerId(shopifyCustId);
     console.log("[Proxy] /sapcall — normalized Shopify customer id:", shopifyCustomerId);
 
-    const sapRedisId = await fetchSapIdFromCustomerMetafields(sessionRes.session, shopifyCustId);
+    const redisKey = await resolveRedisKeyPrefix(sessionRes.session, shopifyCustId);
+    const sapRedisId = redisKey.prefix;
+    console.log(`[Proxy] /sapcall — redis key resolve:`, redisKey);
 
     if (!sapRedisId) {
-      console.log(`[Proxy] SAP metafield lookup failed for Shopify customer ${shopifyCustId}`);
-      return res.status(400).json({ message: "SAP Customer ID not found for this customer" });
+      console.log(`[Proxy] Could not resolve Redis key prefix for customer ${shopifyCustId}`);
+      return res.status(400).json({ message: "Could not resolve customer id for Redis" });
     }
-
-    console.log(`[Proxy] /sapcall — Shopify customer ${shopifyCustomerId}, Redis/SAP metafield id: ${sapRedisId}`);
 
     const redisConfig = getRedisConfigForShop(shop);
     if (!redisConfig) {
@@ -334,12 +336,12 @@ proxyRouter.all("/get-all-redis-pricing", async (req, res) => {
       return res.status(500).json({ message: "Session not found" });
     }
 
-    const customerId = await fetchSapIdFromCustomerMetafields(sessionRes.session, shopifyCustId);
+    const redisKey = await resolveRedisKeyPrefix(sessionRes.session, shopifyCustId);
+    const customerId = redisKey.prefix;
+    console.log(`[Proxy] /get-all-redis-pricing redis key:`, redisKey);
     if (!customerId) {
-      console.log(`[Proxy] /get-all-redis-pricing: SAP ID not found for ${shopifyCustId}`);
-      return res.status(400).json({ message: "SAP Customer ID not found" });
+      return res.status(400).json({ message: "Could not resolve customer id for Redis" });
     }
-    console.log(`[Proxy] /get-all-redis-pricing resolved SAP ID: ${customerId}`);
     let skusRaw = req.body?.skus || req.query?.skus;
     let skus = [];
     if (Array.isArray(skusRaw)) {
@@ -394,10 +396,12 @@ proxyRouter.all("/redis-prices", async (req, res) => {
     }
 
     const sessionRes = await getSession(shop);
-    const customerId = await fetchSapIdFromCustomerMetafields(sessionRes.session, shopifyCustId);
+    const redisKey = await resolveRedisKeyPrefix(sessionRes.session, shopifyCustId);
+    const customerId = redisKey.prefix;
+    console.log(`[Proxy] /redis-prices redis key:`, redisKey);
 
     if (!customerId) {
-      return res.status(400).json({ message: "SAP Customer ID not found" });
+      return res.status(400).json({ message: "Could not resolve customer id for Redis" });
     }
     const skusRaw = req.body?.skus || req.query?.skus;
     const skus = Array.isArray(skusRaw)
@@ -643,13 +647,13 @@ async function handleAllSkusSync(req, res, source) {
     const shopifyCustomerId = normalizeShopifyCustomerId(shopifyCustId);
     console.log(`[Proxy] /${source} — normalized Shopify customer id:`, shopifyCustomerId);
 
-    const sapRedisId = await fetchSapIdFromCustomerMetafields(sessionRes.session, shopifyCustId);
+    const redisKey = await resolveRedisKeyPrefix(sessionRes.session, shopifyCustId);
+    const sapRedisId = redisKey.prefix;
+    console.log(`[Proxy] /${source} — redis key resolve:`, redisKey);
 
     if (!sapRedisId) {
-      return res.status(400).json({ message: "SAP Customer ID not found" });
+      return res.status(400).json({ message: "Could not resolve customer id for Redis" });
     }
-
-    console.log(`[Proxy] /${source} — sapRedisId for Redis keys:`, sapRedisId);
 
     try {
       await PriceChangeDB.createProductSKUsTable();
@@ -743,13 +747,13 @@ proxyRouter.post("/cart-price-sync", async (req, res) => {
     const shopifyCustomerId = normalizeShopifyCustomerId(shopifyCustId);
     console.log("[Proxy] /cart-price-sync — normalized Shopify customer id:", shopifyCustomerId);
 
-    const sapRedisId = await fetchSapIdFromCustomerMetafields(sessionRes.session, shopifyCustId);
+    const redisKey = await resolveRedisKeyPrefix(sessionRes.session, shopifyCustId);
+    const sapRedisId = redisKey.prefix;
+    console.log("[Proxy] /cart-price-sync — redis key:", redisKey);
 
     if (!sapRedisId) {
-      return res.status(400).json({ message: "SAP Customer ID not found" });
+      return res.status(400).json({ message: "Could not resolve customer id for Redis" });
     }
-
-    console.log("[Proxy] /cart-price-sync — sapRedisId:", sapRedisId);
 
     const redisConfigSync = getRedisConfigForShop(shop);
     if (!redisConfigSync) {
@@ -818,12 +822,13 @@ proxyRouter.post("/get-price-by-sku", async (req, res) => {
     }
 
     const shopifyCustomerId = normalizeShopifyCustomerId(shopifyCustId);
-    const sapRedisId = await fetchSapIdFromCustomerMetafields(sessionRes.session, shopifyCustId);
-    if (!sapRedisId) {
-      return res.status(400).json({ message: "SAP Customer ID not found for this customer" });
-    }
+    const redisKey = await resolveRedisKeyPrefix(sessionRes.session, shopifyCustId);
+    const sapRedisId = redisKey.prefix;
+    console.log(`[Proxy] /get-price-by-sku:`, { shopifyCustomerId, redisKey, sku });
 
-    console.log(`[Proxy] /get-price-by-sku: Shopify ID ${shopifyCustomerId}, sapRedisId ${sapRedisId}, SKU: ${sku}`);
+    if (!sapRedisId) {
+      return res.status(400).json({ message: "Could not resolve customer id for Redis" });
+    }
 
     const redisConfigBySku = getRedisConfigForShop(shop);
     if (!redisConfigBySku) {

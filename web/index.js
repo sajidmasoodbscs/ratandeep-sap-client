@@ -13,6 +13,7 @@ import carttransformerRouter from './routes/carttransformer.js';
 import shopify from './shopify.js';
 import webhookHandlers from './webhook-handlers.js';
 import cors from 'cors';
+import { logRedisConnectionFromEnv } from './helper/sap-api.js';
 
 let query;
 const STATIC_PATH =
@@ -802,6 +803,9 @@ const PORT = parseInt(process.env.PORT || process.env.BACKEND_PORT || "8081", 10
 
 app.listen(PORT, async () => {
   console.log(`App listening on port ${PORT}`);
+  logRedisConnectionFromEnv("Server");
+  console.log("[Server] CLIENT_API_URL:", process.env.CLIENT_API_URL || "(not set)");
+  console.log("[Server] ENCRYPTION_KEY present:", !!process.env.ENCRYPTION_KEY);
   try {
     await PriceChangeDB.createSettingTable();
     await PriceChangeDB.ensureSettingsColumns();

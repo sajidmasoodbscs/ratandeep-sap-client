@@ -6,8 +6,9 @@ import xml2js from 'xml2js';
 import { PriceChangeDB } from '../price-change-db.js';
 import {
   buildSapRootCustomerXml,
-  fetchSapIdFromCustomerMetafields,
+  logRedisConnectionFromEnv,
   normalizeShopifyCustomerId,
+  resolveRedisKeyPrefix,
 } from './sap-api.js';
 
 const customerRoleFiled = process.env.CUSTOMER_ROLE;
@@ -23,9 +24,20 @@ export const getSession = async (shopName) => {
   };
   try {
     const sessionObject = await PriceChangeDB.byShop(shopName);
+    const rows = sessionObject?.rows ?? sessionObject;
+    console.log("[getSession] shop:", shopName, "rows:", Array.isArray(rows) ? rows.length : 0);
 
-    if (sessionObject) {
-      response.session = sessionObject[0];
+    if (rows?.length) {
+      const row = rows[0];
+      response.session = {
+        ...row,
+        shop: row.shop || shopName,
+        accessToken: row.access_token || row.accessToken,
+        access_token: row.access_token || row.accessToken,
+      };
+      console.log("[getSession] token present:", !!response.session.accessToken);
+    } else {
+      console.warn("[getSession] No session row for shop:", shopName);
     }
   } catch (error) {
     response.flag = false;
@@ -159,9 +171,11 @@ export const getCheckout = async (shop, cartbody) => {
   try {
     console.log("************* Price simulation is running... *************");
     console.log("shop =>", shop);
+    logRedisConnectionFromEnv("PriceChangeHelper");
+    console.log("[PriceChangeHelper] cartbody:", JSON.stringify(cartbody, null, 2));
     const response = await getSession(shop);
 
-    console.log("response", response)
+    console.log("[PriceChangeHelper] getSession flag:", response.flag, "has session:", !!response.session);
 
     if (response.session) {
       const session = response.session;
@@ -198,18 +212,24 @@ export const getCheckout = async (shop, cartbody) => {
           const shopifyCustomerId = normalizeShopifyCustomerId(custId);
           console.log("[PriceChangeHelper] Shopify customer id for SAP XML:", shopifyCustomerId);
 
-          console.log(`[PriceChangeHelper] Fetching customer metafields — shop: ${session.shop}, customerId: ${custId}`);
-          const sapRedisId = await fetchSapIdFromCustomerMetafields(session, custId);
-          console.log("[PriceChangeHelper] Metafield SAP id (Redis key prefix):", sapRedisId);
+          const redisKey = await resolveRedisKeyPrefix(session, custId);
+          console.log("[PriceChangeHelper] Redis key prefix resolved:", redisKey);
 
-          if (!sapRedisId) {
-            console.log("[PriceChangeHelper] No SAP id in customer metafields. Aborting.");
+          if (!redisKey.prefix) {
+            console.error("[PriceChangeHelper] Could not resolve Redis key prefix. Aborting.");
             return "/cart";
           }
 
-          console.log("[PriceChangeHelper] Calling SAP API with Root/customer/id XML...");
+          if (redisKey.source === "shopify_fallback" || redisKey.source === "shopify_fallback_no_session") {
+            console.warn(
+              "[PriceChangeHelper] No SAP metafield on customer — using Shopify customer id for Redis:",
+              redisKey.prefix
+            );
+          }
+
+          console.log("[PriceChangeHelper] Calling SAP API (CLIENT_API_URL)...");
           const apiResponse = await clientApi(shopifyCustomerId, shop);
-          console.log("[PriceChangeHelper] SAP API response:", apiResponse);
+          console.log("[PriceChangeHelper] SAP API returned:", apiResponse === 0 ? "0 (env missing)" : typeof apiResponse);
 
             let cartItemsFromSap;
             let sapProducts;
@@ -621,7 +641,8 @@ async function applySapPricesToCart(session, cartbody, sapProducts, totalTaxAmou
 }
 
 async function clientApi(shopifyCustomerId, shop) {
-  console.log("[clientApi] start — shop:", shop, "shopifyCustomerId:", shopifyCustomerId);
+  console.log("========== [clientApi] SAP REQUEST START ==========");
+  console.log("[clientApi] shop:", shop, "shopifyCustomerId:", shopifyCustomerId);
 
   const key = process.env.ENCRYPTION_KEY;
   const apiURL = process.env.CLIENT_API_URL;
@@ -629,15 +650,17 @@ async function clientApi(shopifyCustomerId, shop) {
   console.log("[clientApi] ENCRYPTION_KEY present?:", !!key);
 
   if (!apiURL || !key) {
-    console.error("[clientApi] CLIENT_API_URL or ENCRYPTION_KEY is not set");
+    console.error("[clientApi] CLIENT_API_URL or ENCRYPTION_KEY is not set — cannot call SAP");
     return 0;
   }
 
   const xmlBody = buildSapRootCustomerXml(shopifyCustomerId);
-  console.log("[clientApi] Outgoing XML body:\n", xmlBody);
 
   try {
-    console.log("[clientApi] POST", apiURL);
+    console.log("[clientApi] >>> OUTGOING POST", apiURL);
+    console.log("[clientApi] >>> OUTGOING HEADERS:", { "Content-Type": "application/xml", Accept: "application/xml" });
+    console.log("[clientApi] >>> OUTGOING BODY:\n", xmlBody);
+
     const response = await fetch(apiURL, {
       method: "POST",
       headers: {
@@ -647,18 +670,23 @@ async function clientApi(shopifyCustomerId, shop) {
       body: xmlBody,
     });
 
-    console.log("[clientApi] SAP API response status:", response.status);
     const responseText = await response.text();
-    console.log("[clientApi] Raw XML response (first 500 chars):", responseText.slice(0, 500));
-    console.log("[clientApi] Raw XML response (full):\n", responseText);
+    console.log("[clientApi] <<< INCOMING status:", response.status, response.statusText);
+    console.log("[clientApi] <<< INCOMING headers:", Object.fromEntries(response.headers.entries()));
+    console.log("[clientApi] <<< INCOMING body (full):\n", responseText);
+
+    if (!response.ok) {
+      console.error("[clientApi] SAP returned non-OK status");
+    }
 
     const responseData = await convertXmlToJson(responseText);
-    console.log("[clientApi] Parsed JSON:", JSON.stringify(responseData, null, 2));
+    console.log("[clientApi] <<< PARSED JSON:", JSON.stringify(responseData, null, 2));
+    console.log("========== [clientApi] SAP REQUEST END ==========");
 
     return responseData;
   } catch (error) {
-    console.error("[clientApi] Error:", error?.stack || error);
-    console.error("[clientApi] shopifyCustomerId at error:", shopifyCustomerId);
+    console.error("[clientApi] <<< REQUEST FAILED:", error?.stack || error);
+    console.log("========== [clientApi] SAP REQUEST END (error) ==========");
     return null;
   }
 }
