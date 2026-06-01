@@ -7,25 +7,32 @@ import { PriceChangeDB } from '../../price-change-db.js';
 const proxyRouter = Router();
 const jobs = {};
 
-async function getRedisConfigForShop(shop) {
-  if (!shop) return null;
+/** Redis connection from REDIS_STRING (e.g. redis://user:pass@host:port). Shop is ignored. */
+function getRedisConfigForShop(_shop) {
+  const redisString = process.env.REDIS_STRING?.trim();
+  if (!redisString) {
+    console.warn("[Proxy] REDIS_STRING environment variable is not set");
+    return null;
+  }
   try {
-    const rows = await PriceChangeDB.Getsettings(shop);
-    const row = rows && rows[0];
-    if (!row) return null;
-    const host = row.redis_host;
-    const port = row.redis_port != null ? parseInt(String(row.redis_port), 10) : null;
-    if (!host || !port || isNaN(port)) return null;
+    const url = new URL(redisString);
+    if (url.protocol !== "redis:" && url.protocol !== "rediss:") {
+      console.error("[Proxy] REDIS_STRING must use redis:// or rediss://");
+      return null;
+    }
+    const port = url.port ? parseInt(url.port, 10) : 6379;
+    if (!url.hostname || Number.isNaN(port)) return null;
     return {
-      host: String(host).trim(),
+      host: url.hostname,
       port,
-      password: row.redis_password != null ? String(row.redis_password) : undefined,
-      username: row.redis_username != null ? String(row.redis_username) : undefined,
+      password: url.password ? decodeURIComponent(url.password) : undefined,
+      username: url.username ? decodeURIComponent(url.username) : undefined,
+      ...(url.protocol === "rediss:" ? { tls: {} } : {}),
       retryStrategy: (times) => Math.min(times * 50, 2000),
       maxRetriesPerRequest: 3,
     };
   } catch (e) {
-    console.error("[Proxy] getRedisConfigForShop error:", e.message);
+    console.error("[Proxy] Failed to parse REDIS_STRING:", e.message);
     return null;
   }
 }
@@ -135,9 +142,9 @@ async function getRedisPricesForSkus(redis, customerId, skuList) {
 }
 
 async function pollRedisForPrices(shop, customerId, skuList, maxRetries = 3, interval = 2000) {
-  const config = await getRedisConfigForShop(shop);
+  const config = getRedisConfigForShop(shop);
   if (!config) {
-    console.warn("[Redis Polling] No Redis config for shop:", shop);
+    console.warn("[Redis Polling] REDIS_STRING is not configured");
     return { allFound: false, priceMap: {} };
   }
   const redis = createRedisClient(config);
@@ -290,7 +297,7 @@ proxyRouter.post("/sapcall", async (req, res) => {
 
     console.log(`[Proxy] Successfully resolved Shopify customer ${shopifyCustId} to SAP ID: ${customerId}`);
 
-    const redisConfig = await getRedisConfigForShop(shop);
+    const redisConfig = getRedisConfigForShop(shop);
     if (!redisConfig) {
       return res.status(503).json({ message: "Redis not configured for this shop. Set credentials in the app." });
     }
@@ -434,7 +441,7 @@ proxyRouter.all("/get-all-redis-pricing", async (req, res) => {
       return res.status(400).json({ message: "No SKUs provided", prices: {} });
     }
 
-    const redisConfig = await getRedisConfigForShop(shop);
+    const redisConfig = getRedisConfigForShop(shop);
     if (!redisConfig) {
       return res.status(503).json({ message: "Redis not configured for this shop. Set credentials in the app.", prices: {} });
     }
@@ -490,7 +497,7 @@ proxyRouter.all("/redis-prices", async (req, res) => {
       return res.status(400).json({ message: "Body must include 'skus' (array of SKU strings)", prices: {} });
     }
 
-    const redisConfig = await getRedisConfigForShop(shop);
+    const redisConfig = getRedisConfigForShop(shop);
     if (!redisConfig) {
       return res.status(503).json({ message: "Redis not configured for this shop. Set credentials in the app.", prices: {} });
     }
@@ -539,7 +546,7 @@ proxyRouter.post("/redis-call", async (req, res) => {
     }
 
     const shop = extractShop(req, res);
-    const redisConfig = await getRedisConfigForShop(shop);
+    const redisConfig = getRedisConfigForShop(shop);
     if (!redisConfig) {
       return res.status(503).json({ message: "Redis not configured for this shop. Set credentials in the app." });
     }
@@ -742,7 +749,7 @@ async function handleAllSkusSync(req, res, source) {
       return res.status(400).json({ message: "No SKUs found in database", totalSKUs: 0 });
     }
 
-    const redisConfig = await getRedisConfigForShop(shop);
+    const redisConfig = getRedisConfigForShop(shop);
     if (!redisConfig) {
       return res.status(503).json({ message: "Redis not configured for this shop. Set credentials in the app." });
     }
@@ -869,7 +876,7 @@ proxyRouter.post("/cart-price-sync", async (req, res) => {
       return res.status(400).json({ message: "SAP Customer ID not found" });
     }
 
-    const redisConfigSync = await getRedisConfigForShop(shop);
+    const redisConfigSync = getRedisConfigForShop(shop);
     if (!redisConfigSync) {
       return res.status(503).json({ message: "Redis not configured for this shop. Set credentials in the app." });
     }
@@ -987,7 +994,7 @@ proxyRouter.post("/get-price-by-sku", async (req, res) => {
 
     console.log(`[Proxy] /get-price-by-sku: Shopify ID ${shopifyCustId} -> SAP ID ${customerId}, SKU: ${sku}`);
 
-    const redisConfigBySku = await getRedisConfigForShop(shop);
+    const redisConfigBySku = getRedisConfigForShop(shop);
     if (!redisConfigBySku) {
       return res.status(503).json({ message: "Redis not configured for this shop. Set credentials in the app." });
     }
