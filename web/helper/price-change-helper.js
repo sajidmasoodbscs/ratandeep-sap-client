@@ -10,6 +10,7 @@ import {
   fetchCartPricesFromRedis,
   redisPriceMapToSapProducts,
 } from './redis-pricing.js';
+import { fetchShopPlan } from './shop-plan.js';
 
 function checkoutFailure(shop, reason, details = {}) {
   console.error("[getCheckout] FAILED:", reason, details);
@@ -209,6 +210,20 @@ export const getCheckout = async (shop, cartbody) => {
     }
 
     const session = response.session;
+    const shopPlan = await fetchShopPlan(session);
+    console.log(
+      "[getCheckout] Shopify Plus:",
+      shopPlan.isShopifyPlus,
+      "plan:",
+      shopPlan.displayName || shopPlan.planName || "unknown"
+    );
+    if (!shopPlan.isShopifyPlus) {
+      console.warn(
+        "[getCheckout] Store is not Shopify Plus — Cart Transform may not apply at checkout.",
+        "Relying on sap_price line properties + cart/change.js."
+      );
+    }
+
     const lineItems = cartData?.items || [];
 
     if (!cartData?.customer_id) {
@@ -220,7 +235,11 @@ export const getCheckout = async (shop, cartbody) => {
 
     if (productSkus.length === 0) {
       console.log("[getCheckout] No SKUs on cart lines — proceeding to checkout anyway");
-      return checkoutSuccess(shop, { linePropertyUpdates: [], priceMap: {} });
+      return checkoutSuccess(shop, {
+        linePropertyUpdates: [],
+        priceMap: {},
+        shopPlan,
+      });
     }
 
     const skus = lineItems.map((item) => String(item.sku || "").trim()).filter(Boolean);
@@ -272,6 +291,8 @@ export const getCheckout = async (shop, cartbody) => {
       redisKeyPrefix: redisResult.redisKeyPrefix,
       usedDefaults: redisResult.usedDefaults,
       storefrontApply,
+      shopPlan,
+      cartTransformSupported: shopPlan.isShopifyPlus,
     });
   } catch (error) {
     console.error("[getCheckout] Unhandled error:", error?.stack || error);

@@ -234,6 +234,15 @@
             console.log("[SAP Checkout] poll payload:", data);
             if (data.status === "completed" && data.redirectUrl) {
               clearInterval(interval);
+              if (data.isShopifyPlus === false) {
+                console.warn(
+                  "[SAP Checkout] Store is not Shopify Plus — Cart Transform may not change checkout prices.",
+                  "Plan:",
+                  data.shopPlan?.displayName || data.shopPlan?.planName
+                );
+              } else if (data.isShopifyPlus === true) {
+                console.log("[SAP Checkout] Shopify Plus — Cart Transform supported at checkout");
+              }
               const applyResult = await applyCheckoutLineProperties(data.linePropertyUpdates);
               if (applyResult.applied === 0 && data.linePropertyUpdates?.length) {
                 console.error("[SAP Checkout] Failed to set sap_price on cart lines");

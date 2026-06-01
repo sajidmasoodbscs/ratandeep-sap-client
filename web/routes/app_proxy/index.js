@@ -94,6 +94,9 @@ async function handleCreateDraftOrder(req, res) {
       linePropertyUpdates: response.linePropertyUpdates || [],
       priceMap: response.priceMap || {},
       storefrontApply: response.storefrontApply,
+      shopPlan: response.shopPlan || null,
+      isShopifyPlus: response.shopPlan?.isShopifyPlus ?? response.cartTransformSupported ?? null,
+      cartTransformSupported: response.cartTransformSupported ?? response.shopPlan?.isShopifyPlus ?? null,
       diagnostics: response,
     };
     console.log(`Job ${jobId} completed. Redirect:`, jobs[jobId].redirectUrl, "line updates:", jobs[jobId].linePropertyUpdates?.length);
@@ -132,6 +135,9 @@ function handleCheckCheckoutUrl(req, res) {
       priceMap: job.priceMap || {},
       reason: job.reason,
       storefrontApply: job.storefrontApply,
+      shopPlan: job.shopPlan || null,
+      isShopifyPlus: job.isShopifyPlus ?? null,
+      cartTransformSupported: job.cartTransformSupported ?? null,
       diagnostics: job.diagnostics,
       error: job.error,
     });
