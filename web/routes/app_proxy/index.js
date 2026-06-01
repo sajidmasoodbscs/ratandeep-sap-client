@@ -60,15 +60,19 @@ proxyRouter.get("/testapi", async (req, res) => {
   });
 });
 
-proxyRouter.post("/createDraftOrder", async (req, res) => {
+async function handleCreateDraftOrder(req, res) {
   const jobId = uuidv4();
   jobs[jobId] = { status: "pending", redirectUrl: null };
-  console.log("Query parameters from front end => ", req.query);
+  console.log("========== [Proxy] /createDraftOrder POST ==========");
+  console.log("[Proxy] jobId:", jobId);
+  console.log("[Proxy] body keys:", Object.keys(req.body || {}));
+  console.log("[Proxy] shop from body:", req.body?.shop || req.body?.data?.shop);
+
   res.status(200).send({ jobId: jobId });
 
   try {
-    const shop = extractShop(req, res);
-    console.log(`[Proxy] /createDraftOrder hit. Shop: ${shop}`);
+    const shop = extractShop(req, res) || req.body?.shop || req.body?.data?.shop;
+    console.log(`[Proxy] /createDraftOrder async work. Shop: ${shop}`);
     const response = await getCheckout(shop, req.body);
     console.log(`[Proxy] /createDraftOrder getCheckout result:`, JSON.stringify(response, null, 2));
 
@@ -101,10 +105,13 @@ proxyRouter.post("/createDraftOrder", async (req, res) => {
     };
     console.error(`Job ${jobId} failed:`, error.message);
   }
-});
+}
 
-proxyRouter.post("/check-checkout-url", (req, res) => {
-  console.log("calling for job status", req.body.jobId);
+proxyRouter.post("/createDraftOrder", handleCreateDraftOrder);
+proxyRouter.post("/createDraftOrder/", handleCreateDraftOrder);
+
+function handleCheckCheckoutUrl(req, res) {
+  console.log("[Proxy] /check-checkout-url jobId:", req.body?.jobId);
 
   const jobId = req.body.jobId;
   if (!jobId) {
@@ -131,7 +138,10 @@ proxyRouter.post("/check-checkout-url", (req, res) => {
   } else {
     res.status(200).send({ status: job.status });
   }
-});
+}
+
+proxyRouter.post("/check-checkout-url", handleCheckCheckoutUrl);
+proxyRouter.post("/check-checkout-url/", handleCheckCheckoutUrl);
 
 proxyRouter.post("/sapcall", async (req, res) => {
   try {

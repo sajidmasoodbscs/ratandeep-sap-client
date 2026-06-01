@@ -160,239 +160,193 @@
       return true;
     }
 
-    document.addEventListener('DOMContentLoaded', function() {
-      console.log("[SAP Checkout] DOMContentLoaded handler started");
+    const SAP_APP_PROXY = "/apps/sap-price-test";
+    const SHOP_DOMAIN = {{ shop.permanent_domain | json }};
+    const CUSTOMER_ID = {{ customer.id | json }};
+    const CUSTOMER_ADDRESSES = {{ customer.addresses | json }};
 
-      // document.querySelector("#CartDrawer-Checkout")?.addEventListener('click', function(event) {
-      //   event.preventDefault();
-      //   console.log("we are change customer to main cart page")
-      //   window.location.href = "/cart";
-      // })
-
-      const buttons = document.querySelectorAll('button[name="checkout"]');
-
-      console.log("[SAP Checkout] Extension version: 1.1");
-      console.log("[SAP Checkout] Checkout buttons found:", buttons);
-
-      buttons.forEach(button => {
-        button.addEventListener('click', async (event) => {
-          event.preventDefault();
-          console.log("[SAP Checkout] Checkout button clicked");
-          const cust_addr = {{ customer.addresses | json }}
-          console.log("[SAP Checkout] Customer addresses are: ", cust_addr);
-          console.log("customer id =>", {{ customer.id | json }});
-          // const isValid = isValidDefaultAddress(cust_addr);
-          // console.log(`Address is valid: ${isValid}`);
-        //  if (! isValid) {
-          //  window.location.href = "/account/addresses?incomplete=true";
-       //   } else {
-           console.log("[SAP Checkout] Showing loader and starting cart fetch");
-           document.body.classList.add("RunningLoader");
-            document.querySelector(".loaderBars").style.display = "block";
-            let cartData = null;
-            try {
-              console.log("[SAP Checkout] Fetching cart.js");
-              var cartContents = await fetch(window.Shopify.routes.root + 'cart.js').then(response => {
-                console.log("[SAP Checkout] cart.js raw response status:", response.status);
-                return response.json();
-              }).then(data => {
-              cartData = JSON.parse(JSON.stringify(data));
-              cartData.customer_id = {{ customer.id | json }};
-              cartData.customer_adresses = {{ customer.addresses | json }};
-              cartData.shop = {{ shop.permanent_domain | json }};
-              console.log("[SAP Checkout] cartData prepared for backend:", cartData);
-              return data
-            });
-            console.log("[SAP Checkout] Cart Contents from /cart.js:", cartContents);
-          } catch (cartErr) {
-            console.error("[SAP Checkout] Error fetching cart.js:", cartErr);
-            document.querySelector(".loaderBars").style.display = "none";
-            document.body.classList.remove("RunningLoader");
-            window.location.href = "/cart";
-            return;
-          }
-
-
-
-  // Function to start long process and begin polling
-  function startLongProcess() {
-    console.log("[SAP Checkout] startLongProcess called with cartData:", cartData);
-
-    fetch('https://ratandeep-sap-client.onrender.com/apps/sap-price-test/createDraftOrder/', {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(
-        { data: cartData }
-      )
-    })
-      .then(response => {
-        console.log("[SAP Checkout] createDraftOrder raw response status:", response.status);
-        return response.json();
-      })
-      .then(data => {
-        console.log("[SAP Checkout] createDraftOrder JSON response:", data);
-        const jobId = data.jobId;
-        if (!jobId) {
-          console.error("[SAP Checkout] No jobId returned from createDraftOrder, redirecting to cart");
-          document.querySelector(".loaderBars").style.display = "none";
-          document.body.classList.remove("RunningLoader");
-          window.location.href = "/cart";
-          return;
-        }
-        console.log('[SAP Checkout] Job started with ID:', jobId);
-
-        // Start polling for job status
-        pollJobStatus(jobId);
-      })
-      .catch(error => {
-        console.error('[SAP Checkout] Error starting process (createDraftOrder):', error);
-        document.querySelector(".loaderBars").style.display = "none";
-        document.body.classList.remove("RunningLoader");
-        window.location.href = "/cart";
-      });
-  }
-
-  async function applyCheckoutLineProperties(linePropertyUpdates) {
-    if (!linePropertyUpdates || !linePropertyUpdates.length) {
-      console.warn("[SAP Checkout] No linePropertyUpdates to apply before checkout");
-      return { applied: 0, failed: 0 };
+    function showCheckoutLoader() {
+      document.body.classList.add("RunningLoader");
+      const loader = document.querySelector(".loaderBars");
+      if (loader) loader.style.display = "block";
     }
-    console.log("[SAP Checkout] Applying sap_price to cart lines via cart/change.js:", linePropertyUpdates);
-    let applied = 0;
-    let failed = 0;
-    for (const line of linePropertyUpdates) {
-      try {
-        const res = await fetch(window.Shopify.routes.root + "cart/change.js", {
+
+    function hideCheckoutLoader() {
+      document.body.classList.remove("RunningLoader");
+      const loader = document.querySelector(".loaderBars");
+      if (loader) loader.style.display = "none";
+    }
+
+    function isCheckoutElement(el) {
+      if (!el || !el.closest) return false;
+      const node = el.closest('button, a, input[type="submit"]');
+      if (!node) return false;
+      if (node.getAttribute("name") === "checkout") return true;
+      if (node.id === "checkout" || node.id === "CartDrawer-Checkout") return true;
+      if (node.classList && node.classList.contains("cart__checkout-button")) return true;
+      const href = node.getAttribute("href") || "";
+      if (href === "/checkout" || href.endsWith("/checkout")) return true;
+      return false;
+    }
+
+    async function applyCheckoutLineProperties(linePropertyUpdates) {
+      if (!linePropertyUpdates || !linePropertyUpdates.length) {
+        console.warn("[SAP Checkout] No linePropertyUpdates to apply");
+        return { applied: 0, failed: 0 };
+      }
+      let applied = 0;
+      let failed = 0;
+      for (const line of linePropertyUpdates) {
+        try {
+          const res = await fetch(window.Shopify.routes.root + "cart/change.js", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: line.lineKey, properties: line.properties }),
+          });
+          const body = await res.json();
+          console.log("[SAP Checkout] cart/change.js", line.sku, res.status, body);
+          if (res.ok) applied++;
+          else failed++;
+        } catch (err) {
+          console.error("[SAP Checkout] cart/change.js error", line.sku, err);
+          failed++;
+        }
+      }
+      return { applied, failed };
+    }
+
+    function pollJobStatus(jobId) {
+      const url = SAP_APP_PROXY + "/check-checkout-url";
+      console.log("[SAP Checkout] Polling", url, "jobId:", jobId);
+
+      const interval = setInterval(() => {
+        fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            id: line.lineKey,
-            properties: line.properties,
-          }),
-        });
-        const body = await res.json();
-        console.log("[SAP Checkout] cart/change.js", line.sku, "status:", res.status, "response:", body);
-        if (res.ok) applied++;
-        else failed++;
-      } catch (err) {
-        console.error("[SAP Checkout] cart/change.js failed for", line.sku, err);
-        failed++;
-      }
+          body: JSON.stringify({ jobId, shop: SHOP_DOMAIN }),
+        })
+          .then((r) => {
+            console.log("[SAP Checkout] poll status:", r.status);
+            if (!r.ok) throw new Error("poll HTTP " + r.status);
+            return r.json();
+          })
+          .then(async (data) => {
+            console.log("[SAP Checkout] poll payload:", data);
+            if (data.status === "completed" && data.redirectUrl) {
+              clearInterval(interval);
+              const applyResult = await applyCheckoutLineProperties(data.linePropertyUpdates);
+              if (applyResult.applied === 0 && data.linePropertyUpdates?.length) {
+                console.error("[SAP Checkout] Failed to set sap_price on cart lines");
+                hideCheckoutLoader();
+                window.location.href = "/cart";
+                return;
+              }
+              hideCheckoutLoader();
+              console.log("[SAP Checkout] Going to checkout:", data.redirectUrl);
+              window.location.href = data.redirectUrl;
+            } else if (data.status === "failed") {
+              clearInterval(interval);
+              hideCheckoutLoader();
+              console.error("[SAP Checkout] Job failed:", data.reason || data.error);
+              window.location.href = "/cart";
+            }
+          })
+          .catch((err) => {
+            console.error("[SAP Checkout] Poll error:", err);
+            clearInterval(interval);
+            hideCheckoutLoader();
+            window.location.href = "/cart";
+          });
+      }, 1000);
+
+      setTimeout(() => {
+        clearInterval(interval);
+        hideCheckoutLoader();
+        console.warn("[SAP Checkout] Poll timeout");
+        window.location.href = "/cart";
+      }, 120000);
     }
-    console.log("[SAP Checkout] Line properties applied:", applied, "failed:", failed);
-    return { applied, failed };
-  }
 
-  function pollJobStatus(jobId) {
-    console.log(`[SAP Checkout] pollJobStatus called for Job ID: ${jobId}`);
-    const url = "https://ratandeep-sap-client.onrender.com/apps/sap-price-test/check-checkout-url";
+    function startCheckoutJob(cartData) {
+      const url = SAP_APP_PROXY + "/createDraftOrder";
+      console.log("[SAP Checkout] POST", url);
 
-    function hideLoader() {
-      document.querySelector(".loaderBars").style.display = "none";
-      document.body.classList.remove("RunningLoader");
-    }
-
-    const interval = setInterval(() => {
-      console.log("[SAP Checkout] Polling checkout status...");
       fetch(url, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ jobId, shop: {{ shop.permanent_domain | json }} }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data: cartData, shop: SHOP_DOMAIN }),
       })
-        .then(response => {
-          console.log("[SAP Checkout] check-checkout-url raw response:", response);
-          if (!response.ok) {
-            throw new Error(`HTTP error! Status: ${response.status}`);
-          }
-          return response.json();
+        .then((r) => {
+          console.log("[SAP Checkout] createDraftOrder status:", r.status);
+          if (!r.ok) throw new Error("createDraftOrder HTTP " + r.status);
+          return r.json();
         })
-        .then(async (data) => {
-          console.log("[SAP Checkout] Job status payload:", data);
-          if (data.diagnostics) {
-            console.log("[SAP Checkout] Diagnostics:", data.diagnostics);
-          }
-          if (data.storefrontApply) {
-            console.log("[SAP Checkout] Storefront apply (server):", data.storefrontApply);
-          }
-
-          if (data.status === "completed" && data.redirectUrl) {
-            clearInterval(interval);
-            const applyResult = await applyCheckoutLineProperties(data.linePropertyUpdates);
-            if (applyResult.applied === 0 && data.linePropertyUpdates?.length) {
-              console.error("[SAP Checkout] Could not persist sap_price on cart — staying on cart");
-              hideLoader();
-              window.location.href = "/cart";
-              return;
-            }
-            hideLoader();
-            console.log("[SAP Checkout] Redirecting to checkout:", data.redirectUrl);
-            window.location.href = data.redirectUrl;
-          } else if (data.status === "failed") {
-            clearInterval(interval);
-            hideLoader();
-            console.error("[SAP Checkout] Checkout job failed:", data.reason || data.error, data);
-            window.location.href = "/cart";
-          } else {
-            console.log("[SAP Checkout] Job still in progress or unknown status:", data.status);
-          }
+        .then((data) => {
+          console.log("[SAP Checkout] createDraftOrder body:", data);
+          if (!data.jobId) throw new Error("No jobId in response");
+          pollJobStatus(data.jobId);
         })
-        .catch(error => {
-          console.error("[SAP Checkout] Error checking status (pollJobStatus):", error);
-          clearInterval(interval);
-          hideLoader();
+        .catch((err) => {
+          console.error("[SAP Checkout] createDraftOrder failed:", err);
+          hideCheckoutLoader();
           window.location.href = "/cart";
         });
-    }, 1000);
+    }
 
-    // Safety timeout: stop polling after 2 minutes and send back to cart
-    setTimeout(() => {
-      if (interval) {
-        clearInterval(interval);
-        hideLoader();
-        console.warn("[SAP Checkout] Checkout polling timed out. Redirecting to cart.");
+    async function handleCheckoutClick(event) {
+      event.preventDefault();
+      event.stopPropagation();
+      console.log("[SAP Checkout] Intercepted checkout click:", event.target);
+
+      showCheckoutLoader();
+
+      try {
+        const cartRes = await fetch(window.Shopify.routes.root + "cart.js");
+        console.log("[SAP Checkout] cart.js status:", cartRes.status);
+        const cartData = await cartRes.json();
+        cartData.customer_id = CUSTOMER_ID;
+        cartData.customer_adresses = CUSTOMER_ADDRESSES;
+        cartData.shop = SHOP_DOMAIN;
+        console.log("[SAP Checkout] cart items:", cartData.items?.length, "token:", cartData.token);
+        startCheckoutJob(cartData);
+      } catch (err) {
+        console.error("[SAP Checkout] cart.js failed:", err);
+        hideCheckoutLoader();
         window.location.href = "/cart";
       }
-    }, 120000);
-  }
+    }
 
+    document.addEventListener("DOMContentLoaded", function() {
+      console.log("[SAP Checkout] v2 — shop:", SHOP_DOMAIN, "customer:", CUSTOMER_ID);
 
-  // Call this function to start the process
-
-
-
-            
-              (async () => {
-                  console.log("[SAP Checkout] About to start long process after cart + data prepared");
-                  // const fetchOptions = {
-                  //   method: "POST",
-                  //   headers: {
-                  //     "Content-Type": "application/json"
-                  //   },
-                  //   body: JSON.stringify(
-                  //     { data: cartData }
-                  //   )
-                  // };
-                  // fetch(`/apps/sap-price-test/createDraftOrder/`, fetchOptions).then((response) => response.json()).then((responseJSON) => {
-                  //   if (responseJSON) {
-                  //     $(".loaderBars").hide();
-                  //     $("body").removeClass("RunningLoader");
-                  //     console.log("we are receiving this from backend", responseJSON.content);
-                  //     window.location.href = responseJSON.content;
-                  //   }
-                  // });
-
-                  startLongProcess();
-                })();
-         // }
-        });
-
+      const selectorList = [
+        'button[name="checkout"]',
+        'input[name="checkout"]',
+        "#checkout",
+        "#CartDrawer-Checkout",
+        ".cart__checkout-button",
+        'a[href="/checkout"]',
+      ];
+      selectorList.forEach((sel) => {
+        const found = document.querySelectorAll(sel);
+        console.log("[SAP Checkout] Selector", sel, "→", found.length, found);
       });
-      console.log("[SAP Checkout] Coming from theme app extension, customer id =>", {{ customer.id | json }});
-      console.log("[SAP Checkout] Customer addresses data =>", {{ customer.addresses | json }});
+
+      document.addEventListener(
+        "click",
+        function (event) {
+          const onCart =
+            window.location.pathname === "/cart" ||
+            window.location.pathname.endsWith("/cart");
+          if (!onCart) return;
+          if (!isCheckoutElement(event.target)) return;
+          handleCheckoutClick(event);
+        },
+        true
+      );
+
+      console.log("[SAP Checkout] Delegated click listener active on /cart");
+      console.log("[SAP Checkout] Customer addresses:", CUSTOMER_ADDRESSES);
 
       // Call SAP webhook with all SKUs when customer logs in
       (async function() {
@@ -517,7 +471,7 @@
             console.log("customer id =>", {{ customer.id | json }});
             console.log("customer addresses =>", {{ customer.addresses | json }});
             console.log("shop =>", {{ shop.permanent_domain | json }});
-            const syncUrl = "https://ratandeep-sap-client.onrender.com/apps/sap-price-test/cart-price-sync";
+            const syncUrl = "/apps/sap-price-test/cart-price-sync";
             console.log("[SAP/Redis] Calling sync endpoint:", syncUrl);
 
             // 1. Call our orchestrator endpoint
