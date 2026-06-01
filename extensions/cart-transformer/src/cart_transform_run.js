@@ -3,7 +3,15 @@ const NO_CHANGES = {
 };
 
 export function cartTransformRun(input) {
-  const operations = input.cart.lines
+  const lines = input.cart?.lines || [];
+  console.log("[cart-transformer] run — line count:", lines.length);
+  lines.forEach((line, i) => {
+    console.log(
+      `[cart-transformer] line ${i} id=${line.id} sap_price=${line.attribute?.value ?? "(missing)"}`
+    );
+  });
+
+  const operations = lines
     .map((line) => {
       const sapPrice = line.attribute?.value;
       if (sapPrice) {
@@ -27,6 +35,7 @@ export function cartTransformRun(input) {
     })
     .filter(Boolean);
 
+  console.log("[cart-transformer] price operations:", operations.length);
   return {
     operations,
   };

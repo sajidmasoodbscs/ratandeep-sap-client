@@ -169,6 +169,34 @@ export async function fetchCartPricesFromRedis(session, shopifyCustId, skuList, 
 }
 
 /** Build sapProducts shape for applySapPricesToCart from Redis unit prices */
+/** Ajax cart line updates so Cart Transform sees sap_price at checkout (line item properties). */
+export function buildAjaxLinePropertyUpdates(cartItems, priceMap) {
+  const updates = [];
+  for (const item of cartItems || []) {
+    const sku = String(item.sku || item.variant_sku || "").trim();
+    const price = priceMap[sku];
+    if (!sku || price === undefined || price === null) {
+      console.log("[Redis] buildAjaxLinePropertyUpdates — skip item (no sku/price):", {
+        key: item.key,
+        sku,
+      });
+      continue;
+    }
+    const sapPrice = String(price);
+    updates.push({
+      lineKey: item.key,
+      sku,
+      sap_price: sapPrice,
+      properties: {
+        ...(item.properties || {}),
+        sap_price: sapPrice,
+      },
+    });
+  }
+  console.log("[Redis] buildAjaxLinePropertyUpdates — count:", updates.length, updates);
+  return updates;
+}
+
 export function redisPriceMapToSapProducts(lineItems, priceMap) {
   const products = [];
   for (const item of lineItems || []) {

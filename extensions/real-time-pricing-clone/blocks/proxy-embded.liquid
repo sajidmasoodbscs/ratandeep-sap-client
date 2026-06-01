@@ -254,6 +254,37 @@
       });
   }
 
+  async function applyCheckoutLineProperties(linePropertyUpdates) {
+    if (!linePropertyUpdates || !linePropertyUpdates.length) {
+      console.warn("[SAP Checkout] No linePropertyUpdates to apply before checkout");
+      return { applied: 0, failed: 0 };
+    }
+    console.log("[SAP Checkout] Applying sap_price to cart lines via cart/change.js:", linePropertyUpdates);
+    let applied = 0;
+    let failed = 0;
+    for (const line of linePropertyUpdates) {
+      try {
+        const res = await fetch(window.Shopify.routes.root + "cart/change.js", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: line.lineKey,
+            properties: line.properties,
+          }),
+        });
+        const body = await res.json();
+        console.log("[SAP Checkout] cart/change.js", line.sku, "status:", res.status, "response:", body);
+        if (res.ok) applied++;
+        else failed++;
+      } catch (err) {
+        console.error("[SAP Checkout] cart/change.js failed for", line.sku, err);
+        failed++;
+      }
+    }
+    console.log("[SAP Checkout] Line properties applied:", applied, "failed:", failed);
+    return { applied, failed };
+  }
+
   function pollJobStatus(jobId) {
     console.log(`[SAP Checkout] pollJobStatus called for Job ID: ${jobId}`);
     const url = "https://ratandeep-sap-client.onrender.com/apps/sap-price-test/check-checkout-url";
@@ -279,18 +310,31 @@
           }
           return response.json();
         })
-        .then(data => {
+        .then(async (data) => {
           console.log("[SAP Checkout] Job status payload:", data);
+          if (data.diagnostics) {
+            console.log("[SAP Checkout] Diagnostics:", data.diagnostics);
+          }
+          if (data.storefrontApply) {
+            console.log("[SAP Checkout] Storefront apply (server):", data.storefrontApply);
+          }
 
           if (data.status === "completed" && data.redirectUrl) {
             clearInterval(interval);
+            const applyResult = await applyCheckoutLineProperties(data.linePropertyUpdates);
+            if (applyResult.applied === 0 && data.linePropertyUpdates?.length) {
+              console.error("[SAP Checkout] Could not persist sap_price on cart — staying on cart");
+              hideLoader();
+              window.location.href = "/cart";
+              return;
+            }
             hideLoader();
-            console.log("[SAP Checkout] Job completed, redirecting to checkout URL:", data.redirectUrl);
+            console.log("[SAP Checkout] Redirecting to checkout:", data.redirectUrl);
             window.location.href = data.redirectUrl;
           } else if (data.status === "failed") {
             clearInterval(interval);
             hideLoader();
-            console.error("[SAP Checkout] Checkout job failed:", data.error);
+            console.error("[SAP Checkout] Checkout job failed:", data.reason || data.error, data);
             window.location.href = "/cart";
           } else {
             console.log("[SAP Checkout] Job still in progress or unknown status:", data.status);
@@ -573,6 +617,7 @@
                 updates[item.key] = {
                   properties: {
                     ...(item.properties || {}),
+                    sap_price: String(newPrice),
                   }
                 };
                 needsUpdate = true;

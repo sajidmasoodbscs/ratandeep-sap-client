@@ -70,12 +70,29 @@ proxyRouter.post("/createDraftOrder", async (req, res) => {
     const shop = extractShop(req, res);
     console.log(`[Proxy] /createDraftOrder hit. Shop: ${shop}`);
     const response = await getCheckout(shop, req.body);
+    console.log(`[Proxy] /createDraftOrder getCheckout result:`, JSON.stringify(response, null, 2));
+
+    if (response?.ok === false) {
+      jobs[jobId] = {
+        status: "failed",
+        redirectUrl: response.redirectUrl || "/cart",
+        reason: response.reason,
+        diagnostics: response,
+        error: response.reason,
+      };
+      console.error(`Job ${jobId} failed:`, response.reason);
+      return;
+    }
+
     jobs[jobId] = {
       status: "completed",
-      redirectUrl: response,
+      redirectUrl: response.redirectUrl || "/cart",
+      linePropertyUpdates: response.linePropertyUpdates || [],
+      priceMap: response.priceMap || {},
+      storefrontApply: response.storefrontApply,
+      diagnostics: response,
     };
-    console.log("jobs:", jobs)
-    console.log(`Job ${jobId} completed. Redirect URL: ${response}`);
+    console.log(`Job ${jobId} completed. Redirect:`, jobs[jobId].redirectUrl, "line updates:", jobs[jobId].linePropertyUpdates?.length);
   } catch (error) {
     jobs[jobId] = {
       status: "failed",
@@ -101,7 +118,16 @@ proxyRouter.post("/check-checkout-url", (req, res) => {
   }
 
   if (job.status === "completed" || job.status === "failed") {
-    res.status(200).send({ status: job.status, redirectUrl: job.redirectUrl, error: job.error });
+    res.status(200).send({
+      status: job.status,
+      redirectUrl: job.redirectUrl,
+      linePropertyUpdates: job.linePropertyUpdates || [],
+      priceMap: job.priceMap || {},
+      reason: job.reason,
+      storefrontApply: job.storefrontApply,
+      diagnostics: job.diagnostics,
+      error: job.error,
+    });
   } else {
     res.status(200).send({ status: job.status });
   }

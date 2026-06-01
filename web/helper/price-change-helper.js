@@ -6,9 +6,33 @@ import xml2js from 'xml2js';
 import { PriceChangeDB } from '../price-change-db.js';
 import { logRedisConnectionFromEnv } from './sap-api.js';
 import {
+  buildAjaxLinePropertyUpdates,
   fetchCartPricesFromRedis,
   redisPriceMapToSapProducts,
 } from './redis-pricing.js';
+
+function checkoutFailure(shop, reason, details = {}) {
+  console.error("[getCheckout] FAILED:", reason, details);
+  return {
+    ok: false,
+    redirectUrl: "/cart",
+    reason,
+    ...details,
+  };
+}
+
+function checkoutSuccess(shop, payload) {
+  const shopHost = String(shop || "")
+    .replace(/^https?:\/\//, "")
+    .replace(/\/$/, "");
+  const redirectUrl = shopHost ? `https://${shopHost}/checkout` : "/checkout";
+  console.log("[getCheckout] SUCCESS — redirectUrl:", redirectUrl, "payload:", payload);
+  return {
+    ok: true,
+    redirectUrl,
+    ...payload,
+  };
+}
 
 const customerRoleFiled = process.env.CUSTOMER_ROLE;
 const soldToNumberField = process.env.SOLD_TO_NUMBER;
@@ -168,108 +192,86 @@ function extractSapCartData(parsed) {
 
 export const getCheckout = async (shop, cartbody) => {
   try {
-    console.log("************* Price simulation is running... *************");
-    console.log("shop =>", shop);
+    console.log("========== [getCheckout] START ==========");
+    console.log("[getCheckout] shop:", shop);
     logRedisConnectionFromEnv("PriceChangeHelper");
-    console.log("[PriceChangeHelper] cartbody:", JSON.stringify(cartbody, null, 2));
+
+    const cartData = cartbody?.data || cartbody;
+    console.log("[getCheckout] cart token:", cartData?.token);
+    console.log("[getCheckout] cart item count:", cartData?.items?.length);
+    console.log("[getCheckout] customer_id:", cartData?.customer_id);
+
     const response = await getSession(shop);
+    console.log("[getCheckout] session:", response.flag, !!response.session);
 
-    console.log("[PriceChangeHelper] getSession flag:", response.flag, "has session:", !!response.session);
-
-    if (response.session) {
-      const session = response.session;
-      const simulationId = uuidv4();
-      const lineItems = cartbody.data.items;
-      if (cartbody.data.customer_id) {
-        const custId = cartbody.data.customer_id;
-        const customerAdresses = cartbody.data.customer_adresses
-          ? cartbody.data.customer_adresses
-          : null;
-        let filtereAddress = null;
-
-        if (customerAdresses) {
-          const defaultTrueObject = customerAdresses.find(
-            (item) => item.default === true
-          );
-
-          if (defaultTrueObject) {
-            const { address1, city, zip, province_code, country_code } =
-              defaultTrueObject;
-            filtereAddress = {
-              address1,
-              city,
-              zip,
-              province_code,
-              country_code,
-            };
-          }
-        }
-
-        const productSkus = await filterCartLineItems(lineItems);
-
-        if (productSkus.length !== 0) {
-          const skus = lineItems
-            .map((item) => String(item.sku || "").trim())
-            .filter(Boolean);
-
-          console.log("[PriceChangeHelper] Cart Transform flow — loading prices from Redis (not CLIENT_API_URL)");
-          const redisResult = await fetchCartPricesFromRedis(session, custId, skus, {
-            triggerSapIfMissing: true,
-          });
-
-          console.log("[PriceChangeHelper] Redis pricing result:", redisResult);
-
-          if (!redisResult.ok || !Object.keys(redisResult.priceMap).length) {
-            console.error("[PriceChangeHelper] No Redis prices for cart. Aborting checkout.");
-            return "/cart";
-          }
-
-          const sapProducts = redisPriceMapToSapProducts(lineItems, redisResult.priceMap);
-          if (!sapProducts.length) {
-            console.error("[PriceChangeHelper] No matching SKUs between cart and Redis. Aborting.");
-            return "/cart";
-          }
-
-          console.log("[getCheckout] Applying Redis prices to cart sap_price attributes for Cart Transform");
-          try {
-            const applyResult = await applySapPricesToCart(
-              session,
-              cartbody,
-              sapProducts,
-              0
-            );
-            console.log("[getCheckout] Cart Transform sap_price apply result:", applyResult);
-            if (!applyResult || applyResult.updated <= 0) {
-              console.error(
-                "[getCheckout] sap_price not written to cart lines, stopping checkout redirect.",
-                applyResult
-              );
-              return "/cart";
-            }
-          } catch (applyError) {
-            console.error("[getCheckout] Failed to apply Redis sap_price attributes:", applyError.message);
-            return "/cart";
-          }
-
-          return `/checkout`;
-        } else {
-          console.log("All items in the cart are without sku's");
-
-          return "/checkout";
-        }
-      } else {
-        console.log(
-          "\n\n Customer not logged in. So we don't have the default address.\n We cannot make SAP API CALL. Process stopped. \n\n"
-        );
-        return "/cart";
-      }
-    } else {
-      console.log("Error in database Connection.");
-      return "/cart";
+    if (!response.session) {
+      return checkoutFailure(shop, "no_session");
     }
+
+    const session = response.session;
+    const lineItems = cartData?.items || [];
+
+    if (!cartData?.customer_id) {
+      return checkoutFailure(shop, "customer_not_logged_in");
+    }
+
+    const custId = cartData.customer_id;
+    const productSkus = await filterCartLineItems(lineItems);
+
+    if (productSkus.length === 0) {
+      console.log("[getCheckout] No SKUs on cart lines — proceeding to checkout anyway");
+      return checkoutSuccess(shop, { linePropertyUpdates: [], priceMap: {} });
+    }
+
+    const skus = lineItems.map((item) => String(item.sku || "").trim()).filter(Boolean);
+    console.log("[getCheckout] Loading prices from Redis for SKUs:", skus);
+
+    const redisResult = await fetchCartPricesFromRedis(session, custId, skus, {
+      triggerSapIfMissing: true,
+    });
+    console.log("[getCheckout] Redis result:", redisResult);
+
+    if (!redisResult.ok || !Object.keys(redisResult.priceMap).length) {
+      return checkoutFailure(shop, "no_redis_prices", { redisResult });
+    }
+
+    const linePropertyUpdates = buildAjaxLinePropertyUpdates(lineItems, redisResult.priceMap);
+    if (!linePropertyUpdates.length) {
+      return checkoutFailure(shop, "no_line_property_updates", { priceMap: redisResult.priceMap });
+    }
+
+    const sapProducts = redisPriceMapToSapProducts(lineItems, redisResult.priceMap);
+    let storefrontApply = { updated: 0, reason: "not_attempted" };
+
+    console.log("[getCheckout] Optional Storefront cartLinesUpdate (may fail for Ajax cart token)...");
+    try {
+      storefrontApply = await applySapPricesToCart(session, cartbody, sapProducts, 0);
+      console.log("[getCheckout] Storefront apply result:", storefrontApply);
+    } catch (applyError) {
+      console.warn(
+        "[getCheckout] Storefront apply failed (browser will set line properties):",
+        applyError.message
+      );
+      storefrontApply = { updated: 0, reason: "storefront_error", error: applyError.message };
+    }
+
+    if (storefrontApply.updated <= 0) {
+      console.warn(
+        "[getCheckout] Storefront did not update lines — checkout relies on theme applying",
+        "linePropertyUpdates via cart/change.js before redirect. Reason:",
+        storefrontApply.reason
+      );
+    }
+
+    return checkoutSuccess(shop, {
+      priceMap: redisResult.priceMap,
+      linePropertyUpdates,
+      redisKeyPrefix: redisResult.redisKeyPrefix,
+      storefrontApply,
+    });
   } catch (error) {
-    console.error("Error in background execution:", error);
-    return "/cart";
+    console.error("[getCheckout] Unhandled error:", error?.stack || error);
+    return checkoutFailure(shop, "exception", { error: error.message });
   }
 }; 
 
@@ -372,27 +374,39 @@ async function storefrontGraphqlForCart(shop, query, variables, tokenOverride = 
 }
 
 function resolveCartIdFromBody(cartbody) {
-  const data = cartbody?.data || {};
-  return (
+  const data = cartbody?.data || cartbody || {};
+  const raw =
     data.cartId ||
     data.cart_id ||
     data.cartToken ||
     data.cart_token ||
     data.token ||
-    null
-  );
+    null;
+  console.log("[CartTransform] resolveCartIdFromBody — raw token/id:", raw);
+  return raw;
 }
 
 async function applySapPricesToCart(session, cartbody, sapProducts, totalTaxAmountFromSap = 0) {
+  console.log("[CartTransform] applySapPricesToCart — start", {
+    shop: session?.shop,
+    sapProductCount: sapProducts?.length,
+    totalTaxAmountFromSap,
+  });
+
   const cartIdRaw = resolveCartIdFromBody(cartbody);
   if (!cartIdRaw) {
-    console.log("[CartTransform] No cart id/token found in request body. Cannot write sap_price attributes.");
+    console.log("[CartTransform] FAIL — no cart token in body (expected cart.js token field)");
     return { updated: 0, reason: "missing_cart_id" };
   }
 
   const cartId = String(cartIdRaw).startsWith("gid://")
     ? String(cartIdRaw)
     : `gid://shopify/Cart/${String(cartIdRaw)}`;
+
+  console.log("[CartTransform] Storefront cart id used for query:", cartId);
+  console.log(
+    "[CartTransform] NOTE: Ajax cart.js token often is NOT a valid Storefront Cart GID — query may return empty"
+  );
 
   const CART_QUERY = `
     query CartById($id: ID!) {
@@ -469,11 +483,20 @@ async function applySapPricesToCart(session, cartbody, sapProducts, totalTaxAmou
     }
   };
 
-  const data = await callStorefrontWithFallback(CART_QUERY, { id: cartId });
+  let data;
+  try {
+    data = await callStorefrontWithFallback(CART_QUERY, { id: cartId });
+  } catch (queryErr) {
+    console.error("[CartTransform] FAIL — CartById query error:", queryErr.message);
+    return { updated: 0, reason: "cart_query_error", error: queryErr.message };
+  }
+
   const lines = data?.cart?.lines?.nodes || [];
+  console.log("[CartTransform] CartById returned line count:", lines.length);
+
   if (!lines.length) {
-    console.log("[CartTransform] Cart not found or no lines for cartId:", cartId);
-    return { updated: 0, reason: "cart_empty_or_not_found" };
+    console.log("[CartTransform] FAIL — cart empty or invalid GID (use cart/change.js from browser instead)");
+    return { updated: 0, reason: "cart_empty_or_not_found", cartId };
   }
 
   const sapBySku = new Map();
@@ -484,12 +507,16 @@ async function applySapPricesToCart(session, cartbody, sapProducts, totalTaxAmou
     if (!sku || !Number.isFinite(total) || qty <= 0) continue;
     sapBySku.set(sku, total / qty);
   }
+  console.log("[CartTransform] Redis unit prices by SKU:", Object.fromEntries(sapBySku));
 
   const updateLines = lines
     .map((line) => {
       const sku = String(line?.merchandise?.sku || "").trim();
       const sapUnitPrice = sapBySku.get(sku);
-      if (!Number.isFinite(sapUnitPrice)) return null;
+      if (!Number.isFinite(sapUnitPrice)) {
+        console.log("[CartTransform] No Redis price for cart line SKU:", sku, "lineId:", line.id);
+        return null;
+      }
       return {
         id: line.id,
         attributes: [{ key: "sap_price", value: String(sapUnitPrice) }],
@@ -497,54 +524,54 @@ async function applySapPricesToCart(session, cartbody, sapProducts, totalTaxAmou
     })
     .filter(Boolean);
 
-  const taxProductGid = `gid://shopify/Product/${TAX_PRODUCT_ID}`;
-  const variantLookup = await callStorefrontWithFallback(PRODUCT_VARIANT_LOOKUP_QUERY, {
-    id: taxProductGid,
-  });
-  const taxVariantGid = variantLookup?.product?.variants?.nodes?.[0]?.id || null;
-  if (!taxVariantGid) {
-    console.error("[CartTransform] Could not resolve variant for tax product:", taxProductGid);
-    return { updated: 0, reason: "tax_variant_not_found" };
-  }
-  console.log("[CartTransform] Resolved tax variant id:", taxVariantGid);
   const taxAmount = Number(totalTaxAmountFromSap || 0);
-  const existingTaxLine = lines.find(
-    (line) => String(line?.merchandise?.id || "") === taxVariantGid
-  );
-
-  if (existingTaxLine) {
-    const currentTaxSapPrice = (existingTaxLine.attributes || []).find(
-      (attr) => attr.key === "sap_price"
-    )?.value;
-    if (currentTaxSapPrice !== String(taxAmount)) {
-      updateLines.push({
-        id: existingTaxLine.id,
-        attributes: [{ key: "sap_price", value: String(taxAmount) }],
-      });
+  if (taxAmount > 0) {
+    const taxProductGid = `gid://shopify/Product/${TAX_PRODUCT_ID}`;
+    const variantLookup = await callStorefrontWithFallback(PRODUCT_VARIANT_LOOKUP_QUERY, {
+      id: taxProductGid,
+    });
+    const taxVariantGid = variantLookup?.product?.variants?.nodes?.[0]?.id || null;
+    if (!taxVariantGid) {
+      console.warn("[CartTransform] Tax product variant not found — skipping tax line:", taxProductGid);
+    } else {
+      console.log("[CartTransform] Tax variant id:", taxVariantGid);
+      const existingTaxLine = lines.find(
+        (line) => String(line?.merchandise?.id || "") === taxVariantGid
+      );
+      if (existingTaxLine) {
+        updateLines.push({
+          id: existingTaxLine.id,
+          attributes: [{ key: "sap_price", value: String(taxAmount) }],
+        });
+      } else {
+        const addData = await callStorefrontWithFallback(CART_LINES_ADD_MUTATION, {
+          cartId,
+          lines: [
+            {
+              merchandiseId: taxVariantGid,
+              quantity: 1,
+              attributes: [{ key: "sap_price", value: String(taxAmount) }],
+            },
+          ],
+        });
+        const addErrs = addData?.cartLinesAdd?.userErrors || [];
+        if (addErrs.length) {
+          console.error("[CartTransform] cartLinesAdd userErrors:", addErrs);
+        } else {
+          console.log("[CartTransform] Tax line added, sap_price:", taxAmount);
+        }
+      }
     }
   } else {
-    const addData = await callStorefrontWithFallback(CART_LINES_ADD_MUTATION, {
-      cartId,
-      lines: [
-        {
-          merchandiseId: taxVariantGid,
-          quantity: 1,
-          attributes: [{ key: "sap_price", value: String(taxAmount) }],
-        },
-      ],
-    });
-    const addErrs = addData?.cartLinesAdd?.userErrors || [];
-    if (addErrs.length) {
-      console.error("[CartTransform] cartLinesAdd userErrors for tax line:", addErrs);
-      return { updated: 0, reason: "tax_line_add_user_errors", errors: addErrs };
-    }
-    console.log("[CartTransform] Tax line added to cart with sap_price:", taxAmount);
+    console.log("[CartTransform] Skipping tax line (amount is 0)");
   }
 
   if (!updateLines.length) {
-    console.log("[CartTransform] No matching cart lines by SKU to set sap_price.");
-    return { updated: 0, reason: "no_matching_lines" };
+    console.log("[CartTransform] FAIL — no cart lines matched Redis SKUs");
+    return { updated: 0, reason: "no_matching_lines", cartId };
   }
+
+  console.log("[CartTransform] Updating", updateLines.length, "lines with sap_price");
 
   const updateData = await callStorefrontWithFallback(
     CART_LINES_UPDATE_MUTATION,
