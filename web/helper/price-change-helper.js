@@ -228,19 +228,22 @@ export const getCheckout = async (shop, cartbody) => {
 
     const redisResult = await fetchCartPricesFromRedis(session, custId, skus, {
       triggerSapIfMissing: true,
+      maxPollRetries: 3,
+      lineItems,
     });
     console.log("[getCheckout] Redis result:", redisResult);
 
-    if (!redisResult.ok || !Object.keys(redisResult.priceMap).length) {
-      return checkoutFailure(shop, "no_redis_prices", { redisResult });
+    const priceMap = redisResult.priceMap || {};
+    if (!Object.keys(priceMap).length) {
+      return checkoutFailure(shop, "no_prices", { redisResult });
     }
 
-    const linePropertyUpdates = buildAjaxLinePropertyUpdates(lineItems, redisResult.priceMap);
+    const linePropertyUpdates = buildAjaxLinePropertyUpdates(lineItems, priceMap);
     if (!linePropertyUpdates.length) {
-      return checkoutFailure(shop, "no_line_property_updates", { priceMap: redisResult.priceMap });
+      return checkoutFailure(shop, "no_line_property_updates", { priceMap });
     }
 
-    const sapProducts = redisPriceMapToSapProducts(lineItems, redisResult.priceMap);
+    const sapProducts = redisPriceMapToSapProducts(lineItems, priceMap);
     let storefrontApply = { updated: 0, reason: "not_attempted" };
 
     console.log("[getCheckout] Optional Storefront cartLinesUpdate (may fail for Ajax cart token)...");
@@ -264,9 +267,10 @@ export const getCheckout = async (shop, cartbody) => {
     }
 
     return checkoutSuccess(shop, {
-      priceMap: redisResult.priceMap,
+      priceMap,
       linePropertyUpdates,
       redisKeyPrefix: redisResult.redisKeyPrefix,
+      usedDefaults: redisResult.usedDefaults,
       storefrontApply,
     });
   } catch (error) {

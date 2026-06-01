@@ -1,10 +1,10 @@
 import Redis from "ioredis";
 import {
   buildSapRootCustomerXml,
+  getRedisKeyPrefix,
   logRedisConnectionFromEnv,
   normalizeShopifyCustomerId,
   postSapWebhook,
-  resolveRedisKeyPrefix,
 } from "./sap-api.js";
 
 export function getRedisConfigFromEnv() {
@@ -39,6 +39,29 @@ export function getRedisConfigFromEnv() {
 
 export function createRedisClient(config) {
   return new Redis(config);
+}
+
+/** Shopify cart.js unit price (cents → dollars) when Redis has no price. */
+export function cartLineDefaultUnitPrice(item) {
+  const cents = item?.price ?? item?.original_price ?? item?.final_line_price;
+  if (cents == null) return null;
+  const unit = Number(cents) / 100;
+  return Number.isFinite(unit) && unit >= 0 ? unit : null;
+}
+
+/** Fill missing SKUs from cart line Shopify prices. */
+export function mergeCartDefaultPrices(lineItems, priceMap = {}) {
+  const merged = { ...priceMap };
+  for (const item of lineItems || []) {
+    const sku = String(item.sku || item.variant_sku || "").trim();
+    if (!sku || merged[sku] !== undefined) continue;
+    const fallback = cartLineDefaultUnitPrice(item);
+    if (fallback !== null) {
+      merged[sku] = fallback;
+      console.log("[Redis] default price (cart) for", sku, "=>", fallback);
+    }
+  }
+  return merged;
 }
 
 export async function getRedisPricesForSkus(redis, redisKeyPrefix, skuList) {
@@ -105,76 +128,102 @@ export async function pollRedisForPrices(redisKeyPrefix, skuList, maxRetries = 3
 }
 
 /**
- * Load cart line prices from Redis. If missing, trigger SAP webhook (fills Redis) then poll.
- * Cart Transform reads sap_price attributes — not SAP HTTP pricing URL.
+ * Redis-first pricing: read cache → SAP webhook (loads Redis) → poll up to 3× → cart default price.
  */
-export async function fetchCartPricesFromRedis(session, shopifyCustId, skuList, options = {}) {
-  const { triggerSapIfMissing = true, maxPollRetries = 3 } = options;
+export async function fetchCartPricesFromRedis(_session, shopifyCustId, skuList, options = {}) {
+  const {
+    triggerSapIfMissing = true,
+    maxPollRetries = 3,
+    pollIntervalMs = 2000,
+    lineItems = null,
+  } = options;
+
   const shopifyCustomerId = normalizeShopifyCustomerId(shopifyCustId);
-  const redisKey = await resolveRedisKeyPrefix(session, shopifyCustId);
+  const redisKey = getRedisKeyPrefix(shopifyCustId);
 
   console.log("[Redis] fetchCartPricesFromRedis — redisKey:", redisKey);
 
   if (!redisKey.prefix) {
-    return { ok: false, priceMap: {}, reason: "no_redis_key_prefix" };
+    const priceMap = mergeCartDefaultPrices(lineItems, {});
+    return { ok: Object.keys(priceMap).length > 0, priceMap, reason: "no_customer_id", allFound: false };
   }
 
   const config = getRedisConfigFromEnv();
   if (!config) {
-    return { ok: false, priceMap: {}, reason: "redis_not_configured" };
+    const priceMap = mergeCartDefaultPrices(lineItems, {});
+    return { ok: Object.keys(priceMap).length > 0, priceMap, reason: "redis_not_configured", allFound: false };
   }
 
   const redis = createRedisClient(config);
   let priceMap = {};
+  let allFound = false;
 
   try {
-    let { allFound, priceMap: initial } = await getRedisPricesForSkus(
-      redis,
-      redisKey.prefix,
-      skuList
-    );
-    priceMap = initial;
+    const initial = await getRedisPricesForSkus(redis, redisKey.prefix, skuList);
+    priceMap = initial.priceMap;
+    allFound = initial.allFound;
+
+    const missing = skuList
+      .map((s) => (typeof s === "string" ? s.trim() : String(s?.sku || "").trim()))
+      .filter((s) => s && priceMap[s] === undefined);
 
     if (!allFound && triggerSapIfMissing && shopifyCustomerId) {
-      const missing = skuList
-        .map((s) => (typeof s === "string" ? s.trim() : String(s?.sku || "").trim()))
-        .filter((s) => s && priceMap[s] === undefined);
-
-      console.log("[Redis] Missing SKUs in Redis:", missing, "— triggering SAP webhook to refresh Redis");
+      console.log("[Redis] Missing SKUs:", missing, "— POST SAP webhook (load Redis)");
       const xml = buildSapRootCustomerXml(shopifyCustomerId);
-      await postSapWebhook(xml, "redis-refresh");
+      const sapResult = await postSapWebhook(xml, "redis-refresh");
+      if (!sapResult.ok) {
+        console.warn("[Redis] SAP webhook non-OK — still polling Redis:", sapResult.status);
+      }
 
       await redis.quit();
-      const polled = await pollRedisForPrices(redisKey.prefix, skuList, maxPollRetries);
-      priceMap = polled.priceMap;
+
+      const polled = await pollRedisForPrices(
+        redisKey.prefix,
+        skuList,
+        maxPollRetries,
+        pollIntervalMs
+      );
+      priceMap = { ...priceMap, ...polled.priceMap };
       allFound = polled.allFound;
     } else {
       await redis.quit();
     }
-
-    return {
-      ok: allFound || Object.keys(priceMap).length > 0,
-      priceMap,
-      redisKeyPrefix: redisKey.prefix,
-      allFound,
-      source: redisKey.source,
-    };
   } catch (e) {
     try {
       await redis.quit();
     } catch (_) {}
     console.error("[Redis] fetchCartPricesFromRedis error:", e.message);
-    return { ok: false, priceMap: {}, reason: e.message };
+    priceMap = mergeCartDefaultPrices(lineItems, priceMap);
+    return { ok: Object.keys(priceMap).length > 0, priceMap, reason: e.message, allFound: false };
   }
+
+  priceMap = mergeCartDefaultPrices(lineItems, priceMap);
+  const requested = skuList
+    .map((s) => (typeof s === "string" ? s.trim() : String(s?.sku || "").trim()))
+    .filter(Boolean);
+  const allResolved =
+    requested.length > 0 && requested.every((s) => priceMap[s] !== undefined);
+
+  return {
+    ok: Object.keys(priceMap).length > 0,
+    priceMap,
+    redisKeyPrefix: redisKey.prefix,
+    allFound: allResolved,
+    allFoundInRedis: allFound,
+    source: redisKey.source,
+    usedDefaults: !allFound && allResolved,
+  };
 }
 
-/** Build sapProducts shape for applySapPricesToCart from Redis unit prices */
 /** Ajax cart line updates so Cart Transform sees sap_price at checkout (line item properties). */
 export function buildAjaxLinePropertyUpdates(cartItems, priceMap) {
   const updates = [];
   for (const item of cartItems || []) {
     const sku = String(item.sku || item.variant_sku || "").trim();
-    const price = priceMap[sku];
+    let price = priceMap[sku];
+    if (price === undefined || price === null) {
+      price = cartLineDefaultUnitPrice(item);
+    }
     if (!sku || price === undefined || price === null) {
       console.log("[Redis] buildAjaxLinePropertyUpdates — skip item (no sku/price):", {
         key: item.key,
@@ -201,9 +250,13 @@ export function redisPriceMapToSapProducts(lineItems, priceMap) {
   const products = [];
   for (const item of lineItems || []) {
     const sku = String(item.sku || "").trim();
-    if (!sku || priceMap[sku] === undefined || priceMap[sku] === null) continue;
+    let unit = priceMap[sku];
+    if (unit === undefined || unit === null) {
+      unit = cartLineDefaultUnitPrice(item);
+    }
+    if (!sku || unit === undefined || unit === null) continue;
     const qty = Number(item.quantity) || 1;
-    const unit = Number(priceMap[sku]);
+    unit = Number(unit);
     if (!Number.isFinite(unit)) continue;
     products.push({
       sku,

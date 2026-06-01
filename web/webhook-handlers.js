@@ -2,8 +2,7 @@ import { DeliveryMethod } from "@shopify/shopify-api";
 import shopify from "./shopify.js";
 import { getCheckout } from "./helper/price-change-helper.js";
 import { PriceChangeDB } from "./price-change-db.js";
-
-const SAP_WEBHOOK_URL = "https://webhooks.appseconnectapi.com/52f38dc4-a9b1-4eab-b3fd-4ce3890e1b83/bc0958e5-c79b-429c-92c0-ccc370e6cff2_default";
+import { getSapWebhookUrl } from "./helper/sap-api.js";
 
 /**
  * Call SAP webhook with all product SKUs from DB (no Redis). Uses default sold_to from settings or 1000.
@@ -44,8 +43,14 @@ ${productSkusXml}
 </customer>
 </productPriceUpdateCollection>`;
 
+  const sapWebhookUrl = getSapWebhookUrl();
+  if (!sapWebhookUrl) {
+    console.error("[Webhook ORDERS_CREATE] SAP_APPSECONNECT_WEBHOOK_URL is not set");
+    return { ok: false, reason: "sap_webhook_url_missing" };
+  }
+
   try {
-    const response = await fetch(SAP_WEBHOOK_URL, {
+    const response = await fetch(sapWebhookUrl, {
       method: "POST",
       headers: { "Content-Type": "application/xml" },
       body: xmlData,

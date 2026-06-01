@@ -804,8 +804,11 @@ const PORT = parseInt(process.env.PORT || process.env.BACKEND_PORT || "8081", 10
 app.listen(PORT, async () => {
   console.log(`App listening on port ${PORT}`);
   logRedisConnectionFromEnv("Server");
-  console.log("[Server] CLIENT_API_URL:", process.env.CLIENT_API_URL || "(not set)");
-  console.log("[Server] ENCRYPTION_KEY present:", !!process.env.ENCRYPTION_KEY);
+  const { getSapWebhookUrl } = await import("./helper/sap-api.js");
+  console.log(
+    "[Server] SAP_APPSECONNECT_WEBHOOK_URL:",
+    getSapWebhookUrl() ? "set" : "(not set — required for Redis price load)"
+  );
   try {
     await PriceChangeDB.createSettingTable();
     await PriceChangeDB.ensureSettingsColumns();

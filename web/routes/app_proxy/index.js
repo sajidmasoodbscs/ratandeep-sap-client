@@ -799,21 +799,18 @@ proxyRouter.post("/get-price-by-sku", async (req, res) => {
 
     const sapXmlData = buildSapRootCustomerXml(shopifyCustomerId);
     const { ok: sapOk } = await postSapWebhook(sapXmlData, "/get-price-by-sku");
-
-    if (sapOk) {
-      console.log(`[Proxy] /get-price-by-sku: SAP call successful. Polling Redis...`);
-      const { priceMap: polledPriceMap } = await pollRedisForPrices(sapRedisId, [trimmedSku]);
-      const finalPrice = polledPriceMap[trimmedSku];
-
-      return res.status(200).json({
-        message: finalPrice !== undefined ? "Price fetched from SAP" : "Price sync initiated",
-        sku: trimmedSku,
-        price: finalPrice || null
-      });
-    } else {
-      console.error("[Proxy] /get-price-by-sku: SAP call failed");
-      return res.status(500).json({ message: "SAP call failed" });
+    if (!sapOk) {
+      console.warn("[Proxy] /get-price-by-sku: SAP webhook non-OK — polling Redis anyway");
     }
+
+    const { priceMap: polledPriceMap } = await pollRedisForPrices(sapRedisId, [trimmedSku]);
+    const finalPrice = polledPriceMap[trimmedSku];
+
+    return res.status(200).json({
+      message: finalPrice !== undefined ? "Price from Redis" : "Price not in Redis after SAP load",
+      sku: trimmedSku,
+      price: finalPrice ?? null,
+    });
   } catch (error) {
     console.error("/get-price-by-sku error:", error.message);
     return res.status(500).json({ error: error.message });

@@ -1,7 +1,13 @@
-export const SAP_WEBHOOK_URL =
-  "https://webhooks.appseconnectapi.com/52f38dc4-a9b1-4eab-b3fd-4ce3890e1b83/bc0958e5-c79b-429c-92c0-ccc370e6cff2_default";
+/** SAP webhook that loads customer prices into Redis (fire-and-forget; body may be empty). */
+export function getSapWebhookUrl() {
+  return (
+    process.env.SAP_APPSECONNECT_WEBHOOK_URL?.trim() ||
+    process.env.SAP_WEBHOOK_URL?.trim() ||
+    ''
+  );
+}
 
-/** Keys used elsewhere in this app (custom.sold_to_number, etc.) */
+/** Keys used elsewhere in this app (legacy; not used for Redis key prefix). */
 const SAP_METAFIELD_KEYS = [
   "sap_account_number",
   "customerid",
@@ -203,65 +209,23 @@ async function fetchMetafieldsGraphql(adminSession, shopifyCustId) {
 }
 
 /**
- * Redis key prefix: prefer customer metafield SAP/sold-to id; fallback to Shopify customer id.
+ * Redis keys are `{shopifyCustomerId}_{sku}` — same id sent in SAP XML &lt;customer&gt;&lt;id&gt;.
  */
-export async function resolveRedisKeyPrefix(session, shopifyCustId) {
+export function getRedisKeyPrefix(shopifyCustId) {
   const shopifyCustomerId = normalizeShopifyCustomerId(shopifyCustId);
-  console.log("[SAP] resolveRedisKeyPrefix — start", { shopifyCustId, shopifyCustomerId });
-
-  const adminSession = normalizeAdminSession(session);
-  if (!adminSession) {
-    console.warn("[SAP] resolveRedisKeyPrefix — invalid session (missing shop or access token)");
-    if (shopifyCustomerId) {
-      return {
-        prefix: shopifyCustomerId,
-        source: "shopify_fallback_no_session",
-        shopifyCustomerId,
-      };
-    }
-    return { prefix: null, source: "none", shopifyCustomerId };
+  console.log("[SAP] getRedisKeyPrefix — shopifyCustomerId:", shopifyCustomerId);
+  if (!shopifyCustomerId) {
+    return { prefix: null, source: "none", shopifyCustomerId: null };
   }
+  return {
+    prefix: shopifyCustomerId,
+    source: "shopify_customer_id",
+    shopifyCustomerId,
+  };
+}
 
-  const ownerIds = [...new Set([shopifyCustomerId, String(shopifyCustId).trim()].filter(Boolean))];
-
-  for (const ownerId of ownerIds) {
-    const rest = await fetchMetafieldsRest(adminSession, ownerId);
-    const picked = pickSapValueFromMetafields(rest.metafields);
-    if (picked) {
-      console.log("[SAP] resolveRedisKeyPrefix — using REST metafield", picked);
-      return {
-        prefix: picked.value,
-        source: "metafield_rest",
-        metafieldKey: picked.key,
-        shopifyCustomerId,
-      };
-    }
-  }
-
-  const gql = await fetchMetafieldsGraphql(adminSession, shopifyCustId);
-  const pickedGql = pickSapValueFromMetafields(gql.metafields);
-  if (pickedGql) {
-    console.log("[SAP] resolveRedisKeyPrefix — using GraphQL metafield", pickedGql);
-    return {
-      prefix: pickedGql.value,
-      source: "metafield_graphql",
-      metafieldKey: pickedGql.key,
-      shopifyCustomerId,
-    };
-  }
-
-  if (shopifyCustomerId) {
-    console.warn(
-      "[SAP] resolveRedisKeyPrefix — no SAP metafield found; falling back to Shopify customer id for Redis keys"
-    );
-    return {
-      prefix: shopifyCustomerId,
-      source: "shopify_fallback",
-      shopifyCustomerId,
-    };
-  }
-
-  return { prefix: null, source: "none", shopifyCustomerId };
+export async function resolveRedisKeyPrefix(_session, shopifyCustId) {
+  return getRedisKeyPrefix(shopifyCustId);
 }
 
 /** @deprecated Use resolveRedisKeyPrefix */
@@ -271,10 +235,16 @@ export async function fetchSapIdFromCustomerMetafields(session, shopifyCustId) {
 }
 
 export async function postSapWebhook(xmlBody, label = "SAP") {
-  console.log(`[SAP] postSapWebhook — ${label} — URL:`, SAP_WEBHOOK_URL);
+  const webhookUrl = getSapWebhookUrl();
+  if (!webhookUrl) {
+    console.error(`[SAP] postSapWebhook — ${label} — SAP_APPSECONNECT_WEBHOOK_URL is not set`);
+    return { ok: false, status: 0, text: "SAP_APPSECONNECT_WEBHOOK_URL not set" };
+  }
+
+  console.log(`[SAP] postSapWebhook — ${label} — URL:`, webhookUrl);
   console.log(`[SAP] postSapWebhook — ${label} — OUTGOING XML:\n`, xmlBody);
 
-  const response = await fetch(SAP_WEBHOOK_URL, {
+  const response = await fetch(webhookUrl, {
     method: "POST",
     headers: { "Content-Type": "application/xml" },
     body: xmlBody,
@@ -282,7 +252,11 @@ export async function postSapWebhook(xmlBody, label = "SAP") {
 
   const responseText = await response.text();
   console.log(`[SAP] postSapWebhook — ${label} — INCOMING status:`, response.status);
-  console.log(`[SAP] postSapWebhook — ${label} — INCOMING body:\n`, responseText);
+  if (responseText) {
+    console.log(`[SAP] postSapWebhook — ${label} — INCOMING body:\n`, responseText);
+  } else {
+    console.log(`[SAP] postSapWebhook — ${label} — empty response (expected for Redis load)`);
+  }
 
   return { ok: response.ok, status: response.status, text: responseText };
 }
