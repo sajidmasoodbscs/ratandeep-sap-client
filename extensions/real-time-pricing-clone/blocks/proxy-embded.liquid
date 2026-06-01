@@ -684,13 +684,69 @@
             if (data.discount_codes && data.discount_codes.length) {
               console.log("[SAP/Redis] Removed cart discount codes:", data.discount_codes);
             } else {
-              console.log("[SAP/Redis] No cart discount codes to remove");
+              console.log("[SAP/Redis] No cart discount codes on cart");
             }
+            hideCartLevelDiscountUi();
+            return data;
           } catch (err) {
             console.warn("[SAP/Redis] Could not clear cart discount codes:", err);
+            return null;
           } finally {
             window.__sapCartInternalUpdate = false;
           }
+        }
+
+        function hideCartLevelDiscountUi() {
+          const roots = document.querySelectorAll(
+            ".totals, .cart__footer, #main-cart-footer, .cart__blocks, cart-drawer .drawer__footer"
+          );
+          roots.forEach(function(root) {
+            root.querySelectorAll(
+              ".discounts, .cart-discount, .totals__discount, .totals__discounts, .cart__discount, [data-discounts]"
+            ).forEach(function(el) {
+              el.style.display = "none";
+            });
+            root.querySelectorAll(".totals__row, .cart__row, li").forEach(function(row) {
+              const label = row.querySelector("h2, h3, span, dt, .totals__label");
+              const text = label ? label.textContent.trim().toLowerCase() : "";
+              if (text.indexOf("discount") !== -1 || text.indexOf("savings") !== -1) {
+                row.style.display = "none";
+              }
+            });
+          });
+        }
+
+        function computeMerchandiseTotalCents(priceMap, cartData) {
+          let subtotalDollars = 0;
+          (cartData.items || []).forEach(function(cartItem) {
+            const sku =
+              cartItem.sku ||
+              cartItem.variant_sku ||
+              (cartItem.variant && cartItem.variant.sku);
+            const quantity = cartItem.quantity || 1;
+            if (sku && priceMap[sku] != null) {
+              const unit = Number(priceMap[sku]);
+              if (Number.isFinite(unit) && unit > 0) {
+                subtotalDollars += unit * quantity;
+                return;
+              }
+            }
+            subtotalDollars += (cartItem.price / 100) * quantity;
+          });
+          return Math.round(subtotalDollars * 100);
+        }
+
+        function formatMoneyFromCents(cents) {
+          if (typeof Shopify !== "undefined" && Shopify.formatMoney) {
+            return Shopify.formatMoney(cents);
+          }
+          return "$" + (cents / 100).toFixed(2);
+        }
+
+        function setPriceText(el, formatted) {
+          if (!el) return;
+          el.textContent = formatted;
+          el.setAttribute("data-sap-cart-total", formatted);
         }
 
         async function removeSapPropertiesFromCart(cart) {
@@ -761,14 +817,17 @@
             showCartLoader();
             console.log("[SAP/Redis] Starting cart price sync...");
             const cartResponse = await fetch(window.Shopify.routes.root + 'cart.js');
-            const cart = await cartResponse.json();
+            let cart = await cartResponse.json();
 
             if (!cart.items || cart.items.length === 0) {
               console.log("[SAP/Redis] Cart is empty");
               return;
             }
 
-            await clearCartDiscounts();
+            const cartAfterDiscountClear = await clearCartDiscounts();
+            if (cartAfterDiscountClear && cartAfterDiscountClear.items) {
+              cart = cartAfterDiscountClear;
+            }
             await removeSapPropertiesFromCart(cart);
 
             console.log("[SAP/Redis] Syncing prices for", cart.items.length, "items");
@@ -896,67 +955,91 @@
         }
 
         function updateCartTotals(priceMap, cartData) {
-          let newSubtotal = 0;
-          cartData.items.forEach((cartItem) => {
-            const sku = cartItem.sku || cartItem.variant_sku || (cartItem.variant && cartItem.variant.sku);
-            const quantity = cartItem.quantity || 1;
-            if (sku && priceMap[sku] != null) {
-              const newPrice = Number(priceMap[sku]);
-              if (Number.isFinite(newPrice) && newPrice > 0) {
-                newSubtotal += newPrice * quantity;
-                return;
-              }
-            }
-            newSubtotal += (cartItem.price / 100) * quantity;
-          });
+          hideCartLevelDiscountUi();
 
-          const subtotalInCents = Math.round(newSubtotal * 100);
-          const formattedTotal = (typeof Shopify !== 'undefined' && Shopify.formatMoney) 
-            ? Shopify.formatMoney(subtotalInCents) 
-            : "$" + newSubtotal.toFixed(2);
-          
-          console.log(`[SAP/Redis] New subtotal: ${formattedTotal}`);
+          const merchandiseCents = computeMerchandiseTotalCents(priceMap, cartData);
+          const formattedMerchandise = formatMoneyFromCents(merchandiseCents);
+          console.log("[SAP/Redis] Cart merchandise total (no cart discount):", formattedMerchandise);
 
-          const selectors = [
-            '.cart__subtotal', 
-            '.cart-subtotal', 
-            '[data-cart-subtotal]', 
-            '.cart-total', 
-            '.cart__total', 
-            '.totals-subtotal-value',
-            '.totals__subtotal-value',
-            '.totals__total-value', // Dawn theme subtotal
-            '.totals__total-value--final', // Dawn theme total
-            '.cart__subtotal-value',
-            '.cart-subtotal__price',
-            '.js-cart-subtotal',
-            '#cart-subtotal'
+          const subtotalSelectors = [
+            ".totals__subtotal-value",
+            ".cart__subtotal-value",
+            ".cart-subtotal__price",
+            ".js-cart-subtotal",
+            "#cart-subtotal",
+            "[data-cart-subtotal]",
           ];
 
-          let updated = false;
-          selectors.forEach(sel => {
-            document.querySelectorAll(sel).forEach(el => {
-              el.textContent = formattedTotal;
-              updated = true;
+          subtotalSelectors.forEach(function(sel) {
+            document.querySelectorAll(sel).forEach(function(el) {
+              setPriceText(el, formattedMerchandise);
             });
           });
 
-          if (!updated) {
-            console.log('[SAP/Redis] Subtotal not found by exact selectors, trying fuzzy match...');
-            document.querySelectorAll('[class*="total"], [class*="subtotal"]').forEach(el => {
-              if (updated) return;
-              const text = el.textContent.trim();
-              if (el.children.length === 0 && text.match(/^[\$\£\€\¥\d]/) && text.length < 20) {
-                el.textContent = formattedTotal;
-                updated = true;
-                console.log(`[SAP/Redis] Updated subtotal via fuzzy class match: ${el.className}`);
+          const estimatedSelectors = [
+            ".totals__total-value",
+            ".totals__total-value--final",
+            ".cart__total-value",
+            ".cart-total",
+            ".cart__total",
+            "#cart-total-price",
+            "[data-cart-total]",
+          ];
+
+          let estimatedUpdated = false;
+          estimatedSelectors.forEach(function(sel) {
+            document.querySelectorAll(sel).forEach(function(el) {
+              if (el.closest(".cart-item, .cart-item__totals, line-item")) return;
+              setPriceText(el, formattedMerchandise);
+              estimatedUpdated = true;
+            });
+          });
+
+          document.querySelectorAll(".totals__total, .cart__estimated-total").forEach(function(block) {
+            const label = block.querySelector("h2, h3, .totals__label, legend");
+            const labelText = label ? label.textContent.trim().toLowerCase() : "";
+            if (labelText.indexOf("estimated") !== -1 || labelText.indexOf("total") !== -1) {
+              const valueEl = block.querySelector(
+                ".totals__total-value, .totals__total-value--final, .price-item--regular, .price"
+              );
+              if (valueEl) {
+                setPriceText(valueEl, formattedMerchandise);
+                estimatedUpdated = true;
+              }
+            }
+          });
+
+          if (!estimatedUpdated) {
+            console.log("[SAP/Redis] Estimated total — trying label sibling match");
+            document.querySelectorAll("h2, h3, dt, .totals__label, span").forEach(function(label) {
+              if (!/estimated\s+total/i.test(label.textContent)) return;
+              const row = label.closest(".totals__total, .totals__row, li, div");
+              if (!row) return;
+              const valueEl = row.querySelector(
+                ".totals__total-value, .price-item--regular, .price, p, span.money"
+              );
+              if (valueEl && valueEl !== label) {
+                setPriceText(valueEl, formattedMerchandise);
+                estimatedUpdated = true;
               }
             });
           }
 
-          if (!updated) {
-            console.log('[SAP/Redis] Subtotal element matching common selectors not found.');
+          if (!estimatedUpdated) {
+            console.log("[SAP/Redis] Estimated total — fuzzy price match in footer");
+            document.querySelectorAll(".totals, .cart__footer, #main-cart-footer").forEach(function(footer) {
+              footer.querySelectorAll(".price, [class*='total-value']").forEach(function(el) {
+                if (el.closest(".cart-item")) return;
+                const text = (el.textContent || "").trim();
+                if (text.match(/^[\$\£\€\¥]/) && text.length < 24) {
+                  setPriceText(el, formattedMerchandise);
+                  estimatedUpdated = true;
+                }
+              });
+            });
           }
+
+          hideCartLevelDiscountUi();
         }
 
         setupCartChangeReload();
