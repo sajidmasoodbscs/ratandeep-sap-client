@@ -458,8 +458,53 @@
       (function() {
         console.log("[SAP/Redis] Cart page script started");
 
+        let cartSyncPromise = null;
+        let sapCartReloadTimer = null;
+        const SAP_CART_RELOAD_DELAY_MS = 800;
+
+        function showCartLoader() {
+          document.body.classList.add("RunningLoader");
+          const loader = document.querySelector(".loaderBars");
+          if (loader) loader.style.display = "block";
+        }
+
+        function hideCartLoader() {
+          document.body.classList.remove("RunningLoader");
+          const loader = document.querySelector(".loaderBars");
+          if (loader) loader.style.display = "none";
+        }
+
+        function scheduleCartReloadAfterChange() {
+          if (window.__sapCartInternalUpdate) return;
+          clearTimeout(sapCartReloadTimer);
+          sapCartReloadTimer = setTimeout(function() {
+            console.log("[SAP/Redis] Cart changed — reloading for updated SAP prices");
+            window.location.reload();
+          }, SAP_CART_RELOAD_DELAY_MS);
+        }
+
+        function setupCartChangeReload() {
+          if (window.__sapCartChangeReloadSetup) return;
+          window.__sapCartChangeReloadSetup = true;
+          const originalFetch = window.fetch.bind(window);
+          window.fetch = async function(input, init) {
+            const url = typeof input === "string" ? input : (input && input.url) || "";
+            const isCartMutation = /\/cart\/(change|update|add|clear)(\.js)?/i.test(url);
+            const response = await originalFetch(input, init);
+            if (isCartMutation && response.ok && !window.__sapCartInternalUpdate) {
+              scheduleCartReloadAfterChange();
+            }
+            return response;
+          };
+        }
+
         async function syncCartPrices() {
+          if (cartSyncPromise) return cartSyncPromise;
+
+          cartSyncPromise = (async function() {
+          let willReload = false;
           try {
+            showCartLoader();
             console.log("[SAP/Redis] Starting cart price sync...");
             const cartResponse = await fetch(window.Shopify.routes.root + 'cart.js');
             const cart = await cartResponse.json();
@@ -583,8 +628,10 @@
               
               if (newPrice != null && item.properties?.sap_price != String(newPrice)) {
                 updates[item.key] = {
+                  quantity: item.quantity,
                   properties: {
                     ...(item.properties || {}),
+                    sap_price: String(newPrice),
                   }
                 };
                 needsUpdate = true;
@@ -610,27 +657,40 @@
             sessionStorage.setItem('sap_sync_reload', now.toString());
 
             // We must use /cart/change.js for each item to properly update properties
-            for (const key in updates) {
-               console.log(`[SAP/Redis] Persisting price for item key: ${key}`);
-               try {
-                 await fetch(window.Shopify.routes.root + 'cart/change.js', {
-                   method: "POST",
-                   headers: { "Content-Type": "application/json" },
-                   body: JSON.stringify({
-                     id: key,
-                     properties: updates[key].properties
-                   })
-                 });
-               } catch (err) {
-                 console.error(`[SAP/Redis] Failed to update item ${key}:`, err);
-               }
+            window.__sapCartInternalUpdate = true;
+            try {
+              for (const key in updates) {
+                console.log(`[SAP/Redis] Persisting price for item key: ${key}`);
+                try {
+                  await fetch(window.Shopify.routes.root + 'cart/change.js', {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      id: key,
+                      quantity: updates[key].quantity,
+                      properties: updates[key].properties
+                    })
+                  });
+                } catch (err) {
+                  console.error(`[SAP/Redis] Failed to update item ${key}:`, err);
+                }
+              }
+            } finally {
+              window.__sapCartInternalUpdate = false;
             }
 
             console.log("[SAP/Redis] State persisted, reloading page to apply Cart Transformer logic");
+            willReload = true;
             window.location.reload();
           } catch (err) {
             console.error("[SAP/Redis] Error in sync process:", err);
+          } finally {
+            if (!willReload) hideCartLoader();
+            cartSyncPromise = null;
           }
+          })();
+
+          return cartSyncPromise;
         }
 
         function updateCartTotals(priceMap, cartData) {
@@ -697,7 +757,8 @@
           }
         }
 
-        // Run on load
+        setupCartChangeReload();
+
         if (document.readyState === "loading") {
           document.addEventListener("DOMContentLoaded", syncCartPrices);
         } else {

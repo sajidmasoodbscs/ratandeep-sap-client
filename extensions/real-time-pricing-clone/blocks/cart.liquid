@@ -135,6 +135,12 @@
 </style>
 <script>
   (async function () {
+    const onCartPage = /\/cart\/?$/.test(window.location.pathname);
+    {% if customer %}
+    // Logged-in /cart pricing is handled by proxy-embded.liquid (avoids double loader + sync)
+    if (onCartPage) return;
+    {% endif %}
+
     const loader = document.querySelector('.loaderBars');
     const body = document.body;
 
