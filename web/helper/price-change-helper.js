@@ -247,6 +247,21 @@ export const getCheckout = async (shop, cartbody) => {
     const totals = summarizeCartVsRedis(lineItems, priceMap);
     console.log("[getCheckout] Cart subtotal:", totals.cartSubtotal, "Redis subtotal:", totals.redisSubtotal);
 
+    const missingSap = skus.filter((sku) => !isUsableSapUnitPrice(sapPriceMap[sku]));
+    if (missingSap.length > 0) {
+      console.log("[getCheckout] No discount — SAP/Redis price missing or zero for:", missingSap);
+      return checkoutSuccess(shop, {
+        priceMap,
+        sapPriceMap,
+        discountValue: 0,
+        cartSubtotal: totals.cartSubtotal,
+        redisSubtotal: totals.redisSubtotal,
+        redisKeyPrefix: redisResult.redisKeyPrefix,
+        checkoutMode: "standard",
+        reason: "sap_price_zero_or_missing",
+      });
+    }
+
     const sapProducts = redisPriceMapToSapProducts(lineItems, sapPriceMap);
     const discountValue = roundMoney(calculateDiscountedPrice(lineItems, sapProducts));
     console.log("[getCheckout] Discount amount (cart − SAP Redis):", discountValue);
@@ -256,7 +271,7 @@ export const getCheckout = async (shop, cartbody) => {
     const hasSapPrices = Object.keys(sapPriceMap).some((sku) => isUsableSapUnitPrice(sapPriceMap[sku]));
     if (!hasSapPrices || discountValue < MIN_DISCOUNT) {
       console.log(
-        "[getCheckout] No discount — SAP price missing/zero or cart already at SAP price"
+        "[getCheckout] No discount — SAP price zero or cart already at SAP price"
       );
       return checkoutSuccess(shop, {
         priceMap,
@@ -544,7 +559,6 @@ async function applySapPricesToCart(session, cartbody, sapProducts, totalTaxAmou
       }
       return {
         id: line.id,
-        attributes: [{ key: "sap_price", value: String(sapUnitPrice) }],
       };
     })
     .filter(Boolean);
@@ -566,7 +580,6 @@ async function applySapPricesToCart(session, cartbody, sapProducts, totalTaxAmou
       if (existingTaxLine) {
         updateLines.push({
           id: existingTaxLine.id,
-          attributes: [{ key: "sap_price", value: String(taxAmount) }],
         });
       } else {
         const addData = await callStorefrontWithFallback(CART_LINES_ADD_MUTATION, {
@@ -575,7 +588,6 @@ async function applySapPricesToCart(session, cartbody, sapProducts, totalTaxAmou
             {
               merchandiseId: taxVariantGid,
               quantity: 1,
-              attributes: [{ key: "sap_price", value: String(taxAmount) }],
             },
           ],
         });

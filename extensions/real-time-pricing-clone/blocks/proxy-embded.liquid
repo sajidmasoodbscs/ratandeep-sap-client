@@ -653,6 +653,81 @@
           }, SAP_CART_RELOAD_DELAY_MS);
         }
 
+        function isSapLinePropertyKey(key) {
+          const k = String(key || "").toLowerCase();
+          return k === "sap_price" || k.indexOf("sap_") === 0 || k.indexOf("sap-") === 0;
+        }
+
+        function propertiesWithoutSap(props) {
+          const src = props || {};
+          const out = {};
+          let removed = false;
+          Object.keys(src).forEach(function(key) {
+            if (isSapLinePropertyKey(key)) {
+              removed = true;
+              return;
+            }
+            out[key] = src[key];
+          });
+          return { properties: out, removed: removed };
+        }
+
+        async function clearCartDiscounts() {
+          window.__sapCartInternalUpdate = true;
+          try {
+            const res = await fetch(window.Shopify.routes.root + "cart/update.js", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ discount: "" }),
+            });
+            const data = await res.json();
+            if (data.discount_codes && data.discount_codes.length) {
+              console.log("[SAP/Redis] Removed cart discount codes:", data.discount_codes);
+            } else {
+              console.log("[SAP/Redis] No cart discount codes to remove");
+            }
+          } catch (err) {
+            console.warn("[SAP/Redis] Could not clear cart discount codes:", err);
+          } finally {
+            window.__sapCartInternalUpdate = false;
+          }
+        }
+
+        async function removeSapPropertiesFromCart(cart) {
+          const updates = {};
+          (cart.items || []).forEach(function(item) {
+            const cleaned = propertiesWithoutSap(item.properties);
+            if (cleaned.removed) {
+              updates[item.key] = {
+                quantity: item.quantity,
+                properties: cleaned.properties,
+              };
+            }
+          });
+
+          const keys = Object.keys(updates);
+          if (!keys.length) return;
+
+          console.log("[SAP/Redis] Removing SAP line properties from", keys.length, "item(s)");
+          window.__sapCartInternalUpdate = true;
+          try {
+            for (const key of keys) {
+              if (window.__sapCheckoutInProgress) break;
+              await fetch(window.Shopify.routes.root + "cart/change.js", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  id: key,
+                  quantity: updates[key].quantity,
+                  properties: updates[key].properties,
+                }),
+              });
+            }
+          } finally {
+            window.__sapCartInternalUpdate = false;
+          }
+        }
+
         function setupCartChangeReload() {
           if (window.__sapCartChangeReloadSetup) return;
           window.__sapCartChangeReloadSetup = true;
@@ -693,6 +768,9 @@
               return;
             }
 
+            await clearCartDiscounts();
+            await removeSapPropertiesFromCart(cart);
+
             console.log("[SAP/Redis] Syncing prices for", cart.items.length, "items");
             console.log("cart =>", cart);
             console.log("customer id =>", {{ customer.id | json }});
@@ -723,11 +801,16 @@
               return;
             }
 
-            // 2. Update the DOM directly first for immediate feedback
+            // 2. Update displayed line prices (DOM only — no sap_price line properties on /cart)
             cart.items.forEach((item, index) => {
               const sku = item.sku || item.variant_sku;
-              const newPrice = syncData.prices[sku];
-              if (newPrice != null && Number(newPrice) > 0) {
+              const sapUnit = syncData.sapPrices && syncData.sapPrices[sku];
+              const effectivePrice = syncData.prices[sku];
+              if (effectivePrice == null || Number(effectivePrice) <= 0) return;
+              if (sapUnit != null && Number(sapUnit) <= 0) return;
+
+              const newPrice = Number(effectivePrice);
+              if (Number.isFinite(newPrice) && newPrice > 0) {
                 const priceInCents = Math.round(newPrice * 100);
                 const formattedPrice = (typeof Shopify !== 'undefined' && Shopify.formatMoney) 
                   ? Shopify.formatMoney(priceInCents) 
@@ -793,66 +876,14 @@
               }
             });
 
-            // 3. Update subtotals
+            // 3. Update subtotals from effective prices (Redis when >0, else Shopify)
             updateCartTotals(syncData.prices, cart);
 
-            // 4. Persist sap_price only for real SAP prices (>0). Clear when SAP is 0/missing.
-            const sapPrices = syncData.sapPrices || {};
-            const updates = {};
+            const cartRefresh = await fetch(window.Shopify.routes.root + "cart.js");
+            const cartAfter = await cartRefresh.json();
+            await removeSapPropertiesFromCart(cartAfter);
 
-            cart.items.forEach((item) => {
-              const sku = item.sku || item.variant_sku;
-              const sapUnit = sapPrices[sku];
-              const hasSap = sapUnit != null && Number(sapUnit) > 0;
-              const currentSap = item.properties?.sap_price;
-
-              if (hasSap && currentSap !== String(sapUnit)) {
-                updates[item.key] = {
-                  quantity: item.quantity,
-                  properties: {
-                    ...(item.properties || {}),
-                    sap_price: String(sapUnit),
-                  },
-                };
-              } else if (!hasSap && currentSap) {
-                const props = { ...(item.properties || {}) };
-                delete props.sap_price;
-                updates[item.key] = {
-                  quantity: item.quantity,
-                  properties: props,
-                };
-              }
-            });
-
-            const updateKeys = Object.keys(updates);
-            if (updateKeys.length === 0) {
-              console.log("[SAP/Redis] Line properties already in sync (no page reload)");
-              return;
-            }
-
-            console.log("[SAP/Redis] Updating cart line properties (no reload):", updateKeys.length);
-            window.__sapCartInternalUpdate = true;
-            try {
-              for (const key of updateKeys) {
-                if (window.__sapCheckoutInProgress) break;
-                try {
-                  await fetch(window.Shopify.routes.root + 'cart/change.js', {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      id: key,
-                      quantity: updates[key].quantity,
-                      properties: updates[key].properties,
-                    }),
-                  });
-                } catch (err) {
-                  console.error(`[SAP/Redis] Failed to update item ${key}:`, err);
-                }
-              }
-            } finally {
-              window.__sapCartInternalUpdate = false;
-            }
-            console.log("[SAP/Redis] Properties saved — checkout can proceed without reload");
+            console.log("[SAP/Redis] Cart display updated — no sap_price properties on cart lines");
           } catch (err) {
             console.error("[SAP/Redis] Error in sync process:", err);
           } finally {
