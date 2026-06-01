@@ -9,6 +9,7 @@ import { encrypt } from './middleware/Encryption.js';
 import verifyProxy from './middleware/verifyProxy.js';
 import { PriceChangeDB } from './price-change-db.js';
 import proxyRouter from './routes/app_proxy/index.js';
+import externalRedisSkuRouter from './routes/external-redis-sku.js';
 import carttransformerRouter from './routes/carttransformer.js';
 import shopify from './shopify.js';
 import webhookHandlers from './webhook-handlers.js';
@@ -33,7 +34,16 @@ app.use(cors({
   origin: (origin, callback) => callback(null, true),
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'ngrok-skip-browser-warning']
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-Requested-With',
+    'ngrok-skip-browser-warning',
+    'x-customer-id',
+    'x-sku',
+    'customer-id',
+    'sku',
+  ],
 }));
 app.options('*', cors());
 
@@ -70,6 +80,9 @@ app.post(
 
 // Initialize body parser for all subsequent routes
 bodyParserPrewiring(app);
+
+// External API (no Shopify session / shop) — headers: x-customer-id, x-sku
+app.use("/api/external", externalRedisSkuRouter);
 
 // Proxy routes for storefront
 app.use("/apps/sap-price-test", proxyRouter);

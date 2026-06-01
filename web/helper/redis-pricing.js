@@ -64,6 +64,41 @@ export function mergeCartDefaultPrices(lineItems, priceMap = {}) {
   return merged;
 }
 
+/** Build Redis key for a customer-scoped SKU price. */
+export function buildRedisSkuKey(redisKeyPrefix, sku) {
+  const normalizedSku = String(sku || "").trim();
+  if (!redisKeyPrefix || !normalizedSku) return null;
+  return `${redisKeyPrefix}_${normalizedSku}`;
+}
+
+/**
+ * Look up a single SKU in Redis.
+ * @returns {{ available: boolean, price: number|null, redisKey: string|null, rawValue: string|null }}
+ */
+export async function lookupSkuPriceInRedis(redis, redisKeyPrefix, sku) {
+  const normalizedSku = String(sku || "").trim();
+  const redisKey = buildRedisSkuKey(redisKeyPrefix, normalizedSku);
+
+  if (!redisKey) {
+    return { available: false, price: null, redisKey: null, rawValue: null };
+  }
+
+  try {
+    const rawValue = await redis.get(redisKey);
+    if (rawValue === null || rawValue === undefined) {
+      return { available: false, price: null, redisKey, rawValue: null };
+    }
+    const price = parseFloat(rawValue);
+    if (!Number.isFinite(price)) {
+      return { available: false, price: null, redisKey, rawValue: String(rawValue) };
+    }
+    return { available: true, price, redisKey, rawValue: String(rawValue) };
+  } catch (error) {
+    console.error("[Redis] lookupSkuPriceInRedis error:", redisKey, error.message);
+    throw error;
+  }
+}
+
 export async function getRedisPricesForSkus(redis, redisKeyPrefix, skuList) {
   const priceMap = {};
   if (!skuList?.length) {
