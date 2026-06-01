@@ -4,6 +4,11 @@ import fetch from 'node-fetch';
 import { v4 as uuidv4 } from 'uuid';
 import xml2js from 'xml2js';
 import { PriceChangeDB } from '../price-change-db.js';
+import {
+  buildSapRootCustomerXml,
+  fetchSapIdFromCustomerMetafields,
+  normalizeShopifyCustomerId,
+} from './sap-api.js';
 
 const customerRoleFiled = process.env.CUSTOMER_ROLE;
 const soldToNumberField = process.env.SOLD_TO_NUMBER;
@@ -190,44 +195,21 @@ export const getCheckout = async (shop, cartbody) => {
         const productSkus = await filterCartLineItems(lineItems);
 
         if (productSkus.length !== 0) {
-          console.log(`[PriceChangeHelper] Resolving SAP Customer ID for shop: ${session.shop}, customerId: ${custId}`);
-          const sapCustomerId = await getSapCustomerIdLocal(session, custId);
-          console.log(`[PriceChangeHelper] Result of SAP Customer ID lookup: ${sapCustomerId}`);
+          const shopifyCustomerId = normalizeShopifyCustomerId(custId);
+          console.log("[PriceChangeHelper] Shopify customer id for SAP XML:", shopifyCustomerId);
 
-          if (!sapCustomerId) {
-            console.log("[PriceChangeHelper] No SAP Customer ID found. Aborting process.");
+          console.log(`[PriceChangeHelper] Fetching customer metafields — shop: ${session.shop}, customerId: ${custId}`);
+          const sapRedisId = await fetchSapIdFromCustomerMetafields(session, custId);
+          console.log("[PriceChangeHelper] Metafield SAP id (Redis key prefix):", sapRedisId);
+
+          if (!sapRedisId) {
+            console.log("[PriceChangeHelper] No SAP id in customer metafields. Aborting.");
             return "/cart";
           }
 
-          var custFilteredMetaFields = [
-            { key: process.env.SOLD_TO_NUMBER, value: sapCustomerId },
-            { key: process.env.SHIP_TO_NUMBER, value: sapCustomerId },
-            { key: process.env.CUSTOMER_ROLE, value: JSON.stringify([process.env.CUSTOMER_ROLE_SHIP_TO, process.env.CUSTOMER_ROLE_SOLD_TO]) }
-          ];
-
-          if (custFilteredMetaFields.length >= 1) {
-            const customer = PreppareCustData(
-              custFilteredMetaFields,
-              filtereAddress
-            );
-
-            console.log(
-              "Simulation id befor send to createProductPriceUpdateCollection=>",
-              simulationId
-            );
-            const productPriceUpdateCollection =
-              createProductPriceUpdateCollection(
-                simulationId,
-                productSkus,
-                customer
-              );
-
-
-            const apiResponse = await clientApi(
-              productPriceUpdateCollection,
-              shop
-            );
-            console.log("Response from client api=>", apiResponse);
+          console.log("[PriceChangeHelper] Calling SAP API with Root/customer/id XML...");
+          const apiResponse = await clientApi(shopifyCustomerId, shop);
+          console.log("[PriceChangeHelper] SAP API response:", apiResponse);
 
             let cartItemsFromSap;
             let sapProducts;
@@ -331,10 +313,6 @@ export const getCheckout = async (shop, cartbody) => {
               );
               return "/cart";
             }
-          } else {
-            console.log("Meta fields for sold to number is not set");
-            return "/cart";
-          }
         } else {
           console.log("All items in the cart are without sku's");
 
@@ -642,54 +620,46 @@ async function applySapPricesToCart(session, cartbody, sapProducts, totalTaxAmou
   return { updated: updateLines.length, reason: "ok" };
 }
 
-async function clientApi(productPriceUpdateCollection, shop) {
-
-  let payLoad = {
-    "productPriceUpdateCollection": productPriceUpdateCollection
-  }
-
-  console.log("[clientApi] Outgoing payload to SAP:", JSON.stringify(payLoad, null, 2));
+async function clientApi(shopifyCustomerId, shop) {
+  console.log("[clientApi] start — shop:", shop, "shopifyCustomerId:", shopifyCustomerId);
 
   const key = process.env.ENCRYPTION_KEY;
   const apiURL = process.env.CLIENT_API_URL;
-  console.log("[clientApi] SAP API URL:", apiURL);
+  console.log("[clientApi] CLIENT_API_URL:", apiURL);
   console.log("[clientApi] ENCRYPTION_KEY present?:", !!key);
-  if (apiURL && key) {
 
-    const xmlBody = buildProductPriceUpdateCollectionXml(payLoad);
-    console.log("[clientApi] Outgoing XML body:", xmlBody);
-
-    try {
-      const response = await fetch(apiURL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/xml",
-          "Accept": "application/xml"
-        },
-        body: xmlBody
-      });
-
-      console.log("[clientApi] SAP API response status:", response.status);
-      const responseText = await response.text();
-      console.log("[clientApi] Raw XML Response from SAP (first 500 chars):", responseText.slice(0, 500));
-      console.log("[clientApi] Raw XML Response from SAP (full):", responseText);
-
-      const responseData = await convertXmlToJson(responseText);
-      console.log("[clientApi] Parsed JSON Response from SAP:", JSON.stringify(responseData, null, 2));
-
-      return responseData;
-
-    } catch (error) {
-      console.error("[clientApi] Error while calling SAP API:", error && error.stack ? error.stack : error);
-      console.error("[clientApi] Failed payload was:", JSON.stringify(payLoad, null, 2));
-      console.error("[clientApi] SAP API URL at error time:", apiURL);
-      return null;
-    }
-
-  } else {
-    console.error("[clientApi] CLIENT_API_URL or ENCRYPTION_KEY is not set. apiURL:", apiURL, " keyPresent:", !!key);
-    console.error("[clientApi] Payload that could not be sent:", JSON.stringify(payLoad, null, 2));
+  if (!apiURL || !key) {
+    console.error("[clientApi] CLIENT_API_URL or ENCRYPTION_KEY is not set");
     return 0;
+  }
+
+  const xmlBody = buildSapRootCustomerXml(shopifyCustomerId);
+  console.log("[clientApi] Outgoing XML body:\n", xmlBody);
+
+  try {
+    console.log("[clientApi] POST", apiURL);
+    const response = await fetch(apiURL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/xml",
+        Accept: "application/xml",
+      },
+      body: xmlBody,
+    });
+
+    console.log("[clientApi] SAP API response status:", response.status);
+    const responseText = await response.text();
+    console.log("[clientApi] Raw XML response (first 500 chars):", responseText.slice(0, 500));
+    console.log("[clientApi] Raw XML response (full):\n", responseText);
+
+    const responseData = await convertXmlToJson(responseText);
+    console.log("[clientApi] Parsed JSON:", JSON.stringify(responseData, null, 2));
+
+    return responseData;
+  } catch (error) {
+    console.error("[clientApi] Error:", error?.stack || error);
+    console.error("[clientApi] shopifyCustomerId at error:", shopifyCustomerId);
+    return null;
   }
 }
 
@@ -726,42 +696,6 @@ async function filterCartLineItems(arr) {
   const result = filteredItems.filter((item) => item !== null);
 
   return result;
-}
-
-async function getSapCustomerIdLocal(session, custId) {
-  const url = `https://${session.shop}/admin/api/2023-07/metafields.json?metafield[owner_id]=${custId}&metafield[owner_resource]=customers`;
-
-  try {
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        "X-Shopify-Access-Token": session.accessToken,
-        "Content-Type": "application/json",
-      },
-    });
-
-    if (!response.ok) {
-      console.log("[Local getSapCustomerId] Error in get meta field:", response.status);
-      return null;
-    }
-
-    const customerMetaFields = await response.json();
-    const metafields = customerMetaFields.metafields || [];
-    console.log(`[Local getSapCustomerId] Received ${metafields.length} metafields for customer ${custId}`);
-
-    const sapMetafield = metafields.find(m => m.key === 'sap_account_number' || m.key === 'customerid' || m.key === process.env.SOLD_TO_NUMBER);
-
-    if (sapMetafield && sapMetafield.value) {
-      console.log(`[Local getSapCustomerId] Found SAP Customer ID: ${sapMetafield.value} in metafield ${sapMetafield.key}`);
-      return sapMetafield.value;
-    }
-
-    console.log(`[Local getSapCustomerId] SAP Customer ID NOT found in metafields: ${JSON.stringify(metafields.map(m => m.key))}`);
-    return null;
-  } catch (error) {
-    console.error("[Local getSapCustomerId] Error fetching customer metafields:", error.message);
-    return null;
-  }
 }
 
 function filterMetaFields(arr) {

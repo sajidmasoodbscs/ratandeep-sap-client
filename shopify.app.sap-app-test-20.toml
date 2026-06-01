@@ -1,6 +1,6 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-client_id = "7615f25345e0e5c9287a3838913c0b22"
+client_id = "1e930d1e5c37339ac1deaa9b5de809a4"
 name = "sap-app-test-2.0"
 application_url = "https://ratandeep-sap-client.onrender.com"
 embedded = true

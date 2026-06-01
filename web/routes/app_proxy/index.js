@@ -3,6 +3,12 @@ import { v4 as uuidv4 } from 'uuid';
 import Redis from 'ioredis';
 import { getCheckout, getSession } from '../../helper/price-change-helper.js';
 import { PriceChangeDB } from '../../price-change-db.js';
+import {
+  buildSapRootCustomerXml,
+  fetchSapIdFromCustomerMetafields,
+  normalizeShopifyCustomerId,
+  postSapWebhook,
+} from '../../helper/sap-api.js';
 
 const proxyRouter = Router();
 const jobs = {};
@@ -39,43 +45,6 @@ function getRedisConfigForShop(_shop) {
 
 function createRedisClient(config) {
   return new Redis(config);
-}
-
-async function getSapCustomerId(session, custId) {
-  const url = `https://${session.shop}/admin/api/2023-07/metafields.json?metafield[owner_id]=${custId}&metafield[owner_resource]=customers`;
-
-  try {
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        "X-Shopify-Access-Token": session.accessToken,
-        "Content-Type": "application/json",
-      },
-    });
-
-    console.log(`[Local getSapCustomerId] Using session token: ${session.accessToken}`);
-
-    if (!response.ok) {
-      console.log("[Local getSapCustomerId] Error in get meta field:", response.status);
-      return null;
-    }
-
-    const customerMetaFields = await response.json();
-    const metafields = customerMetaFields.metafields || [];
-    console.log(`[Local getSapCustomerId] Received ${metafields.length} metafields for customer ${custId}`);
-    const sapMetafield = metafields.find(m => m.key === 'sap_account_number' || m.key === 'customerid' || m.key === process.env.SOLD_TO_NUMBER);
-
-    if (sapMetafield && sapMetafield.value) {
-      console.log(`[Local getSapCustomerId] Found SAP Customer ID: ${sapMetafield.value} in metafield ${sapMetafield.key}`);
-      return sapMetafield.value;
-    }
-
-    console.log(`[Local getSapCustomerId] SAP Customer ID NOT found in metafields: ${JSON.stringify(metafields.map(m => m.key))}`);
-    return null;
-  } catch (error) {
-    console.error("[Local getSapCustomerId] Error fetching customer metafields:", error.message);
-    return null;
-  }
 }
 
 function normalizeShop(shop) {
@@ -235,7 +204,6 @@ proxyRouter.post("/sapcall", async (req, res) => {
 
     const requestData = req.body.data || req.body;
     const cartItems = requestData.items || [];
-    const customerAddresses = requestData.customer_addresses || [];
 
     if (!cartItems || cartItems.length === 0) {
       return res.status(400).json({ message: "Invalid cart data - no items found" });
@@ -265,14 +233,6 @@ proxyRouter.post("/sapcall", async (req, res) => {
 
     console.log(`Processing ${validItems.length} valid items out of ${cartItems.length} total items`);
 
-    const defaultAddress = customerAddresses.find(addr => addr.default) || customerAddresses[0] || {};
-
-    const address1 = (defaultAddress.address1 || defaultAddress.address || '').trim();
-    const city = (defaultAddress.city || '').trim();
-    const zip = (defaultAddress.zip || defaultAddress.zip_code || '').trim();
-    const provinceCode = (defaultAddress.province_code || defaultAddress.province || defaultAddress.state_code || '').trim();
-    const countryCode = (defaultAddress.country_code || defaultAddress.country || '').trim();
-
     const shop = extractShop(req, res);
     const shopifyCustId = requestData.customer_id;
 
@@ -288,14 +248,17 @@ proxyRouter.post("/sapcall", async (req, res) => {
       return res.status(500).json({ message: "Session not found for shop" });
     }
 
-    const customerId = await getSapCustomerId(sessionRes.session, shopifyCustId);
+    const shopifyCustomerId = normalizeShopifyCustomerId(shopifyCustId);
+    console.log("[Proxy] /sapcall — normalized Shopify customer id:", shopifyCustomerId);
 
-    if (!customerId) {
-      console.log(`[Proxy] SAP Customer ID lookup failed for Shopify customer ${shopifyCustId}`);
+    const sapRedisId = await fetchSapIdFromCustomerMetafields(sessionRes.session, shopifyCustId);
+
+    if (!sapRedisId) {
+      console.log(`[Proxy] SAP metafield lookup failed for Shopify customer ${shopifyCustId}`);
       return res.status(400).json({ message: "SAP Customer ID not found for this customer" });
     }
 
-    console.log(`[Proxy] Successfully resolved Shopify customer ${shopifyCustId} to SAP ID: ${customerId}`);
+    console.log(`[Proxy] /sapcall — Shopify customer ${shopifyCustomerId}, Redis/SAP metafield id: ${sapRedisId}`);
 
     const redisConfig = getRedisConfigForShop(shop);
     if (!redisConfig) {
@@ -303,7 +266,7 @@ proxyRouter.post("/sapcall", async (req, res) => {
     }
     const cartSkus = validItems.map((item) => item.sku);
     const redis = createRedisClient(redisConfig);
-    const { priceMap } = await getRedisPricesForSkus(redis, customerId, cartSkus);
+    const { priceMap } = await getRedisPricesForSkus(redis, sapRedisId, cartSkus);
     await redis.quit();
 
     const itemsMissingInRedis = validItems.filter(item => priceMap[item.sku] === undefined || priceMap[item.sku] === null);
@@ -314,75 +277,22 @@ proxyRouter.post("/sapcall", async (req, res) => {
       return res.status(200).json({
         message: "SAP webhook skipped (Redis cache hit)",
         skus,
-        customerId,
+        shopifyCustomerId,
+        sapRedisId,
         webhookResponse: "[cache]",
       });
     }
 
-    console.log(`[Proxy] /sapcall: ${itemsMissingInRedis.length} of ${validItems.length} items missing in Redis. Calling SAP for missing items.`);
-    let productSkusXml = '';
-    itemsMissingInRedis.forEach((item, index) => {
-      productSkusXml += `<item>
-<id>${index + 1}</id>
-<sku>${item.sku}</sku>
-<qty>${item.quantity}</qty>
-</item>`;
-    });
+    console.log(`[Proxy] /sapcall: ${itemsMissingInRedis.length} of ${validItems.length} items missing in Redis. Calling SAP...`);
 
-    let customerWeItemXml = '<item>\n<role>WE</role>';
+    const xmlData = buildSapRootCustomerXml(shopifyCustomerId);
+    const { ok, text: responseText } = await postSapWebhook(xmlData, "/sapcall");
 
-    if (address1) {
-      customerWeItemXml += `\n<address1>${address1}</address1>`;
-    }
-    if (city) {
-      customerWeItemXml += `\n<city>${city}</city>`;
-    }
-    if (zip) {
-      customerWeItemXml += `\n<zip>${zip}</zip>`;
-    }
-    if (provinceCode) {
-      customerWeItemXml += `\n<province_code>${provinceCode}</province_code>`;
-    }
-    if (countryCode) {
-      customerWeItemXml += `\n<country_code>${countryCode}</country_code>`;
-    }
-
-    customerWeItemXml += '\n</item>';
-
-    const xmlData = `<productPriceUpdateCollection>
-<simulationid>2</simulationid>
-<product_skus>
-${productSkusXml}
-</product_skus>
-<customer>
-${customerWeItemXml}
-<item>
-<role>AG</role>
-<number>${customerId}</number>
-</item>
-</customer>
-</productPriceUpdateCollection>`;
-
-    console.log("Generated XML (full):", xmlData);
-
-    const response = await fetch(
-      "https://webhooks.appseconnectapi.com/52f38dc4-a9b1-4eab-b3fd-4ce3890e1b83/bc0958e5-c79b-429c-92c0-ccc370e6cff2_default",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/xml",
-        },
-        body: xmlData,
-      }
-    );
-
-    const responseText = await response.text();
-
-    if (response.ok) {
-      console.log(`[Proxy] /sapcall: Webhook successful. Now polling Redis for ${itemsMissingInRedis.length} missing prices...`);
-      await pollRedisForPrices(shop, customerId, itemsMissingInRedis.map(i => i.sku));
+    if (ok) {
+      console.log(`[Proxy] /sapcall: Webhook successful. Polling Redis for ${itemsMissingInRedis.length} SKUs...`);
+      await pollRedisForPrices(shop, sapRedisId, itemsMissingInRedis.map(i => i.sku));
     } else {
-      console.warn(`[Proxy] /sapcall: Webhook returned non-OK status: ${response.status}`);
+      console.warn(`[Proxy] /sapcall: Webhook returned non-OK status`);
     }
 
     const skus = validItems.map(item => ({
@@ -393,7 +303,8 @@ ${customerWeItemXml}
     return res.status(200).json({
       message: "SAP webhook called successfully",
       skus: skus,
-      customerId: customerId,
+      shopifyCustomerId,
+      sapRedisId,
       webhookResponse: responseText,
     });
   } catch (error) {
@@ -423,7 +334,7 @@ proxyRouter.all("/get-all-redis-pricing", async (req, res) => {
       return res.status(500).json({ message: "Session not found" });
     }
 
-    const customerId = await getSapCustomerId(sessionRes.session, shopifyCustId);
+    const customerId = await fetchSapIdFromCustomerMetafields(sessionRes.session, shopifyCustId);
     if (!customerId) {
       console.log(`[Proxy] /get-all-redis-pricing: SAP ID not found for ${shopifyCustId}`);
       return res.status(400).json({ message: "SAP Customer ID not found" });
@@ -483,7 +394,7 @@ proxyRouter.all("/redis-prices", async (req, res) => {
     }
 
     const sessionRes = await getSession(shop);
-    const customerId = await getSapCustomerId(sessionRes.session, shopifyCustId);
+    const customerId = await fetchSapIdFromCustomerMetafields(sessionRes.session, shopifyCustId);
 
     if (!customerId) {
       return res.status(400).json({ message: "SAP Customer ID not found" });
@@ -729,13 +640,16 @@ async function handleAllSkusSync(req, res, source) {
       return res.status(500).json({ message: "Session not found for shop" });
     }
 
-    const customerId = await getSapCustomerId(sessionRes.session, shopifyCustId);
+    const shopifyCustomerId = normalizeShopifyCustomerId(shopifyCustId);
+    console.log(`[Proxy] /${source} — normalized Shopify customer id:`, shopifyCustomerId);
 
-    if (!customerId) {
+    const sapRedisId = await fetchSapIdFromCustomerMetafields(sessionRes.session, shopifyCustId);
+
+    if (!sapRedisId) {
       return res.status(400).json({ message: "SAP Customer ID not found" });
     }
 
-    const customerAddresses = requestData.customer_addresses || requestData.customer_addresses || [];
+    console.log(`[Proxy] /${source} — sapRedisId for Redis keys:`, sapRedisId);
 
     try {
       await PriceChangeDB.createProductSKUsTable();
@@ -754,7 +668,7 @@ async function handleAllSkusSync(req, res, source) {
       return res.status(503).json({ message: "Redis not configured for this shop. Set credentials in the app." });
     }
     const redisForAll = createRedisClient(redisConfig);
-    const { priceMap: allRedisPrices } = await getRedisPricesForSkus(redisForAll, customerId, allSKUs);
+    const { priceMap: allRedisPrices } = await getRedisPricesForSkus(redisForAll, sapRedisId, allSKUs);
     await redisForAll.quit();
 
     const skusMissingInRedis = allSKUs.filter(sku => {
@@ -769,65 +683,20 @@ async function handleAllSkusSync(req, res, source) {
         message: "SAP webhook skipped (Redis cache hit)",
         totalSKUs: skus.length,
         skus,
-        customerId,
+        shopifyCustomerId,
+        sapRedisId,
         webhookResponse: "[cache]",
       });
     }
 
-    console.log(`[Proxy] /${source}: ${skusMissingInRedis.length} of ${allSKUs.length} SKUs missing in Redis. Calling SAP for missing items.`);
+    console.log(`[Proxy] /${source}: ${skusMissingInRedis.length} of ${allSKUs.length} SKUs missing in Redis. Calling SAP...`);
 
-    const defaultAddress = customerAddresses.find(addr => addr.default) || customerAddresses[0] || {};
-    const address1 = (defaultAddress.address1 || defaultAddress.address || '').trim();
-    const city = (defaultAddress.city || '').trim();
-    const zip = (defaultAddress.zip || defaultAddress.zip_code || '').trim();
-    const provinceCode = (defaultAddress.province_code || defaultAddress.province || defaultAddress.state_code || '').trim();
-    const countryCode = (defaultAddress.country_code || defaultAddress.country || '').trim();
+    const xmlData = buildSapRootCustomerXml(shopifyCustomerId);
+    const { ok, text: responseText } = await postSapWebhook(xmlData, `/${source}`);
 
-    let productSkusXml = '';
-    skusMissingInRedis.forEach((sku, index) => {
-      productSkusXml += `<item>
-<id>${index + 1}</id>
-<sku>${sku.trim()}</sku>
-<qty>1</qty>
-</item>`;
-    });
-
-    let customerWeItemXml = '<item>\n<role>WE</role>';
-    if (address1) customerWeItemXml += `\n<address1>${address1}</address1>`;
-    if (city) customerWeItemXml += `\n<city>${city}</city>`;
-    if (zip) customerWeItemXml += `\n<zip>${zip}</zip>`;
-    if (provinceCode) customerWeItemXml += `\n<province_code>${provinceCode}</province_code>`;
-    if (countryCode) customerWeItemXml += `\n<country_code>${countryCode}</country_code>`;
-    customerWeItemXml += '\n</item>';
-
-    const xmlData = `<productPriceUpdateCollection>
-<simulationid>2</simulationid>
-<product_skus>
-${productSkusXml}
-</product_skus>
-<customer>
-${customerWeItemXml}
-<item>
-<role>AG</role>
-<number>${customerId}</number>
-</item>
-</customer>
-</productPriceUpdateCollection>`;
-
-    const sapResponse = await fetch(
-      "https://webhooks.appseconnectapi.com/52f38dc4-a9b1-4eab-b3fd-4ce3890e1b83/bc0958e5-c79b-429c-92c0-ccc370e6cff2_default",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/xml" },
-        body: xmlData,
-      }
-    );
-
-    const responseText = await sapResponse.text();
-
-    if (sapResponse.ok) {
-      console.log(`[Proxy] /${source}: Webhook successful. Now polling Redis for ${skusMissingInRedis.length} missing prices...`);
-      await pollRedisForPrices(shop, customerId, skusMissingInRedis);
+    if (ok) {
+      console.log(`[Proxy] /${source}: Webhook successful. Polling Redis...`);
+      await pollRedisForPrices(shop, sapRedisId, skusMissingInRedis);
     }
 
     const skus = allSKUs.map(sku => ({ sku: sku.trim(), quantity: 1 }));
@@ -836,7 +705,8 @@ ${customerWeItemXml}
       message: `SAP webhook processed for ${source}`,
       totalSKUs: skus.length,
       skus: skus,
-      customerId: customerId,
+      shopifyCustomerId,
+      sapRedisId,
       webhookResponse: responseText,
     });
   } catch (error) {
@@ -870,11 +740,16 @@ proxyRouter.post("/cart-price-sync", async (req, res) => {
       console.log("[Proxy] /cart-price-sync: Session not found for", shop);
       return res.status(500).json({ message: "Session not found" });
     }
-    const customerId = await getSapCustomerId(sessionRes.session, shopifyCustId);
+    const shopifyCustomerId = normalizeShopifyCustomerId(shopifyCustId);
+    console.log("[Proxy] /cart-price-sync — normalized Shopify customer id:", shopifyCustomerId);
 
-    if (!customerId) {
+    const sapRedisId = await fetchSapIdFromCustomerMetafields(sessionRes.session, shopifyCustId);
+
+    if (!sapRedisId) {
       return res.status(400).json({ message: "SAP Customer ID not found" });
     }
+
+    console.log("[Proxy] /cart-price-sync — sapRedisId:", sapRedisId);
 
     const redisConfigSync = getRedisConfigForShop(shop);
     if (!redisConfigSync) {
@@ -882,7 +757,7 @@ proxyRouter.post("/cart-price-sync", async (req, res) => {
     }
     const syncSkus = cart.items.map((item) => item.sku || item.variant_sku || "").filter(Boolean);
     const redisSync = createRedisClient(redisConfigSync);
-    const { priceMap: redisPrices } = await getRedisPricesForSkus(redisSync, customerId, syncSkus);
+    const { priceMap: redisPrices } = await getRedisPricesForSkus(redisSync, sapRedisId, syncSkus);
     await redisSync.quit();
 
     const missingSkusInRedis = cart.items.filter(item => {
@@ -898,68 +773,23 @@ proxyRouter.post("/cart-price-sync", async (req, res) => {
       });
     }
 
-    const addresses = customer?.addresses || [];
-    const defaultAddress = addresses.find(a => a.default) || addresses[0] || null;
-
-    let productSkusXml = "";
-    missingSkusInRedis.forEach((item, index) => {
-      const sku = item.sku || item.variant_sku || "";
-      if (sku) {
-        productSkusXml += `<item>
-<id>${index + 1}</id>
-<sku>${sku}</sku>
-<qty>${item.quantity || 1}</qty>
-</item>`;
-      }
-    });
-
-    let customerWeItemXml = "<item>\n<role>WE</role>";
-    if (defaultAddress) {
-      if (defaultAddress.address1) customerWeItemXml += `\n<address1>${defaultAddress.address1}</address1>`;
-      if (defaultAddress.city) customerWeItemXml += `\n<city>${defaultAddress.city}</city>`;
-      if (defaultAddress.zip) customerWeItemXml += `\n<zip>${defaultAddress.zip}</zip>`;
-      if (defaultAddress.province_code) customerWeItemXml += `\n<province_code>${defaultAddress.province_code}</province_code>`;
-      if (defaultAddress.country_code) customerWeItemXml += `\n<country_code>${defaultAddress.country_code}</country_code>`;
-    }
-    customerWeItemXml += "\n</item>";
-
-    const sapXmlData = `<productPriceUpdateCollection>
-<simulationid>2</simulationid>
-<product_skus>
-${productSkusXml}
-</product_skus>
-<customer>
-${customerWeItemXml}
-<item>
-<role>AG</role>
-<number>${customerId}</number>
-</item>
-</customer>
-</productPriceUpdateCollection>`;
-
-    console.log(`Calling SAP for ${missingSkusInRedis.length} items missing in Redis...`);
+    console.log(`[Proxy] /cart-price-sync: calling SAP for ${missingSkusInRedis.length} items missing in Redis`);
 
     try {
-      const sapRes = await fetch(
-        "https://webhooks.appseconnectapi.com/52f38dc4-a9b1-4eab-b3fd-4ce3890e1b83/bc0958e5-c79b-429c-92c0-ccc370e6cff2_default",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/xml" },
-          body: sapXmlData,
-        }
-      );
-      if (sapRes.ok) {
-        console.log("SAP call successful. Polling Redis for missing items...");
-        await pollRedisForPrices(shop, customerId, missingSkusInRedis.map(i => i.sku || i.variant_sku));
+      const sapXmlData = buildSapRootCustomerXml(shopifyCustomerId);
+      const { ok } = await postSapWebhook(sapXmlData, "/cart-price-sync");
+      if (ok) {
+        console.log("[Proxy] /cart-price-sync: SAP call successful. Polling Redis...");
+        await pollRedisForPrices(shop, sapRedisId, missingSkusInRedis.map(i => i.sku || i.variant_sku));
       } else {
-        console.error(`SAP call failed with status: ${sapRes.status}`);
+        console.error("[Proxy] /cart-price-sync: SAP call failed");
       }
     } catch (sapError) {
-      console.error("SAP call failed:", sapError.message);
+      console.error("[Proxy] /cart-price-sync: SAP call error:", sapError.message);
     }
 
     const finalRedis = createRedisClient(redisConfigSync);
-    const { priceMap: finalPriceMap } = await getRedisPricesForSkus(finalRedis, customerId, syncSkus);
+    const { priceMap: finalPriceMap } = await getRedisPricesForSkus(finalRedis, sapRedisId, syncSkus);
     await finalRedis.quit();
 
     return res.status(200).json({
@@ -987,12 +817,13 @@ proxyRouter.post("/get-price-by-sku", async (req, res) => {
       return res.status(500).json({ message: "Session not found for shop" });
     }
 
-    const customerId = await getSapCustomerId(sessionRes.session, shopifyCustId);
-    if (!customerId) {
+    const shopifyCustomerId = normalizeShopifyCustomerId(shopifyCustId);
+    const sapRedisId = await fetchSapIdFromCustomerMetafields(sessionRes.session, shopifyCustId);
+    if (!sapRedisId) {
       return res.status(400).json({ message: "SAP Customer ID not found for this customer" });
     }
 
-    console.log(`[Proxy] /get-price-by-sku: Shopify ID ${shopifyCustId} -> SAP ID ${customerId}, SKU: ${sku}`);
+    console.log(`[Proxy] /get-price-by-sku: Shopify ID ${shopifyCustomerId}, sapRedisId ${sapRedisId}, SKU: ${sku}`);
 
     const redisConfigBySku = getRedisConfigForShop(shop);
     if (!redisConfigBySku) {
@@ -1001,7 +832,7 @@ proxyRouter.post("/get-price-by-sku", async (req, res) => {
     const trimmedSku = sku.trim();
     const redis = createRedisClient(redisConfigBySku);
 
-    const { priceMap: initialPriceMap } = await getRedisPricesForSkus(redis, customerId, [trimmedSku]);
+    const { priceMap: initialPriceMap } = await getRedisPricesForSkus(redis, sapRedisId, [trimmedSku]);
     const cachedPrice = initialPriceMap[trimmedSku];
 
     if (cachedPrice !== undefined && cachedPrice !== null) {
@@ -1017,38 +848,12 @@ proxyRouter.post("/get-price-by-sku", async (req, res) => {
     await redis.quit();
     console.log(`[Proxy] /get-price-by-sku: Cache miss for ${trimmedSku}. Calling SAP...`);
 
-    const sapXmlData = `<productPriceUpdateCollection>
-<simulationid>2</simulationid>
-<product_skus>
-<item>
-<id>1</id>
-<sku>${trimmedSku}</sku>
-<qty>1</qty>
-</item>
-</product_skus>
-<customer>
-<item>
-<role>WE</role>
-</item>
-<item>
-<role>AG</role>
-<number>${customerId}</number>
-</item>
-</customer>
-</productPriceUpdateCollection>`;
+    const sapXmlData = buildSapRootCustomerXml(shopifyCustomerId);
+    const { ok: sapOk } = await postSapWebhook(sapXmlData, "/get-price-by-sku");
 
-    const sapRes = await fetch(
-      "https://webhooks.appseconnectapi.com/52f38dc4-a9b1-4eab-b3fd-4ce3890e1b83/bc0958e5-c79b-429c-92c0-ccc370e6cff2_default",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/xml" },
-        body: sapXmlData,
-      }
-    );
-
-    if (sapRes.ok) {
+    if (sapOk) {
       console.log(`[Proxy] /get-price-by-sku: SAP call successful. Polling Redis...`);
-      const { priceMap: polledPriceMap } = await pollRedisForPrices(shop, customerId, [trimmedSku]);
+      const { priceMap: polledPriceMap } = await pollRedisForPrices(shop, sapRedisId, [trimmedSku]);
       const finalPrice = polledPriceMap[trimmedSku];
 
       return res.status(200).json({
@@ -1057,8 +862,8 @@ proxyRouter.post("/get-price-by-sku", async (req, res) => {
         price: finalPrice || null
       });
     } else {
-      console.error(`[Proxy] /get-price-by-sku: SAP call failed: ${sapRes.status}`);
-      return res.status(500).json({ message: "SAP call failed", status: sapRes.status });
+      console.error("[Proxy] /get-price-by-sku: SAP call failed");
+      return res.status(500).json({ message: "SAP call failed" });
     }
   } catch (error) {
     console.error("/get-price-by-sku error:", error.message);
