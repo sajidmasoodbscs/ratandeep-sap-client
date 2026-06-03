@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "1e930d1e5c37339ac1deaa9b5de809a4"
-name = "sap custom app"
+name = "Real time Pricing Solution"
 application_url = "https://ratandeep-sap-client.onrender.com"
 embedded = true
 

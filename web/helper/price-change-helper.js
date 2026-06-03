@@ -856,8 +856,8 @@ async function createDiscount(session, customerId, discountValue) {
   }
 
   const randomString = Math.random().toString(36).substring(2, 10).toUpperCase();
-  const priceRuleTitle = `Sap-Discount-${randomString}`;
-  const discountCode = `SAP-${randomString}`;
+  const priceRuleTitle = `${randomString}`;
+  const discountCode = `${randomString}`;
 
   const currentDateTime = new Date().toISOString();
   const endsAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
