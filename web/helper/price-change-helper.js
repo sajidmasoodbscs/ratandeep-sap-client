@@ -252,10 +252,14 @@ export const getCheckout = async (shop, cartbody) => {
     console.log("[getCheckout] Discount amount (cart − SAP Redis):", discountValue);
     console.log("[getCheckout] SAP price map (>0 only):", sapPriceMap);
 
-    const zeroOrMissingSap = skus.filter((sku) => !isUsableSapUnitPrice(sapPriceMap[sku]));
+    const zeroOrMissingSap = skus.filter((sku) => {
+      const item = lineItems.find((line) => String(line.sku || line.variant_sku || "").trim() === sku);
+      const cartUnit = item ? Number(item.price) / 100 : null;
+      return !isUsableSapUnitPrice(sapPriceMap[sku], cartUnit);
+    });
     if (zeroOrMissingSap.length > 0) {
       console.log(
-        "[getCheckout] Lines with SAP/Redis 0 or missing (no discount on those lines):",
+        "[getCheckout] Lines with SAP/Redis 0, missing, or higher than Shopify (no discount on those lines):",
         zeroOrMissingSap
       );
     }
@@ -545,8 +549,9 @@ async function applySapPricesToCart(session, cartbody, sapProducts, totalTaxAmou
     .map((line) => {
       const sku = String(line?.merchandise?.sku || "").trim();
       const sapUnitPrice = sapBySku.get(sku);
-      if (!isUsableSapUnitPrice(sapUnitPrice)) {
-        console.log("[CartTransform] No usable SAP price for cart line SKU:", sku, "lineId:", line.id);
+      const shopifyUnit = Number(line?.merchandise?.price ?? line?.cost?.amountPerQuantity?.amount);
+      if (!isUsableSapUnitPrice(sapUnitPrice, Number.isFinite(shopifyUnit) ? shopifyUnit : null)) {
+        console.log("[CartTransform] No usable SAP price (missing or >= Shopify) for cart line SKU:", sku, "lineId:", line.id);
         return null;
       }
       return {
@@ -795,7 +800,7 @@ export function summarizeCartVsRedis(lineItems, priceMap) {
 
     cartSubtotal += cartUnit * qty;
     const redisUnit = priceMap[sku];
-    if (isUsableSapUnitPrice(redisUnit)) {
+    if (isUsableSapUnitPrice(redisUnit, cartUnit)) {
       redisSubtotal += Number(redisUnit) * qty;
     } else {
       redisSubtotal += cartUnit * qty;
@@ -823,7 +828,7 @@ function calculateDiscountedPrice(cartItems, redisProducts) {
         const priceOfOneItem = totalItemPrice / quantity;
         const cartItemPrice = Number(itemA.price) / 100;
 
-        if (!isUsableSapUnitPrice(priceOfOneItem)) continue;
+        if (!isUsableSapUnitPrice(priceOfOneItem, cartItemPrice)) continue;
 
         if (priceOfOneItem < cartItemPrice) {
           totalDiscount += Math.abs(cartItemPrice - priceOfOneItem) * quantity;

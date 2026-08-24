@@ -16,7 +16,8 @@ export function cartTransformRun(input) {
       const sapPrice = line.attribute?.value;
       if (sapPrice) {
         const amount = parseFloat(sapPrice);
-        if (!isNaN(amount) && amount > 0) {
+        const shopifyUnit = parseFloat(line.cost?.amountPerQuantity?.amount);
+        if (!isNaN(amount) && amount > 0 && (isNaN(shopifyUnit) || amount < shopifyUnit)) {
           return {
             lineUpdate: {
               cartLineId: line.id,

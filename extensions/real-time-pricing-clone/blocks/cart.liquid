@@ -213,6 +213,11 @@
           console.log(`[SAP/Redis] SAP price zero/invalid for SKU ${sku} — keeping Shopify cart price`);
           return;
         }
+        const shopifyDollars = Number(cartItem.price) / 100;
+        if (Number.isFinite(shopifyDollars) && newPrice >= shopifyDollars) {
+          console.log(`[SAP/Redis] Redis price higher than Shopify sales price for SKU ${sku} — keeping Shopify cart price`);
+          return;
+        }
 
         const priceInCents = Math.round(newPrice * 100);
         const itemKey = cartItem.key || cartItem.id;
@@ -349,7 +354,8 @@
 
         if (sku && priceMap[sku] != null) {
           const newPrice = Number(priceMap[sku]);
-          if (Number.isFinite(newPrice) && newPrice > 0) {
+          const shopifyDollars = Number(cartItem.price) / 100;
+          if (Number.isFinite(newPrice) && newPrice > 0 && (!Number.isFinite(shopifyDollars) || newPrice < shopifyDollars)) {
             newSubtotal += newPrice * quantity;
             return;
           }

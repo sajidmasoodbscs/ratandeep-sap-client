@@ -42,17 +42,21 @@ export function createRedisClient(config) {
 }
 
 /**
- * SAP/Redis unit price is used only when > 0.
- * Zero (or invalid) means keep the original Shopify catalog/cart price.
+ * SAP/Redis unit price is used only when > 0 and strictly below Shopify sales price.
+ * Higher/equal Redis prices must keep the original Shopify catalog/cart price.
  */
-export function isUsableSapUnitPrice(price) {
+export function isUsableSapUnitPrice(price, shopifyUnitPrice = null) {
   const n = Number(price);
-  return Number.isFinite(n) && n > 0;
+  if (!Number.isFinite(n) || n <= 0) return false;
+  if (shopifyUnitPrice == null || shopifyUnitPrice === "") return true;
+  const shopify = Number(shopifyUnitPrice);
+  if (!Number.isFinite(shopify) || shopify < 0) return true;
+  return n < shopify;
 }
 
-/** Prefer SAP price when > 0; otherwise Shopify unit price (dollars). */
+/** Prefer SAP only when it is cheaper than Shopify; otherwise keep Shopify. */
 export function resolveUnitPrice(sapPrice, shopifyUnitPrice = null) {
-  if (isUsableSapUnitPrice(sapPrice)) return Number(sapPrice);
+  if (isUsableSapUnitPrice(sapPrice, shopifyUnitPrice)) return Number(sapPrice);
   const shopify = shopifyUnitPrice != null ? Number(shopifyUnitPrice) : null;
   if (shopify !== null && Number.isFinite(shopify) && shopify >= 0) return shopify;
   return null;
@@ -77,8 +81,8 @@ export function mergeCartDefaultPrices(lineItems, priceMap = {}) {
     if (merged[sku] === undefined) {
       merged[sku] = fallback;
       console.log("[Redis] default price (cart) for", sku, "=>", fallback);
-    } else if (!isUsableSapUnitPrice(merged[sku])) {
-      console.log("[Redis] SAP price zero/invalid — Shopify cart price for", sku, "=>", fallback);
+    } else if (!isUsableSapUnitPrice(merged[sku], fallback)) {
+      console.log("[Redis] SAP price missing/higher than Shopify — keep Shopify cart price for", sku, "=>", fallback);
       merged[sku] = fallback;
     }
   }
@@ -338,11 +342,12 @@ export function redisPriceMapToSapProducts(lineItems, priceMap) {
   const products = [];
   for (const item of lineItems || []) {
     const sku = String(item.sku || "").trim();
-    let unit = resolveUnitPrice(priceMap[sku], cartLineDefaultUnitPrice(item));
+    const shopifyUnit = cartLineDefaultUnitPrice(item);
+    let unit = resolveUnitPrice(priceMap[sku], shopifyUnit);
     if (!sku || unit === undefined || unit === null) continue;
     const qty = Number(item.quantity) || 1;
     unit = Number(unit);
-    if (!Number.isFinite(unit) || !isUsableSapUnitPrice(unit)) continue;
+    if (!Number.isFinite(unit) || !isUsableSapUnitPrice(unit, shopifyUnit)) continue;
     products.push({
       sku,
       quantity: qty,

@@ -15,6 +15,7 @@ import {
   isUsableSapUnitPrice,
   mergeCartDefaultPrices,
   pollRedisForPrices,
+  cartLineDefaultUnitPrice,
 } from '../../helper/redis-pricing.js';
 
 const proxyRouter = Router();
@@ -722,7 +723,15 @@ proxyRouter.post("/cart-price-sync", async (req, res) => {
 
     if (missingSkusInRedis.length === 0) {
       console.log(`[Proxy] /cart-price-sync: Redis has data for all ${syncSkus.length} SKUs, skipping SAP webhook`);
-      const sapPrices = { ...redisPrices };
+      const sapPrices = {};
+      for (const item of cart.items) {
+        const sku = item.sku || item.variant_sku;
+        if (!sku) continue;
+        const shopifyUnit = cartLineDefaultUnitPrice(item);
+        if (isUsableSapUnitPrice(redisPrices[sku], shopifyUnit)) {
+          sapPrices[sku] = redisPrices[sku];
+        }
+      }
       const prices = mergeCartDefaultPrices(cart.items, redisPrices);
       return res.status(200).json({
         message: "Sync completed (Redis cache)",
@@ -750,7 +759,15 @@ proxyRouter.post("/cart-price-sync", async (req, res) => {
     const { priceMap: finalPriceMap } = await getRedisPricesForSkus(finalRedis, sapRedisId, syncSkus);
     await finalRedis.quit();
 
-    const sapPrices = { ...finalPriceMap };
+    const sapPrices = {};
+    for (const item of cart.items) {
+      const sku = item.sku || item.variant_sku;
+      if (!sku) continue;
+      const shopifyUnit = cartLineDefaultUnitPrice(item);
+      if (isUsableSapUnitPrice(finalPriceMap[sku], shopifyUnit)) {
+        sapPrices[sku] = finalPriceMap[sku];
+      }
+    }
     const prices = mergeCartDefaultPrices(cart.items, finalPriceMap);
     return res.status(200).json({
       message: "Sync completed",

@@ -643,11 +643,96 @@
           if (loader) loader.style.display = "none";
         }
 
+        const SAP_CART_NOTE_STORAGE_KEY = "sap_cart_note_draft";
+
+        function isCartNoteElement(el) {
+          if (!el) return false;
+          const name = (el.getAttribute && el.getAttribute("name")) || el.name || "";
+          if (String(name).toLowerCase() === "note") return true;
+          const id = el.id || "";
+          if (/cart[-_]?note/i.test(id)) return true;
+          return !!(el.closest && el.closest('[name="note"], #Cart-note, #CartNote, [data-cart-note], .cart__note, cart-note'));
+        }
+
+        function getCartNoteField() {
+          return document.querySelector(
+            'textarea[name="note"], input[name="note"], #Cart-note, #CartNote, [data-cart-note] textarea, .cart__note textarea'
+          );
+        }
+
+        function persistCartNoteDraft() {
+          const field = isCartNoteElement(document.activeElement) ? document.activeElement : getCartNoteField();
+          if (field && typeof field.value === "string") {
+            try {
+              sessionStorage.setItem(SAP_CART_NOTE_STORAGE_KEY, field.value);
+            } catch (e) {}
+          }
+        }
+
+        function restoreCartNoteDraft() {
+          let draft = null;
+          try {
+            draft = sessionStorage.getItem(SAP_CART_NOTE_STORAGE_KEY);
+            sessionStorage.removeItem(SAP_CART_NOTE_STORAGE_KEY);
+          } catch (e) {
+            draft = null;
+          }
+          if (draft == null) return;
+          const field = getCartNoteField();
+          if (field) field.value = draft;
+        }
+
+        function isNoteOnlyCartMutation(url, init, input) {
+          if (!/\/cart\/update(\.js)?(\?|$)/i.test(url)) return false;
+          let body = (init && init.body) || (typeof input !== "string" && input && input.body) || "";
+          if (!body) return false;
+          if (typeof body !== "string") {
+            try {
+              body = typeof body === "object" && typeof body.text === "function" ? null : String(body);
+            } catch (e) {
+              return false;
+            }
+          }
+          if (!body) return false;
+          try {
+            const data = JSON.parse(body);
+            const keys = Object.keys(data || {});
+            if (!keys.length) return false;
+            return keys.every(function(key) {
+              return key === "note" || key === "attributes";
+            });
+          } catch (e) {
+            return /(?:^|&)note=/.test(body) && !/(?:^|&)(updates|id|quantity|line|items)=/.test(body);
+          }
+        }
+
         function scheduleCartReloadAfterChange() {
           if (window.__sapCartInternalUpdate || window.__sapCheckoutInProgress) return;
+          if (isCartNoteElement(document.activeElement)) {
+            persistCartNoteDraft();
+            const field = document.activeElement;
+            if (!field.__sapReloadOnBlur) {
+              field.__sapReloadOnBlur = true;
+              field.addEventListener("blur", function onNoteBlur() {
+                field.__sapReloadOnBlur = false;
+                field.removeEventListener("blur", onNoteBlur);
+                if (window.__sapPendingReloadAfterNote) {
+                  window.__sapPendingReloadAfterNote = false;
+                  scheduleCartReloadAfterChange();
+                }
+              });
+            }
+            window.__sapPendingReloadAfterNote = true;
+            return;
+          }
           clearTimeout(sapCartReloadTimer);
           sapCartReloadTimer = setTimeout(function() {
             if (window.__sapCheckoutInProgress) return;
+            if (isCartNoteElement(document.activeElement)) {
+              window.__sapPendingReloadAfterNote = true;
+              return;
+            }
+            persistCartNoteDraft();
             console.log("[SAP/Redis] Cart changed — reloading for updated SAP prices");
             window.location.reload();
           }, SAP_CART_RELOAD_DELAY_MS);
@@ -726,7 +811,8 @@
             const quantity = cartItem.quantity || 1;
             if (sku && priceMap[sku] != null) {
               const unit = Number(priceMap[sku]);
-              if (Number.isFinite(unit) && unit > 0) {
+              const shopifyDollars = Number(cartItem.price) / 100;
+              if (Number.isFinite(unit) && unit > 0 && (!Number.isFinite(shopifyDollars) || unit < shopifyDollars)) {
                 subtotalDollars += unit * quantity;
                 return;
               }
@@ -791,9 +877,11 @@
           window.fetch = async function(input, init) {
             const url = typeof input === "string" ? input : (input && input.url) || "";
             const isCartMutation = /\/cart\/(change|update|add|clear)(\.js)?/i.test(url);
+            const noteOnly = isNoteOnlyCartMutation(url, init, input);
             const response = await originalFetch(input, init);
             if (
               isCartMutation &&
+              !noteOnly &&
               response.ok &&
               !window.__sapCartInternalUpdate &&
               !window.__sapCheckoutInProgress
@@ -867,6 +955,12 @@
               if (effectivePrice == null || Number(effectivePrice) <= 0) return;
 
               const newPrice = Number(effectivePrice);
+              const shopifyDollars = Number(item.price) / 100;
+              if (!Number.isFinite(newPrice) || newPrice <= 0) return;
+              if (Number.isFinite(shopifyDollars) && newPrice >= shopifyDollars) {
+                console.log("[SAP/Redis] Redis price higher than Shopify sales price for SKU", sku, "— keeping Shopify cart price");
+                return;
+              }
               if (Number.isFinite(newPrice) && newPrice > 0) {
                 const priceInCents = Math.round(newPrice * 100);
                 const formattedPrice = (typeof Shopify !== 'undefined' && Shopify.formatMoney) 
@@ -1099,9 +1193,13 @@
         }
 
         setupCartChangeReload();
+        restoreCartNoteDraft();
 
         if (document.readyState === "loading") {
-          document.addEventListener("DOMContentLoaded", syncCartPrices);
+          document.addEventListener("DOMContentLoaded", function() {
+            restoreCartNoteDraft();
+            syncCartPrices();
+          });
         } else {
           syncCartPrices();
         }
@@ -1171,6 +1269,13 @@
         var redisPrice = parseFloat(priceMap[sku]);
         if (isNaN(redisPrice) || redisPrice <= 0) {
           console.log("[Redis pricing] SAP price zero/missing — keeping Shopify price");
+          return;
+        }
+        var selected = variants.find(function(v) { return v.sku && String(v.sku).trim() === String(sku); });
+        var shopifyCents = selected && selected.price != null ? Number(selected.price) : NaN;
+        var shopifyDollars = Number.isFinite(shopifyCents) ? shopifyCents / 100 : NaN;
+        if (Number.isFinite(shopifyDollars) && redisPrice >= shopifyDollars) {
+          console.log("[Redis pricing] Redis price higher than Shopify sales price — keeping Shopify price");
           return;
         }
         var sel = ".price-item--regular, [data-product-price], .product__price .price, .product-price, #product-price, .product-single__price, .price";

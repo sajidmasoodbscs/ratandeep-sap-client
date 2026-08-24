@@ -257,6 +257,13 @@
           console.log('[SAP/Redis] SAP price zero — keeping Shopify variant price');
           return;
         }
+        var selected = productDetails.variants.find(function(v) { return String(v.sku) === String(sku); });
+        var shopifyCents = selected && selected.price != null ? Number(selected.price) : NaN;
+        var shopifyDollars = Number.isFinite(shopifyCents) ? shopifyCents / 100 : NaN;
+        if (Number.isFinite(shopifyDollars) && redisPrice >= shopifyDollars) {
+          console.log('[SAP/Redis] Redis price higher than Shopify sales price — keeping Shopify variant price');
+          return;
+        }
 
         var formatted = formatMoney(redisPrice);
         console.log('[SAP/Redis] Applying price ' + formatted + ' to SKU: ' + sku);

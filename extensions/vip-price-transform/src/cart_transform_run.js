@@ -15,7 +15,6 @@ const NO_CHANGES = {
  * @returns {CartTransformRunResult}
  */
 export function cartTransformRun(input) {
-  /** @type {Array<import("../generated/api").Operation>} */
   const operations = [];
   const lines = /** @type {any[]} */ (input.cart.lines);
 
@@ -23,7 +22,9 @@ export function cartTransformRun(input) {
       const sapPrice = line.attribute?.value;
       if (!sapPrice) return;
       const amount = parseFloat(sapPrice);
-      if (Number.isNaN(amount)) return;
+      if (Number.isNaN(amount) || amount <= 0) return;
+      const shopifyUnit = parseFloat(line.cost?.amountPerQuantity?.amount);
+      if (!Number.isNaN(shopifyUnit) && amount >= shopifyUnit) return;
 
       operations.push({
         lineUpdate: {
