@@ -62,6 +62,69 @@ export function resolveUnitPrice(sapPrice, shopifyUnitPrice = null) {
   return null;
 }
 
+function buildSkuSearchQuery(sku) {
+  const s = String(sku || "").trim();
+  if (!s) return null;
+  if (/[\s":]/.test(s)) return `sku:"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+  return `sku:${s}`;
+}
+
+/**
+ * Look up Shopify catalog unit price (dollars) for a SKU via Admin GraphQL.
+ * @returns {Promise<number|null>}
+ */
+export async function fetchShopifyVariantPriceBySku(session, sku) {
+  const shop = session?.shop;
+  const accessToken = session?.accessToken || session?.access_token;
+  const trimmedSku = String(sku || "").trim();
+  const searchQuery = buildSkuSearchQuery(trimmedSku);
+  if (!shop || !accessToken || !searchQuery) return null;
+
+  const query = `
+    query VariantPriceBySku($q: String!) {
+      productVariants(first: 5, query: $q) {
+        nodes {
+          sku
+          price
+        }
+      }
+    }
+  `;
+
+  try {
+    const response = await fetch(`https://${shop}/admin/api/2024-10/graphql.json`, {
+      method: "POST",
+      headers: {
+        "X-Shopify-Access-Token": accessToken,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ query, variables: { q: searchQuery } }),
+    });
+
+    const json = await response.json();
+    if (!response.ok || json.errors?.length) {
+      console.warn(
+        "[Redis] fetchShopifyVariantPriceBySku failed:",
+        json.errors?.[0]?.message || `HTTP ${response.status}`
+      );
+      return null;
+    }
+
+    const nodes = json.data?.productVariants?.nodes || [];
+    const match =
+      nodes.find((n) => String(n?.sku || "").trim() === trimmedSku) || nodes[0];
+    if (match?.price == null || match?.price === "") return null;
+
+    const price = Number(match.price);
+    if (!Number.isFinite(price) || price < 0) return null;
+    console.log("[Redis] Shopify catalog price for", trimmedSku, "=>", price);
+    return price;
+  } catch (error) {
+    console.error("[Redis] fetchShopifyVariantPriceBySku error:", error.message);
+    return null;
+  }
+}
+
 /** Shopify cart.js unit price (cents → dollars) when Redis has no price. */
 export function cartLineDefaultUnitPrice(item) {
   const cents = item?.price ?? item?.original_price ?? item?.final_line_price;

@@ -16,6 +16,8 @@ import {
   mergeCartDefaultPrices,
   pollRedisForPrices,
   cartLineDefaultUnitPrice,
+  fetchShopifyVariantPriceBySku,
+  resolveUnitPrice,
 } from '../../helper/redis-pricing.js';
 
 const proxyRouter = Router();
@@ -783,7 +785,7 @@ proxyRouter.post("/cart-price-sync", async (req, res) => {
 proxyRouter.post("/get-price-by-sku", async (req, res) => {
   try {
     console.log("===== /GET-PRICE-BY-SKU ENDPOINT HIT =====");
-    const { customerId: shopifyCustId, sku, shopUrl } = req.body;
+    const { customerId: shopifyCustId, sku, shopUrl, shopifyPrice: shopifyPriceRaw } = req.body;
 
     if (!shopifyCustId || !sku || !shopUrl) {
       return res.status(400).json({ message: "customerId, sku, and shopUrl are required" });
@@ -809,6 +811,40 @@ proxyRouter.post("/get-price-by-sku", async (req, res) => {
       return res.status(503).json({ message: "Redis not configured for this shop. Set credentials in the app." });
     }
     const trimmedSku = sku.trim();
+
+    // Prefer caller-supplied Shopify price; otherwise look up catalog price by SKU
+    let shopifyUnitPrice =
+      shopifyPriceRaw != null && shopifyPriceRaw !== ""
+        ? Number(shopifyPriceRaw)
+        : null;
+    if (!Number.isFinite(shopifyUnitPrice) || shopifyUnitPrice < 0) {
+      shopifyUnitPrice = await fetchShopifyVariantPriceBySku(sessionRes.session, trimmedSku);
+    }
+    console.log(`[Proxy] /get-price-by-sku: Shopify catalog price for ${trimmedSku}:`, shopifyUnitPrice);
+
+    const resolveAgainstShopify = (redisPrice) => {
+      if (redisPrice === undefined || redisPrice === null) {
+        return { price: null, source: null, redisPrice: null, shopifyPrice: shopifyUnitPrice };
+      }
+      const resolved = resolveUnitPrice(redisPrice, shopifyUnitPrice);
+      const usedShopify =
+        shopifyUnitPrice != null &&
+        Number.isFinite(Number(shopifyUnitPrice)) &&
+        resolved === Number(shopifyUnitPrice) &&
+        !isUsableSapUnitPrice(redisPrice, shopifyUnitPrice);
+      if (usedShopify) {
+        console.log(
+          `[Proxy] /get-price-by-sku: Redis ${redisPrice} >= Shopify ${shopifyUnitPrice} — returning Shopify price`
+        );
+      }
+      return {
+        price: resolved,
+        source: usedShopify ? "shopify" : "redis",
+        redisPrice: Number(redisPrice),
+        shopifyPrice: shopifyUnitPrice,
+      };
+    };
+
     const redis = createRedisClient(redisConfigBySku);
 
     const { priceMap: initialPriceMap } = await getRedisPricesForSkus(redis, sapRedisId, [trimmedSku]);
@@ -817,10 +853,16 @@ proxyRouter.post("/get-price-by-sku", async (req, res) => {
     if (cachedPrice !== undefined && cachedPrice !== null) {
       console.log(`[Proxy] /get-price-by-sku: Cache hit for ${trimmedSku}: ${cachedPrice}`);
       await redis.quit();
+      const resolved = resolveAgainstShopify(cachedPrice);
       return res.status(200).json({
-        message: "Price found in cache",
+        message: resolved.source === "shopify"
+          ? "Redis price higher than Shopify — returning Shopify price"
+          : "Price found in cache",
         sku: trimmedSku,
-        price: cachedPrice
+        price: resolved.price,
+        source: resolved.source,
+        redisPrice: resolved.redisPrice,
+        shopifyPrice: resolved.shopifyPrice,
       });
     }
 
@@ -835,11 +877,20 @@ proxyRouter.post("/get-price-by-sku", async (req, res) => {
 
     const { priceMap: polledPriceMap } = await pollRedisForPrices(sapRedisId, [trimmedSku]);
     const finalPrice = polledPriceMap[trimmedSku];
+    const resolved = resolveAgainstShopify(finalPrice);
 
     return res.status(200).json({
-      message: finalPrice !== undefined ? "Price from Redis" : "Price not in Redis after SAP load",
+      message:
+        resolved.price == null
+          ? "Price not in Redis after SAP load"
+          : resolved.source === "shopify"
+            ? "Redis price higher than Shopify — returning Shopify price"
+            : "Price from Redis",
       sku: trimmedSku,
-      price: finalPrice ?? null,
+      price: resolved.price,
+      source: resolved.source,
+      redisPrice: resolved.redisPrice,
+      shopifyPrice: resolved.shopifyPrice,
     });
   } catch (error) {
     console.error("/get-price-by-sku error:", error.message);
