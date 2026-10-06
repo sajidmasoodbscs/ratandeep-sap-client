@@ -2,75 +2,94 @@ import { DeliveryMethod } from "@shopify/shopify-api";
 import shopify from "./shopify.js";
 import { getCheckout } from "./helper/price-change-helper.js";
 import { PriceChangeDB } from "./price-change-db.js";
-import { getSapWebhookUrl } from "./helper/sap-api.js";
+import {
+  buildSapRootCustomerXml,
+  normalizeShopifyCustomerId,
+  postSapWebhook,
+} from "./helper/sap-api.js";
+import {
+  createRedisClient,
+  getRedisConfigFromEnv,
+  getRedisPricesForSkus,
+  pollRedisForPrices,
+} from "./helper/redis-pricing.js";
 
 /**
- * Call SAP webhook with all product SKUs from DB (no Redis). Uses default sold_to from settings or 1000.
+ * Redis-first: check all product SKUs for the order customer in Redis.
+ * Call SAP only on miss, then poll Redis (same pattern as proxy pricing routes).
  */
-async function callSapWebhookWithAllProducts(shop) {
+async function ensureSapPricesAfterOrder(shop, order) {
   const skus = await PriceChangeDB.getAllProductSKUs();
   if (!skus || skus.length === 0) {
     console.log("[Webhook ORDERS_CREATE] No SKUs in DB, skipping SAP call");
     return { ok: false, reason: "no_skus" };
   }
-  let defaultSoldTo = 1000;
-  try {
-    const settings = await PriceChangeDB.Getsettings(shop);
-    if (settings && settings[0] && settings[0].default_sold_to_number != null) {
-      defaultSoldTo = Number(settings[0].default_sold_to_number) || 1000;
-    }
-  } catch (_) {}
 
-  const productSkusXml = skus.map((sku, index) => `<item>
-<id>${index + 1}</id>
-<sku>${String(sku).trim()}</sku>
-<qty>1</qty>
-</item>`).join("\n");
-
-  const xmlData = `<productPriceUpdateCollection>
-<simulationid>2</simulationid>
-<product_skus>
-${productSkusXml}
-</product_skus>
-<customer>
-<item>
-<role>WE</role>
-</item>
-<item>
-<role>AG</role>
-<number>${defaultSoldTo}</number>
-</item>
-</customer>
-</productPriceUpdateCollection>`;
-
-  const sapWebhookUrl = getSapWebhookUrl();
-  if (!sapWebhookUrl) {
-    console.error("[Webhook ORDERS_CREATE] SAP_APPSECONNECT_WEBHOOK_URL is not set");
-    return { ok: false, reason: "sap_webhook_url_missing" };
+  const shopifyCustomerId = normalizeShopifyCustomerId(order?.customer?.id);
+  if (!shopifyCustomerId) {
+    console.log("[Webhook ORDERS_CREATE] No customer on order — skipping SAP (cannot key Redis)");
+    return { ok: false, reason: "no_customer" };
   }
 
-  try {
-    const response = await fetch(sapWebhookUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/xml" },
-      body: xmlData,
-    });
-    const text = await response.text();
-    if (!response.ok) {
-      console.error("[Webhook ORDERS_CREATE] SAP webhook failed:", response.status, text);
-      return { ok: false, status: response.status, body: text };
-    }
-    console.log("[Webhook ORDERS_CREATE] SAP webhook called successfully, SKU count:", skus.length);
-    return { ok: true, skuCount: skus.length, body: text };
-  } catch (error) {
-    console.error("[Webhook ORDERS_CREATE] SAP webhook error:", error.message);
-    return { ok: false, error: error.message };
+  const redisConfig = getRedisConfigFromEnv();
+  if (!redisConfig) {
+    console.warn("[Webhook ORDERS_CREATE] Redis not configured — skipping SAP");
+    return { ok: false, reason: "redis_not_configured" };
   }
+
+  const redis = createRedisClient(redisConfig);
+  let priceMap = {};
+  try {
+    const result = await getRedisPricesForSkus(redis, shopifyCustomerId, skus);
+    priceMap = result.priceMap || {};
+  } finally {
+    try {
+      await redis.quit();
+    } catch (_) {}
+  }
+
+  const missingSkus = skus
+    .map((sku) => String(sku).trim())
+    .filter((sku) => sku && priceMap[sku] === undefined);
+
+  if (missingSkus.length === 0) {
+    console.log(
+      `[Webhook ORDERS_CREATE] Redis has data for all ${skus.length} SKUs — skipping SAP webhook`
+    );
+    return {
+      ok: true,
+      skipped: true,
+      reason: "redis_cache_hit",
+      skuCount: skus.length,
+    };
+  }
+
+  console.log(
+    `[Webhook ORDERS_CREATE] ${missingSkus.length} of ${skus.length} SKUs missing in Redis. Calling SAP...`
+  );
+
+  const xmlData = buildSapRootCustomerXml(shopifyCustomerId);
+  const { ok, status, text } = await postSapWebhook(xmlData, "ORDERS_CREATE");
+
+  if (!ok) {
+    console.error("[Webhook ORDERS_CREATE] SAP webhook failed:", status, text);
+    return { ok: false, status, body: text, skuCount: skus.length, missingCount: missingSkus.length };
+  }
+
+  console.log("[Webhook ORDERS_CREATE] SAP webhook ok — polling Redis for missing SKUs");
+  await pollRedisForPrices(shopifyCustomerId, missingSkus);
+
+  return {
+    ok: true,
+    skipped: false,
+    skuCount: skus.length,
+    missingCount: missingSkus.length,
+  };
 }
 
 export default {
   /**
-   * When an order is placed, call SAP webhook with all product SKUs from DB (no Redis).
+   * When an order is placed: Redis first, SAP only if prices are missing, then poll Redis.
    */
   ORDERS_CREATE: {
     deliveryMethod: DeliveryMethod.Http,
@@ -78,9 +97,27 @@ export default {
     callback: async (topic, shop, body, webhookId) => {
       console.log("========== ORDERS_CREATE WEBHOOK FIRED ========== shop:", shop);
       const order = JSON.parse(body);
-      console.log("[Webhook ORDERS_CREATE] Order placed — order id:", order.id, "shop:", shop);
-      const result = await callSapWebhookWithAllProducts(shop);
-      console.log("[Webhook ORDERS_CREATE] SAP call done — ok:", result?.ok, "skuCount:", result?.skuCount ?? "n/a");
+      console.log(
+        "[Webhook ORDERS_CREATE] Order placed — order id:",
+        order.id,
+        "customer:",
+        order?.customer?.id,
+        "shop:",
+        shop
+      );
+      const result = await ensureSapPricesAfterOrder(shop, order);
+      console.log(
+        "[Webhook ORDERS_CREATE] done — ok:",
+        result?.ok,
+        "skipped:",
+        result?.skipped ?? false,
+        "reason:",
+        result?.reason ?? "n/a",
+        "skuCount:",
+        result?.skuCount ?? "n/a",
+        "missingCount:",
+        result?.missingCount ?? "n/a"
+      );
       console.log("========== ORDERS_CREATE WEBHOOK FINISHED ==========");
     },
   },
