@@ -533,5 +533,16 @@ document.addEventListener("DOMContentLoaded", function () {
 
 </script> {% endcomment %}
 
+{%- if customer -%}
+  <script>
+    window.SAP_CARD_PRICES = {
+      apiBase: 'https://ratandeep-sap-client.onrender.com/apps/sap-price-test',
+      customerId: {{ customer.id | json }},
+      shop: {{ shop.permanent_domain | json }},
+      moneyFormat: {{ shop.money_format | json }}
+    };
+  </script>
+  <script src="{{ 'sap-card-prices.js' | asset_url }}" defer></script>
+{%- endif -%}
 <script src="{{ 'warehouse-inventory.js' | asset_url }}" defer></script>
 </html>

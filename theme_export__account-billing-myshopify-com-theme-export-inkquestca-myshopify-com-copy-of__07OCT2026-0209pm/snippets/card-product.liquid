@@ -238,12 +238,28 @@
               </p>
             {%- endif -%}
 
-<div
-  class="sap-card-price sap-price-loading"
-  id="sap-card-price-{{ section_id }}-{{ card_product.id }}"
->
-  <span class="sap-price-loader" aria-hidden="true"></span>
-</div>
+{%- liquid
+  assign sap_card_variant = card_product.selected_or_first_available_variant
+  assign sap_card_sku = sap_card_variant.sku | default: '' | strip
+  assign sap_card_cents = sap_card_variant.price | default: card_product.price
+-%}
+{%- if customer -%}
+  <div
+    class="sap-card-price sap-price-loading"
+    id="sap-card-price-{{ section_id }}-{{ card_product.id }}"
+    data-sap-card-price
+    data-sku="{{ sap_card_sku | escape }}"
+    data-shopify-cents="{{ sap_card_cents }}"
+    data-shopify-money="{{ card_product.price | money | escape }}"
+    data-product-id="{{ card_product.id }}"
+  >
+    <span class="sap-price-loader" aria-hidden="true"></span>
+  </div>
+{%- else -%}
+  <div class="sap-card-price" id="sap-card-price-{{ section_id }}-{{ card_product.id }}">
+    <span class="price-item price-item--regular">{{ card_product.price | money }}</span>
+  </div>
+{%- endif -%}
    {% assign product_form_id = 'quick-add-' | append: section_id | append: card_product.id %}
         {% if quick_add == 'standard' %}
           <div class="quick-add no-js-hidden">
@@ -540,12 +556,13 @@
             </div>
           {% endif %}
         {% endif %}
+{%- unless skip_styles -%}
 <style>
   .sap-card-price {
     min-height: 24px;
     display: flex;
     align-items: center;
-        font-weight: 700;
+    font-weight: 700;
     font-size: 14px;
   }
 
@@ -565,327 +582,15 @@
   }
 
   @keyframes sapPriceLoading {
-    0% {
-      background-position: 200% 0;
-    }
-
-    100% {
-      background-position: -200% 0;
-    }
-  }
-
-  .sap-price-error {
-    display: none;
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
   }
 </style>
-
-<script>
-(function () {
-
-  const API_URL =
-    'https://ratandeep-sap-client.onrender.com/apps/sap-price-test/get-price-by-sku';
-
-  const CUSTOMER_ID =
-    {{ customer.id | json }};
-
-  const SHOP_URL =
-    {{ shop.permanent_domain | json }};
-
-  const PRICE_CONTAINER =
-    document.getElementById(
-      'sap-card-price-{{ section_id }}-{{ card_product.id }}'
-    );
-
-  /*
-   * NOT LOGGED IN
-   *
-   * Do absolutely nothing.
-   * Shopify's normal price stays visible.
-   */
- if (!CUSTOMER_ID) {
-  if (PRICE_CONTAINER) {
-    PRICE_CONTAINER.classList.remove('sap-price-loading');
-
-    PRICE_CONTAINER.innerHTML = `
-      <span class="price-item price-item--regular">
-        {{ card_product.price | money }}
-      </span>
-    `;
-  }
-
-  return;
-}
-
-  /*
-   * Product variants
-   */
-  const variants = [
-    {% for variant in card_product.variants %}
-      {
-        id: {{ variant.id | json }},
-        sku: {{ variant.sku | json }},
-        price: {{ variant.price | json }}
-      }{% unless forloop.last %},{% endunless %}
-    {% endfor %}
-  ];
-
-  /*
-   * Use the first available variant
-   */
-  const variant =
-    variants.find(function (variant) {
-      return variant.id ==
-        {{ card_product.selected_or_first_available_variant.id | json }};
-    }) || variants[0];
-
-  /*
-   * No SKU
-   *
-   * Keep Shopify price.
-   */
-  if (!variant || !variant.sku) {
-    return;
-  }
-
-  /*
-   * Format SAP price
-   */
-  function formatPrice(price) {
-
-    return new Intl.NumberFormat(
-      undefined,
-      {
-        style: 'currency',
-        currency: 'USD'
-      }
-    ).format(Number(price));
-
-  }
-
-  /*
-   * Get SAP price
-   */
-  async function fetchSapPrice() {
-
-    try {
-
-      const response =
-        await fetch(
-          API_URL,
-          {
-            method: 'POST',
-
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
-            },
-
-            body: JSON.stringify({
-
-              customerId:
-                CUSTOMER_ID,
-
-              sku:
-                variant.sku,
-
-              shopUrl:
-                SHOP_URL,
-
-              // Shopify variant.price is cents → dollars for server-side compare
-              shopifyPrice:
-                Number(variant.price) / 100
-
-            })
-          }
-        );
-
-      /*
-       * API failed
-       *
-       * Keep Shopify price.
-       */
-      if (!response.ok) {
-
-        console.warn(
-          '[SAP CARD] API failed:',
-          response.status
-        );
-
-        return null;
-      }
-
-      const data =
-        await response.json();
-
-      console.log(
-        '[SAP CARD] Response:',
-        data
-      );
-
-      /*
-       * No SAP price
-       *
-       * Keep Shopify price.
-       */
-      if (
-        data.price === undefined ||
-        data.price === null ||
-        data.price === ''
-      ) {
-
-        console.warn(
-          '[SAP CARD] No price returned'
-        );
-
-        return null;
-      }
-
-      return Number(data.price);
-
-    } catch (error) {
-
-      console.error(
-        '[SAP CARD] Failed:',
-        error
-      );
-
-      /*
-       * Keep Shopify price.
-       */
-      return null;
-
-    }
-
-  }
-
-  /*
-   * Shopify variant.price is in cents.
-   * Use Redis/SAP only when it is > 0 and strictly below Shopify.
-   */
-  function resolveDisplayPrice(sapPrice, currentVariant) {
-
-    const shopifyDollars =
-      currentVariant && currentVariant.price != null
-        ? Number(currentVariant.price) / 100
-        : NaN;
-
-    const redisPrice =
-      Number(sapPrice);
-
-    if (
-      !Number.isFinite(redisPrice) ||
-      redisPrice <= 0
-    ) {
-
-      console.log(
-        '[SAP CARD] SAP/Redis price zero or invalid — keeping Shopify price'
-      );
-
-      return Number.isFinite(shopifyDollars)
-        ? shopifyDollars
-        : null;
-
-    }
-
-    if (
-      Number.isFinite(shopifyDollars) &&
-      redisPrice >= shopifyDollars
-    ) {
-
-      console.log(
-        '[SAP CARD] Redis price higher than Shopify sales price — keeping Shopify price',
-        {
-          redisPrice: redisPrice,
-          shopifyPrice: shopifyDollars
-        }
-      );
-
-      return shopifyDollars;
-
-    }
-
-    return redisPrice;
-
-  }
-
-  function showShopifyPrice() {
-
-    if (!PRICE_CONTAINER) {
-      return;
-    }
-
-    PRICE_CONTAINER.innerHTML = `
-      <span class="price-item price-item--regular">
-        {{ card_product.price | money }}
-      </span>
-    `;
-
-    PRICE_CONTAINER.classList.remove('sap-price-loading');
-
-  }
-
-  /*
-   * Replace Shopify price ONLY
-   * when SAP returns a valid price.
-   */
-async function loadSapPrice() {
-
-  if (!PRICE_CONTAINER) {
-    return;
-  }
-
-  const sapPrice = await fetchSapPrice();
-
-  /*
-   * API did not return a valid price.
-   *
-   * Keep Shopify price.
-   */
-if ( 
-  sapPrice === null || 
-  sapPrice === undefined || 
-  sapPrice === '' 
-) { 
-
-  showShopifyPrice();
-
-  return; 
-}
-
-  const finalPrice =
-    resolveDisplayPrice(
-      sapPrice,
-      variant
-    );
-
-  if (finalPrice == null) {
-
-    showShopifyPrice();
-
-    return;
-
-  }
-
-  /*
-   * SAP price successfully received.
-   */
-
-  const formatted = formatPrice(finalPrice);
-
-  PRICE_CONTAINER.innerHTML = `
-    <span class="price-item price-item--regular">
-      ${formatted}
-    </span>
-  `;
-
-  PRICE_CONTAINER.classList.remove('sap-price-loading');
-
-}
-
-  loadSapPrice();
-
-})();
-</script>
+{%- endunless -%}
+{% comment %}
+  Card prices are hydrated by assets/sap-card-prices.js (survives collection filter AJAX).
+  Per-card inline scripts do NOT re-run after Facets replace the product grid.
+{% endcomment %}
             {%- if card_product.quantity_price_breaks_configured? -%}
               {% if card_product.variants_count == 1 and quick_add == 'bulk' %}
                 {% liquid
