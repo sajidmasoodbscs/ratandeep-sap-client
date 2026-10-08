@@ -1,0 +1,33 @@
+{% if content_for_header contains "previewBarInjector.init();" %}
+  <style>
+      .bss-tooltip-container {
+          position: relative;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          text-align: center;
+      }
+      .bss-tooltip-box {
+          display: none;
+          position: absolute;
+          background: #333;
+          color: white;
+          padding: 5px;
+          border-radius: 5px;
+          font-size: 12px;
+          white-space: nowrap;
+          top: -20px;
+          left: 50%;
+          transform: translateX(-50%);
+      }
+      .bss-tooltip-target:hover .bss-tooltip-box {
+          display: block;
+      }
+  </style>
+  <div class="bss-tooltip-container" style="font-size: 14px;">
+        <p style="color: #333;" class="bss-tooltip-target">Customize to fit your brand? 
+            <a style="color: #007BFF; text-decoration: underline; font-weight: bold; transition: 0.3s;" href="{{ shop.url }}/admin/apps/login-to-access-pages?open-chat=true" target="_blank">Contact us</a>
+        <span class="bss-tooltip-box">This is only visible in preview mode.</span>
+        </p>
+    </div>
+{% endif %}

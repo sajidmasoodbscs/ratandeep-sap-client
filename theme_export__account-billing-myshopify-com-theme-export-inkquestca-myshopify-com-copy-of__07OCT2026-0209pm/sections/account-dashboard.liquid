@@ -1,0 +1,3528 @@
+
+{% assign wishlist_url = 'https://inkquestca.myshopify.com/apps/wishlist' %}  
+
+<style>
+  .rd-wrap{--teal:#0d4f4f;--teal-light:#e8f3f1;--border:#e5e5e0;--text:#1a1a1a;--muted:#6b7280;--bg:#faf9f7;
+    max-width:80%;margin:10px auto;padding:16px;color:var(--text);}
+  .rd-header{background:var(--teal);color:#fff;padding:16px 20px;border-radius:10px;
+    display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;}
+  .rd-header .rd-store{font-weight:700;font-size:17px;}
+  .rd-header .rd-store span{opacity:.7;font-weight:400;font-size:13px;margin-left:6px;}
+  .rd-avatar{width:32px;height:32px;border-radius:50%;background:#fff;color:var(--teal);
+    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;}
+
+  .rd-body{display:flex;gap:18px;align-items:flex-start;}
+  .rd-sidebar{width:230px;flex-shrink:0;background:var(--bg);border:1px solid var(--border);
+    border-radius:10px;padding:10px;position:sticky;top:12px;}
+  .rd-nav-btn{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;
+    border:none;padding:10px 12px;border-radius:8px;font-size:14px;color:var(--text);
+    cursor:pointer;margin-bottom:4px;font-family:inherit;text-decoration:none;box-sizing:border-box;}
+  .rd-nav-btn.active{background:var(--teal-light);color:var(--teal);font-weight:600;}
+  .rd-nav-btn:hover{background:var(--teal-light);}
+  .rd-nav-divider{height:1px;background:var(--border);margin:8px 4px;}
+  .rd-nav-btn.rd-logout{color:#b3261e;}
+
+  .rd-main{flex:1;min-width:0;}
+  .rd-section{display:none;}
+  .rd-section.active{display:block;}
+
+  .rd-greet h2{margin:10px 0 4px;font-size:21px;}
+  .rd-greet p{margin:0;color:var(--muted);font-size:14px;}
+
+  .rd-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:18px 0;}
+  .rd-stat{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px 16px;}
+  .rd-stat .rd-label{font-size:12px;color:var(--muted);margin-bottom:6px;}
+  .rd-stat .rd-value{font-size:24px;font-weight:700;line-height:1.1;}
+  .rd-stat .rd-sub{font-size:11px;color:var(--muted);margin-top:4px;}
+
+  .rd-card-title{display:flex;justify-content:space-between;align-items:center;margin:22px 0 6px;}
+  .rd-card-title h3{margin:0;font-size:16px;}
+  .rd-card-title a{color:var(--teal);font-size:13px;text-decoration:none;font-weight:600;cursor:pointer;}
+
+  table.rd-table{width:100%;border-collapse:collapse;margin-top:8px;font-size:14px;}
+  table.rd-table th{text-align:left;font-size:12px;color:var(--muted);font-weight:600;
+    padding:10px 8px;border-bottom:1px solid var(--border);white-space:nowrap;}
+  table.rd-table td{padding:12px 8px;border-bottom:1px solid var(--border);white-space:nowrap;}
+
+  .rd-badge{padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;display:inline-block;}
+  .rd-badge.fulfilled{background:#dcf5e6;color:#1a7a3f;}
+  .rd-badge.unfulfilled{background:#fdecd2;color:#9a6a12;}
+  .rd-badge.partial{background:#e6e6fa;color:#4b3f9a;}
+
+  .rd-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 24px;margin-top:14px;}
+  .rd-info-grid .rd-info-item{font-size:14px;padding:10px 0;border-bottom:1px solid var(--border);}
+  .rd-info-grid .rd-info-item strong{display:block;font-size:11px;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.03em;margin-bottom:3px;}
+  .rd-account-info a{color:var(--teal);}
+
+  .rd-addr-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px;}
+  .rd-addr-card{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px;font-size:14px;line-height:1.6;}
+  .rd-addr-card .rd-addr-badge{display:inline-block;background:var(--teal-light);color:var(--teal);
+    font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;margin-bottom:8px;}
+
+  .rd-table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+
+  .rd-wishlist-frame{width:100%;height:70vh;min-height:420px;border:1px solid var(--border);
+    border-radius:10px;background:#fff;}
+
+  .rd-chart{display:flex;align-items:flex-end;gap:14px;height:180px;margin-top:20px;
+    padding:10px 6px 0;border-bottom:1px solid var(--border);}
+  .rd-chart-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;}
+  .rd-chart-bar{width:70%;max-width:40px;background:var(--teal);border-radius:4px 4px 0 0;
+    min-height:2px;transition:height .3s ease;}
+  .rd-chart-val{font-size:11px;color:var(--text);margin-bottom:4px;font-weight:600;}
+  .rd-chart-label{font-size:11px;color:var(--muted);margin-top:8px;}
+
+  @media(max-width:768px){
+    .rd-body{flex-direction:column;}
+    .rd-sidebar{width:100%;display:flex;overflow-x:auto;gap:6px;padding:8px;position:static;}
+    .rd-nav-btn{white-space:nowrap;margin-bottom:0;width:auto;}
+    .rd-nav-divider{display:none;}
+    .rd-stats{grid-template-columns:1fr 1fr;}
+    .rd-info-grid{grid-template-columns:1fr;}
+    .rd-addr-grid{grid-template-columns:1fr;}
+    .rd-wrap{ max-width:100%;}
+  }
+  
+.rd-new-grid{
+display:grid;
+grid-template-columns:repeat(4,1fr);
+gap:20px;
+margin-top:20px;
+}
+
+.rd-product-card{
+border:1px solid #eee;
+padding:15px;
+border-radius:10px;
+background:#fff;
+}
+
+.rd-product-card img{
+width:100%;
+aspect-ratio:1;
+object-fit:cover;
+}
+
+.rd-product-card button{
+width:100%;
+margin-top:10px;
+height:42px;
+background:#00404c;
+color:#fff;
+border:none;
+cursor:pointer;
+}
+
+@media(max-width:991px){
+.rd-new-grid{
+grid-template-columns:repeat(2,1fr);
+}
+}
+
+@media(max-width:767px){
+.rd-new-grid{
+grid-template-columns:1fr;
+}
+}
+.rd-order-search{
+    margin:20px 0;
+}
+
+.rd-order-search input{
+    width:100%;
+    height:48px;
+    padding:0 18px;
+    border:1px solid #ddd;
+    border-radius:10px;
+    font-size:15px;
+    outline:none;
+}
+
+.rd-order-search input:focus{
+    border-color:#0d4f4f;
+}
+.rd-close-menu{
+    display:flex;
+    justify-content:flex-end;
+    margin-bottom:15px;
+}
+
+.rd-close-menu button{
+    width:40px;
+    height:40px;
+    border:none;
+    border-radius:50%;
+    background:#f3f4f6;
+    cursor:pointer;
+    font-size:24px;
+    line-height:1;
+}
+/* ===== Premium Mobile Dashboard ===== */
+
+.rd-mobile-toggle{
+    display:none;
+    width:100%;
+    border:none;
+    border-radius:14px;
+    background:#0d4f4f;
+    color:#fff;
+    font-size:15px;
+    font-weight:600;
+    cursor:pointer;
+    margin:0;
+    transition:.3s;
+}
+
+.rd-mobile-toggle:hover{
+    transform:translateY(-2px);
+}
+
+.rd-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,.45);
+    opacity:0;
+    visibility:hidden;
+    transition:.35s;
+    z-index:998;
+}
+
+.rd-overlay.active{
+    opacity:1;
+    visibility:visible;
+}
+.rd-close-menu{
+display:none;
+}
+@media(max-width:768px){
+
+.rd-body{
+    display:block;
+}
+
+.rd-mobile-toggle{
+    display:block;
+            padding: 10px;
+              border-radius: 0 0 10px 10px;
+                      text-align: left;
+}
+
+.rd-sidebar{
+    position:fixed;
+    left:-320px;
+    top:0;
+    width:300px;
+    height:100vh;
+    overflow:auto;
+    background:#fff;
+    padding:20px;
+    border-radius:0;
+    display:block;
+    z-index:999;
+    transition:.35s;
+    box-shadow:0 20px 60px rgba(0,0,0,.18);
+}
+
+.rd-sidebar.open{
+    left:0;
+}
+
+.rd-sidebar .rd-nav-btn{
+    width:100%;
+    margin-bottom:8px;
+}
+
+.rd-close-menu{
+    display:flex;
+    justify-content:flex-end;
+    margin-bottom:15px;
+}
+
+.rd-close-menu button{
+    width:40px;
+    height:40px;
+    border:none;
+    border-radius:50%;
+    background:#f4f4f4;
+    cursor:pointer;
+    font-size:22px;
+}
+
+.rd-stats{
+    grid-template-columns:1fr;
+}
+
+.rd-info-grid{
+    grid-template-columns:1fr;
+}
+
+.rd-addr-grid{
+    grid-template-columns:1fr;
+}
+
+.rd-header{
+    flex-direction:column;
+    gap:15px;
+    text-align:center;
+            margin-bottom: 5px;
+              border-radius: 10px 10px 0 0 ;
+      
+}
+
+.rd-card-title{
+    flex-direction:column;
+    align-items:flex-start;
+    gap:10px;
+}
+
+.rd-table{
+    display:block;
+}
+
+.rd-table thead{
+    display:none;
+}
+
+.rd-table tbody{
+    display:block;
+}
+
+.rd-table tr{
+    display:block;
+    background:#fff;
+    border:1px solid #ececec;
+    border-radius:14px;
+    padding:16px;
+    margin-bottom:15px;
+}
+
+.rd-table td{
+    display:flex;
+    justify-content:space-between;
+    padding:10px 0;
+    white-space:normal;
+}
+
+.rd-table td::before{
+    font-weight:600;
+    color:#777;
+}
+}
+/* =========================================================
+   QUICK RE-ORDER LIST
+========================================================= */
+
+.rd-reorder-head {
+  margin-bottom: 18px;
+}
+
+.rd-reorder-head h2 {
+  margin: 0 0 5px;
+  font-size: 24px;
+  line-height: 1.2;
+  color: #111827;
+}
+
+.rd-reorder-head p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+
+/* SELECT ALL */
+
+.rd-reorder-select-all {
+  border: 1px solid #e3e5e7;
+  border-radius: 8px;
+  padding: 16px 18px;
+  margin-bottom: 14px;
+  background: #fff;
+}
+
+.rd-check-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #263238;
+  user-select: none;
+}
+
+.rd-reorder-checkbox {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.rd-custom-check {
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid #7b8388;
+  border-radius: 3px;
+  background: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .2s ease;
+  flex-shrink: 0;
+}
+
+.rd-reorder-checkbox:checked + .rd-custom-check {
+  background: #0d4f4f;
+  border-color: #0d4f4f;
+}
+
+.rd-reorder-checkbox:checked + .rd-custom-check::after {
+  content: "";
+  width: 9px;
+  height: 5px;
+  border-left: 2px solid #fff;
+  border-bottom: 2px solid #fff;
+  transform: rotate(-45deg);
+  margin-top: -2px;
+}
+
+
+/* PRODUCT ROW */
+
+.rd-reorder-item {
+  display: grid;
+  grid-template-columns: 34px 112px minmax(220px, 1fr) 100px 135px 135px 46px;
+  align-items: center;
+  gap: 18px;
+
+  border: 1px solid #dfe2e4;
+  background: #fff;
+
+  padding: 18px;
+  margin-bottom: 10px;
+
+  transition:
+    border-color .2s ease,
+    box-shadow .2s ease,
+    opacity .25s ease,
+    transform .25s ease;
+}
+
+.rd-reorder-item:hover {
+  border-color: #bfc6c9;
+  box-shadow: 0 8px 24px rgba(0,0,0,.05);
+}
+
+
+/* CHECKBOX */
+
+.rd-reorder-check {
+  display: flex;
+  justify-content: center;
+}
+
+
+/* IMAGE */
+
+.rd-reorder-image {
+  width: 112px;
+  height: 112px;
+  border-radius: 8px;
+  background: #fafafa;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rd-reorder-image a {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rd-reorder-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.rd-reorder-no-image {
+  color: #999;
+  font-size: 11px;
+}
+
+
+/* PRODUCT INFO */
+
+.rd-reorder-info {
+  min-width: 0;
+}
+
+.rd-reorder-title {
+  display: block;
+  color: #111827;
+  font-size: 16px;
+  line-height: 1.4;
+  text-decoration: none;
+  font-weight: 500;
+  margin-bottom: 7px;
+}
+
+.rd-reorder-title:hover {
+  color: #0d4f4f;
+}
+
+.rd-reorder-variant {
+  font-size: 13px;
+  color: #667085;
+  margin-bottom: 5px;
+}
+
+.rd-reorder-sku {
+  font-size: 12px;
+  color: #8a9297;
+}
+
+
+/* PRICE */
+
+.rd-reorder-price {
+  font-size: 16px;
+  color: #111827;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.mobile-price {
+  display: none;
+}
+
+
+/* QUANTITY */
+
+.rd-reorder-qty {
+  height: 42px;
+  display: flex;
+  align-items: center;
+  border: 1px solid #d5d9dc;
+  border-radius: 7px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.rd-qty-btn {
+  width: 38px;
+  height: 100%;
+  border: 0;
+  background: #fff;
+  color: #253238;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .2s ease;
+}
+
+.rd-qty-btn:hover {
+  background: #f3f5f5;
+}
+
+.rd-qty-input {
+  width: 42px;
+  height: 100%;
+  border: 0;
+  outline: 0;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a1a1a;
+  background: #fff;
+  appearance: textfield;
+}
+
+.rd-qty-input::-webkit-inner-spin-button,
+.rd-qty-input::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+
+/* ADD TO CART */
+
+.rd-reorder-form {
+  margin: 0;
+}
+
+.rd-reorder-add {
+  width: 100%;
+  min-width: 120px;
+  height: 42px;
+
+  padding: 0 16px;
+
+  border: 1px solid #0d4f4f;
+  border-radius: 7px;
+
+  background: #fff;
+  color: #0d4f4f;
+
+  font-size: 14px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition:
+    background .2s ease,
+    color .2s ease,
+    transform .2s ease;
+}
+
+.rd-reorder-add:hover {
+  background: #0d4f4f;
+  color: #fff;
+}
+
+.rd-reorder-add:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+
+/* REMOVE */
+
+.rd-reorder-remove {
+  width: 40px;
+  height: 40px;
+
+  border: 1px solid #e0e3e5;
+  border-radius: 7px;
+
+  background: #fff;
+  color: #6b7280;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  cursor: pointer;
+
+  transition: all .2s ease;
+}
+
+.rd-reorder-remove:hover {
+  color: #c62828;
+  border-color: #e3b5b5;
+  background: #fff7f7;
+}
+
+
+/* REMOVED ANIMATION */
+
+.rd-reorder-item.rd-removed {
+  opacity: 0;
+  transform: translateX(20px);
+  pointer-events: none;
+}
+
+
+/* EMPTY */
+
+.rd-reorder-empty {
+  border: 1px solid #e3e5e7;
+  border-radius: 10px;
+  background: #fff;
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.rd-empty-icon {
+  width: 50px;
+  height: 50px;
+  margin: 0 auto 15px;
+
+  border-radius: 50%;
+  background: #e8f3f1;
+  color: #0d4f4f;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 24px;
+}
+
+.rd-reorder-empty h3 {
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+
+.rd-reorder-empty p {
+  margin: 0 0 20px;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.rd-reorder-empty a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  height: 42px;
+  padding: 0 20px;
+
+  background: #0d4f4f;
+  color: #fff;
+
+  border-radius: 7px;
+  text-decoration: none;
+
+  font-size: 14px;
+  font-weight: 600;
+}
+
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media(max-width: 1200px) {
+
+  .rd-reorder-item {
+    grid-template-columns:
+      30px
+      90px
+      minmax(180px, 1fr)
+      80px
+      120px
+      120px
+      40px;
+
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .rd-reorder-image {
+    width: 90px;
+    height: 90px;
+  }
+
+  .rd-reorder-title {
+    font-size: 14px;
+  }
+
+  .rd-reorder-add {
+    min-width: 110px;
+    padding: 0 10px;
+  }
+
+}
+
+
+@media(max-width: 991px) {
+
+  .rd-reorder-item {
+    grid-template-columns:
+      28px
+      85px
+      minmax(160px, 1fr)
+      110px
+      110px
+      40px;
+  }
+
+  .desktop-price {
+    display: none;
+  }
+
+  .rd-reorder-qty {
+    grid-column: 4;
+  }
+
+  .rd-reorder-action {
+    grid-column: 5;
+  }
+
+  .rd-reorder-remove {
+    grid-column: 6;
+  }
+
+}
+
+
+@media(max-width: 767px) {
+
+  .rd-reorder-select-all {
+    padding: 14px;
+  }
+
+  .rd-reorder-item {
+
+    display: grid;
+
+    grid-template-columns: 28px 82px 1fr 40px;
+
+    gap: 12px;
+
+    padding: 14px;
+
+    border-radius: 10px;
+
+  }
+
+
+  .rd-reorder-check {
+    grid-column: 1;
+    grid-row: 1 / span 3;
+    align-self: start;
+    padding-top: 4px;
+  }
+
+
+  .rd-reorder-image {
+
+    grid-column: 2;
+    grid-row: 1 / span 3;
+
+    width: 82px;
+    height: 82px;
+
+  }
+
+
+  .rd-reorder-info {
+
+    grid-column: 3;
+    grid-row: 1;
+
+  }
+
+
+  .rd-reorder-title {
+    font-size: 14px;
+  }
+
+
+  .rd-reorder-price.mobile-price {
+
+    display: block;
+
+    margin-top: 7px;
+    font-size: 15px;
+
+  }
+
+
+  .rd-reorder-qty {
+
+    grid-column: 3;
+    grid-row: 2;
+
+    width: 118px;
+    height: 38px;
+
+  }
+
+
+  .rd-reorder-action {
+
+    grid-column: 3;
+    grid-row: 3;
+
+    margin-top: 4px;
+
+  }
+
+
+  .rd-reorder-add {
+    width: 100%;
+    height: 40px;
+  }
+
+
+  .rd-reorder-remove {
+
+    grid-column: 4;
+    grid-row: 1;
+
+    width: 36px;
+    height: 36px;
+
+  }
+
+}
+.side-divider {
+    height: 1px;
+    background: #caced6;
+    margin: 8px 6px;
+}
+section:empty{
+display:block!important;
+}
+
+{% comment %} invoice {% endcomment %}
+
+  /* =====================================================
+     INVOICE CENTER
+  ===================================================== */
+
+  .rd-invoice-wrap{
+    width:100%;
+  }
+
+  .rd-invoice-hero{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:20px;
+    margin-bottom:24px;
+  }
+
+  .rd-invoice-hero h2{
+    margin:0 0 6px;
+    font-size:28px;
+    line-height:1.15;
+    color:#111827;
+    letter-spacing:-.02em;
+  }
+
+  .rd-invoice-hero p{
+    margin:0;
+    color:#6b7280;
+    font-size:14px;
+  }
+
+  .rd-invoice-status{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    padding:9px 14px;
+    border-radius:999px;
+    background:#e8f3f1;
+    color:#0d4f4f;
+    font-size:12px;
+    font-weight:700;
+  }
+
+  .rd-invoice-status-dot{
+    width:7px;
+    height:7px;
+    border-radius:50%;
+    background:#0d4f4f;
+  }
+
+
+  /* =====================================================
+     STAT CARDS
+  ===================================================== */
+
+  .rd-invoice-stats{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:12px;
+    margin-bottom:22px;
+  }
+
+  .rd-invoice-stat{
+    background:#fff;
+    border:1px solid #e5e5e0;
+    border-radius:14px;
+    padding:18px;
+    min-height:105px;
+  }
+
+  .rd-invoice-stat-top{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+  }
+
+  .rd-invoice-stat-label{
+    font-size:12px;
+    color:#6b7280;
+    font-weight:600;
+  }
+
+  .rd-invoice-stat-icon{
+    width:34px;
+    height:34px;
+    border-radius:9px;
+    background:#e8f3f1;
+    color:#0d4f4f;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+
+  .rd-invoice-stat-value{
+    margin-top:13px;
+    font-size:24px;
+    line-height:1;
+    font-weight:750;
+    color:#111827;
+  }
+
+  .rd-invoice-stat-sub{
+    margin-top:7px;
+    font-size:11px;
+    color:#8a9297;
+  }
+
+
+  /* =====================================================
+     TOOLBAR
+  ===================================================== */
+
+  .rd-invoice-toolbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+    margin-bottom:14px;
+    flex-wrap:wrap;
+  }
+
+  .rd-invoice-search{
+    position:relative;
+    flex:1 1 220px;
+    min-width:180px;
+  }
+
+  .rd-invoice-search svg{
+    position:absolute;
+    left:14px;
+    top:50%;
+    transform:translateY(-50%);
+    color:#8a9297;
+    pointer-events:none;
+  }
+
+  .rd-invoice-search input{
+    width:100%;
+    height:46px;
+    padding:0 16px 0 42px;
+    border:1px solid #dedfdf;
+    border-radius:10px;
+    background:#fff;
+    outline:none;
+    font-family:inherit;
+    font-size:14px;
+    box-sizing:border-box;
+  }
+
+  .rd-invoice-search input:focus{
+    border-color:#0d4f4f;
+    box-shadow:0 0 0 3px rgba(13,79,79,.08);
+  }
+
+  .rd-invoice-filter{
+    height:46px;
+    padding:0 14px;
+    border:1px solid #dedfdf;
+    border-radius:10px;
+    background:#fff;
+    color:#263238;
+    font-family:inherit;
+    font-size:13px;
+    outline:none;
+    cursor:pointer;
+  }
+
+
+  /* =====================================================
+     INVOICE TABLE
+  ===================================================== */
+
+  .rd-invoice-table-card{
+    background:#fff;
+    border:1px solid #e5e5e0;
+    border-radius:14px;
+    overflow:hidden;
+  }
+
+  .rd-invoice-table-scroll{
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+  }
+
+  table.rd-invoice-table{
+    width:100%;
+    border-collapse:collapse;
+    min-width:900px;
+    font-size:13px;
+  }
+
+  .rd-invoice-table th{
+    background:#faf9f7;
+    padding:13px 14px;
+    text-align:left;
+    color:#6b7280;
+    font-size:11px;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:.04em;
+    border-bottom:1px solid #e5e5e0;
+    white-space:nowrap;
+  }
+
+  .rd-invoice-table td{
+    padding:15px 14px;
+    border-bottom:1px solid #eeeeeb;
+    color:#263238;
+    vertical-align:middle;
+    white-space:nowrap;
+  }
+
+  .rd-invoice-table tbody tr:last-child td{
+    border-bottom:none;
+  }
+
+  .rd-invoice-table tbody tr:hover{
+    background:#fcfcfb;
+  }
+
+  .rd-invoice-number{
+    font-weight:700;
+    color:#0d4f4f;
+  }
+
+  .rd-invoice-order{
+    font-size:12px;
+    color:#6b7280;
+    margin-top:3px;
+  }
+
+  .rd-invoice-total{
+    font-weight:700;
+    color:#111827;
+  }
+
+
+  /* =====================================================
+     STATUS
+  ===================================================== */
+
+  .rd-invoice-badge{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    padding:5px 9px;
+    border-radius:999px;
+    font-size:11px;
+    font-weight:700;
+  }
+
+  .rd-invoice-badge.paid{
+    background:#dcf5e6;
+    color:#1a7a3f;
+  }
+
+  .rd-invoice-badge.pending{
+    background:#fff2d8;
+    color:#9a6a12;
+  }
+
+  .rd-invoice-badge.failed{
+    background:#fde8e8;
+    color:#b3261e;
+  }
+
+  .rd-invoice-badge.processing{
+    background:#e8edf7;
+    color:#42526e;
+  }
+
+
+  /* =====================================================
+     ACTION BUTTONS
+  ===================================================== */
+
+  .rd-invoice-actions{
+    display:flex;
+    gap:6px;
+  }
+
+  .rd-invoice-action{
+    width:34px;
+    height:34px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    border:1px solid #dedfdf;
+    border-radius:8px;
+    background:#fff;
+    color:#344054;
+    cursor:pointer;
+    transition:.2s ease;
+  }
+
+  .rd-invoice-action:hover{
+    border-color:#0d4f4f;
+    color:#0d4f4f;
+    background:#e8f3f1;
+  }
+
+  .rd-invoice-action.send{
+    width:auto;
+    padding:0 11px;
+    gap:6px;
+    font-size:11px;
+    font-weight:700;
+  }
+
+
+  /* =====================================================
+     EMPTY
+  ===================================================== */
+
+  .rd-invoice-empty{
+    text-align:center;
+    padding:70px 20px;
+  }
+
+  .rd-invoice-empty-icon{
+    width:58px;
+    height:58px;
+    margin:0 auto 14px;
+    border-radius:16px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:#e8f3f1;
+    color:#0d4f4f;
+  }
+
+  .rd-invoice-empty h3{
+    margin:0 0 6px;
+    font-size:18px;
+  }
+
+  .rd-invoice-pager{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    margin-top:14px;
+    flex-wrap:wrap;
+  }
+  .rd-invoice-pager-info{
+    font-size:13px;
+    color:var(--muted);
+  }
+  .rd-invoice-pager-btns{
+    display:flex;
+    gap:8px;
+  }
+  .rd-invoice-pager-btn{
+    border:1px solid var(--border);
+    background:#fff;
+    color:var(--teal);
+    border-radius:8px;
+    padding:8px 14px;
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+    font-family:inherit;
+  }
+  .rd-invoice-pager-btn:disabled{
+    opacity:.45;
+    cursor:not-allowed;
+  }
+  .rd-invoice-loading,
+  .rd-invoice-error{
+    padding:28px 16px;
+    text-align:center;
+    color:var(--muted);
+    font-size:14px;
+  }
+  .rd-invoice-error{ color:#b3261e; }
+
+  .rd-invoice-empty{
+    padding:36px 16px;
+    text-align:center;
+  }
+  .rd-invoice-empty h3{
+    margin:0 0 6px;
+    font-size:18px;
+  }
+  .rd-invoice-empty p{
+    margin:0;
+    color:#6b7280;
+    font-size:13px;
+  }
+  .rd-invoice-refresh{
+    margin-top:16px;
+    border:1px solid var(--border);
+    background:#fff;
+    color:var(--teal);
+    border-radius:8px;
+    padding:10px 18px;
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+    font-family:inherit;
+  }
+  .rd-invoice-refresh:hover{
+    background:var(--teal-light);
+  }
+
+
+  /* =====================================================
+     INVOICE MODAL
+  ===================================================== */
+
+  .rd-invoice-modal{
+    position:fixed;
+    inset:0;
+    z-index:9999;
+    background:rgba(0,0,0,.48);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+  }
+
+  .rd-invoice-modal.active{
+    display:flex;
+  }
+
+  .rd-invoice-modal-box{
+    width:min(100%,1100px);
+    max-height:92vh;
+    overflow:auto;
+    background:#fff;
+    border-radius:16px;
+    box-shadow:0 30px 100px rgba(0,0,0,.25);
+  }
+
+  .rd-invoice-modal-top{
+    position:sticky;
+    top:0;
+    z-index:2;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:14px 18px;
+    background:#fff;
+    border-bottom:1px solid #eeeeeb;
+  }
+
+  .rd-invoice-modal-title{
+    font-size:14px;
+    font-weight:700;
+  }
+
+  .rd-invoice-modal-close{
+    width:34px;
+    height:34px;
+    border:0;
+    border-radius:8px;
+    background:#f3f4f6;
+    cursor:pointer;
+    font-size:18px;
+  }
+
+
+  /* =====================================================
+     ACTUAL INVOICE (ERP sample layout)
+  ===================================================== */
+
+  .rd-print-invoice{
+    padding:18px;
+    color:#111;
+    background:#fff;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size:11px;
+    line-height:1.35;
+    overflow-x:auto;
+  }
+
+  .rd-erp-doc-wrap{
+    width:100%;
+  }
+
+  .rd-erp-page{
+    border:1px solid #222;
+    padding:10px;
+    min-width:720px;
+    background:#fff;
+  }
+
+  .rd-erp-page + .rd-erp-page{
+    margin-top:18px;
+  }
+
+  .rd-erp-continued{
+    margin-top:8px;
+    font-style:italic;
+    font-size:10px;
+    color:#333;
+  }
+
+  .rd-erp-header{
+    display:grid;
+    grid-template-columns:110px 1fr 190px;
+    gap:12px;
+    align-items:start;
+    margin-bottom:10px;
+  }
+
+  .rd-erp-logo{
+    width:96px;
+    height:auto;
+    max-height:110px;
+    object-fit:contain;
+    display:block;
+  }
+
+  .rd-erp-logo-fallback{
+    width:96px;
+    min-height:70px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-weight:800;
+    font-size:18px;
+    letter-spacing:.04em;
+    color:#5b2d91;
+    border:1px solid #ddd;
+  }
+
+  .rd-erp-company{
+    text-align:center;
+    padding-top:4px;
+  }
+
+  .rd-erp-company-name{
+    font-size:18px;
+    font-weight:700;
+    letter-spacing:.18em;
+    margin:0 0 6px;
+  }
+
+  .rd-erp-company-addr{
+    display:inline-block;
+    border:1px solid #bbb;
+    background:#f3f3f3;
+    padding:6px 10px;
+    font-size:10px;
+    line-height:1.45;
+    min-width:220px;
+    text-align:center;
+  }
+
+  .rd-erp-doc{
+    text-align:right;
+  }
+
+  .rd-erp-doc-title{
+    margin:0 0 6px;
+    font-size:28px;
+    font-weight:700;
+    letter-spacing:-.02em;
+  }
+
+  .rd-erp-meta-box{
+    border:1px solid #222;
+    border-collapse:collapse;
+    width:100%;
+    font-size:10px;
+  }
+
+  .rd-erp-meta-box th,
+  .rd-erp-meta-box td{
+    border:1px solid #222;
+    padding:3px 6px;
+    text-align:left;
+    vertical-align:top;
+  }
+
+  .rd-erp-meta-box th{
+    background:#f0f0f0;
+    font-weight:700;
+    white-space:nowrap;
+    width:42%;
+  }
+
+  .rd-erp-parties{
+    width:100%;
+    border-collapse:collapse;
+    margin-bottom:8px;
+    table-layout:fixed;
+  }
+
+  .rd-erp-parties > tbody > tr > td{
+    width:50%;
+    vertical-align:top;
+    padding:0;
+  }
+
+  .rd-erp-parties > tbody > tr > td:first-child{
+    padding-right:5px;
+  }
+
+  .rd-erp-parties > tbody > tr > td:last-child{
+    padding-left:5px;
+  }
+
+  .rd-erp-party-label{
+    font-size:11px;
+    font-weight:700;
+    margin-bottom:2px;
+  }
+
+  .rd-erp-party-box{
+    border:1px solid #999;
+    background:#e8e8e8;
+    min-height:72px;
+    padding:8px 10px;
+    font-size:11px;
+    line-height:1.45;
+  }
+
+  .rd-erp-strip{
+    width:100%;
+    border-collapse:collapse;
+    margin-bottom:0;
+    table-layout:fixed;
+  }
+
+  .rd-erp-strip th,
+  .rd-erp-strip td{
+    border:1px solid #222;
+    padding:3px 4px;
+    font-size:9px;
+    text-align:left;
+    vertical-align:top;
+    word-break:break-word;
+  }
+
+  .rd-erp-strip th{
+    background:#f0f0f0;
+    font-weight:700;
+  }
+
+  .rd-erp-items{
+    width:100%;
+    border-collapse:collapse;
+    margin-top:0;
+    table-layout:fixed;
+  }
+
+  .rd-erp-items th,
+  .rd-erp-items td{
+    border:1px solid #222;
+    padding:4px 5px;
+    font-size:10px;
+    vertical-align:top;
+  }
+
+  .rd-erp-items th{
+    background:#f0f0f0;
+    font-weight:700;
+    text-align:center;
+    line-height:1.2;
+  }
+
+  .rd-erp-items td.num{
+    text-align:center;
+    white-space:nowrap;
+  }
+
+  .rd-erp-items td.money{
+    text-align:right;
+    white-space:nowrap;
+  }
+
+  .rd-erp-items td.item{
+    text-align:left;
+    word-break:break-word;
+  }
+
+  .rd-erp-items col.c-qty{ width:6%; }
+  .rd-erp-items col.c-item{ width:12%; }
+  .rd-erp-items col.c-desc{ width:38%; }
+  .rd-erp-items col.c-price{ width:11%; }
+  .rd-erp-items col.c-uom{ width:7%; }
+  .rd-erp-items col.c-ext{ width:12%; }
+
+  .rd-erp-footer{
+    width:100%;
+    border-collapse:collapse;
+    margin-top:10px;
+    table-layout:fixed;
+  }
+
+  .rd-erp-footer > tbody > tr > td{
+    vertical-align:top;
+    padding:0 6px 0 0;
+  }
+
+  .rd-erp-footer > tbody > tr > td:last-child{
+    padding-right:0;
+    padding-left:6px;
+  }
+
+  .rd-erp-footer td.col-legal{ width:38%; }
+  .rd-erp-footer td.col-tax{ width:32%; }
+  .rd-erp-footer td.col-totals{ width:30%; }
+
+  .rd-erp-legal{
+    font-size:10px;
+    line-height:1.45;
+  }
+
+  .rd-erp-legal .gst-row{
+    margin-bottom:8px;
+  }
+
+  .rd-erp-legal .gst-row span{
+    display:inline-block;
+    border:1px solid #bbb;
+    background:#f3f3f3;
+    padding:2px 6px;
+    min-width:90px;
+  }
+
+  .rd-erp-legal ul{
+    margin:0;
+    padding-left:16px;
+  }
+
+  .rd-erp-legal li{
+    margin-bottom:4px;
+  }
+
+  .rd-erp-tax{
+    font-size:10px;
+  }
+
+  .rd-erp-tax-title{
+    font-weight:700;
+    margin-bottom:4px;
+  }
+
+  .rd-erp-tax-table{
+    width:100%;
+    border-collapse:collapse;
+  }
+
+  .rd-erp-tax-table td{
+    border:1px solid #bbb;
+    padding:3px 6px;
+  }
+
+  .rd-erp-tax-table td:last-child{
+    text-align:right;
+    background:#f7f7f7;
+    width:45%;
+  }
+
+  .rd-erp-totals{
+    border-collapse:collapse;
+    width:100%;
+    font-size:10px;
+  }
+
+  .rd-erp-totals th,
+  .rd-erp-totals td{
+    border:1px solid #222;
+    padding:4px 6px;
+  }
+
+  .rd-erp-totals th{
+    text-align:left;
+    font-weight:700;
+    background:#fff;
+  }
+
+  .rd-erp-totals td{
+    text-align:right;
+    background:#f7f7f7;
+    white-space:nowrap;
+  }
+
+  .rd-erp-totals tr.grand th,
+  .rd-erp-totals tr.grand td{
+    font-weight:800;
+    background:#eee;
+  }
+
+  .rd-erp-parties,
+  .rd-erp-footer{
+    page-break-inside:avoid;
+    break-inside:avoid;
+  }
+
+  .rd-erp-items thead{
+    display:table-header-group;
+  }
+
+  .rd-erp-items tr{
+    page-break-inside:avoid;
+    break-inside:avoid;
+  }
+
+
+  /* =====================================================
+     MODAL BUTTONS
+  ===================================================== */
+
+  .rd-invoice-modal-actions{
+    display:flex;
+    gap:8px;
+  }
+
+  .rd-invoice-modal-btn{
+    height:36px;
+    padding:0 13px;
+    border-radius:8px;
+    border:1px solid #d9dddd;
+    background:#fff;
+    cursor:pointer;
+    font-size:12px;
+    font-weight:700;
+  }
+
+  .rd-invoice-modal-btn.primary{
+    background:#0d4f4f;
+    color:#fff;
+    border-color:#0d4f4f;
+  }
+
+
+  /* =====================================================
+     ERP SEND STATUS
+  ===================================================== */
+
+  .rd-erp-status{
+    margin:15px 40px 0;
+    padding:11px 13px;
+    border-radius:9px;
+    display:none;
+    font-size:12px;
+    font-weight:600;
+  }
+
+  .rd-erp-status.show{
+    display:block;
+  }
+
+  .rd-erp-status.success{
+    background:#dcf5e6;
+    color:#1a7a3f;
+  }
+
+  .rd-erp-status.error{
+    background:#fde8e8;
+    color:#b3261e;
+  }
+
+  .rd-erp-status.loading{
+    background:#f3f4f6;
+    color:#475467;
+  }
+
+
+  /* =====================================================
+     RESPONSIVE
+  ===================================================== */
+
+  @media(max-width:991px){
+
+    .rd-invoice-stats{
+      grid-template-columns:repeat(2,1fr);
+    }
+
+    .rd-print-info{
+      grid-template-columns:1fr 1fr;
+    }
+
+    .rd-print-bottom{
+      grid-template-columns:1fr;
+    }
+
+  }
+
+
+  @media(max-width:767px){
+
+    .rd-invoice-hero{
+      flex-direction:column;
+    }
+
+    .rd-invoice-hero h2{
+      font-size:23px;
+    }
+
+    .rd-invoice-stats{
+      grid-template-columns:1fr 1fr;
+      gap:8px;
+    }
+
+    .rd-invoice-stat{
+      padding:14px;
+    }
+
+    .rd-invoice-stat-value{
+      font-size:19px;
+    }
+
+    .rd-invoice-toolbar{
+      flex-direction:column;
+      align-items:stretch;
+    }
+
+    .rd-invoice-filter{
+      width:100%;
+    }
+
+    .rd-invoice-modal{
+      padding:0;
+      align-items:flex-end;
+    }
+
+    .rd-invoice-modal-box{
+      max-height:96vh;
+      border-radius:16px 16px 0 0;
+    }
+
+    .rd-print-invoice{
+      padding:12px;
+    }
+
+    .rd-erp-header{
+      grid-template-columns:1fr;
+      text-align:center;
+    }
+
+    .rd-erp-logo,
+    .rd-erp-logo-fallback{
+      margin:0 auto;
+    }
+
+    .rd-erp-doc{
+      text-align:left;
+    }
+
+    .rd-erp-parties > tbody > tr{
+      display:block;
+    }
+
+    .rd-erp-parties > tbody > tr > td{
+      display:block;
+      width:100% !important;
+      padding:0 0 8px !important;
+    }
+
+    .rd-erp-footer > tbody > tr{
+      display:block;
+    }
+
+    .rd-erp-footer > tbody > tr > td{
+      display:block;
+      width:100% !important;
+      padding:0 0 10px !important;
+    }
+
+    .rd-invoice-modal-top{
+      flex-wrap:wrap;
+      gap:10px;
+    }
+
+    .rd-invoice-modal-actions{
+      width:100%;
+    }
+
+    .rd-invoice-modal-btn{
+      flex:1;
+    }
+
+    .rd-erp-status{
+      margin:15px 22px 0;
+    }
+
+  }
+
+
+  /* =====================================================
+     PRINT (same-window via hidden iframe — no pop-up)
+  ===================================================== */
+
+  #rdInvoicePrintFrame{
+    position:fixed !important;
+    right:0 !important;
+    bottom:0 !important;
+    width:0 !important;
+    height:0 !important;
+    border:0 !important;
+    opacity:0 !important;
+    pointer-events:none !important;
+  }
+
+  @media print{
+
+    @page{
+      size: letter portrait;
+      margin: 0.35in;
+    }
+
+  }
+
+</style>
+
+<div class="rd-wrap">
+
+  <div class="rd-header">
+    
+<div class="rd-overlay"></div>
+    <div class="rd-store">Ink Quest - Canada Reseller Portal<span></span></div>
+    <div class="rd-avatar">{{ customer.first_name | slice: 0 }}{{ customer.last_name | slice: 0 }}</div>
+  </div>
+<button class="rd-mobile-toggle">
+    ☰ Dashboard Menu
+    </button>
+  <div class="rd-body">
+
+    <div class="rd-sidebar">
+      <div class="rd-close-menu">
+<button type="button">✕</button>
+</div>
+      <button class="rd-nav-btn active" data-target="rd-overview"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-pie-chart-fill" viewBox="0 0 16 16">
+  <path d="M15.985 8.5H8.207l-5.5 5.5a8 8 0 0 0 13.277-5.5zM2 13.292A8 8 0 0 1 7.5.015v7.778zM8.5.015V7.5h7.485A8 8 0 0 0 8.5.015"/>
+</svg>&nbsp; Overview</button>
+      <button class="rd-nav-btn" data-target="rd-orders"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-box-seam" viewBox="0 0 16 16">
+  <path d="M8.186 1.113a.5.5 0 0 0-.372 0L1.846 3.5l2.404.961L10.404 2zm3.564 1.426L5.596 5 8 5.961 14.154 3.5zm3.25 1.7-6.5 2.6v7.922l6.5-2.6V4.24zM7.5 14.762V6.838L1 4.239v7.923zM7.443.184a1.5 1.5 0 0 1 1.114 0l7.129 2.852A.5.5 0 0 1 16 3.5v8.662a1 1 0 0 1-.629.928l-7.185 2.874a.5.5 0 0 1-.372 0L.63 13.09a1 1 0 0 1-.63-.928V3.5a.5.5 0 0 1 .314-.464z"/>
+</svg>&nbsp; Orders</button>
+<button class="rd-nav-btn" data-target="rd-reorder">
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+    <path d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 1 1 .908-.418A6 6 0 1 1 8 2v1z"/>
+    <path d="M8 0v4H4"/>
+  </svg>
+  &nbsp; Quick Re-Order
+</button>
+
+<a class="rd-nav-btn" href="/pages/upload-purchase-order"  target="_blank">
+ <svg width="22" height="22" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <g fill="none" stroke="#000000" stroke-width="22" stroke-linecap="round" stroke-linejoin="round">
+
+    <!-- Clipboard body -->
+    <path d="M164 120H126C107 120 92 135 92 154V405C92 424 107 439 126 439H350"/>
+
+    <path d="M348 120H386C405 120 420 135 420 154V302"/>
+
+    <!-- Clipboard top -->
+    <path
+      d="M174 120V94C174 80 185 69 199 69H313C327 69 338 80 338 94V120"
+      fill="#000000"
+      stroke="#000000"
+    />
+
+    <!-- Clip hole -->
+    <circle cx="256" cy="94" r="14" fill="#ffffff" stroke="none"/>
+
+    <!-- PO -->
+    <path
+      d="M175 185V270"
+      stroke-width="24"
+    />
+
+    <path
+      d="M175 185H211C230 185 242 196 242 213C242 230 230 241 211 241H175"
+      stroke-width="24"
+    />
+
+    <path
+      d="M275 228C275 203 291 185 316 185C341 185 357 203 357 228C357 253 341 271 316 271C291 271 275 253 275 228Z"
+      stroke-width="24"
+    />
+
+    <!-- Text lines -->
+    <path d="M157 303H351" stroke-width="16"/>
+    <path d="M157 345H310" stroke-width="16"/>
+    <path d="M157 387H254" stroke-width="16"/>
+
+  </g>
+
+  <!-- Plus circle -->
+  <circle
+    cx="374"
+    cy="378"
+    r="62"
+    fill="#000000"
+  />
+
+  <!-- Plus -->
+  <path
+    d="M374 347V409M343 378H405"
+    stroke="#ffffff"
+    stroke-width="16"
+    stroke-linecap="round"
+  />
+</svg>
+  Order by PO
+</a>
+    <a class="rd-nav-btn"
+   href="https://inkquestca.myshopify.com/apps/wishlist"
+   target="_blank"
+   rel="noopener"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-star-fill" viewBox="0 0 16 16">
+  <path d="M3.612 15.443c-.386.198-.824-.149-.746-.592l.83-4.73L.173 6.765c-.329-.314-.158-.888.283-.95l4.898-.696L7.538.792c.197-.39.73-.39.927 0l2.184 4.327 4.898.696c.441.062.612.636.282.95l-3.522 3.356.83 4.73c.078.443-.36.79-.746.592L8 13.187l-4.389 2.256z"/>
+</svg>&nbsp; Wishlist</a>
+
+<button class="rd-nav-btn" data-target="rd-new-arrivals">
+  <svg viewBox="0 0 24 24" width="16" height="16"  fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M17 7L16.1056 5.21117C15.428 3.85602 14.043 3 12.5279 3H11.4721C9.95705 3 8.57215 3.8557 7.89458 5.21084L7 7" stroke="#000000" stroke-width="2" stroke-linecap="round"></path> <path d="M10 21H8.46921C6.47861 21 4.79093 19.5363 4.50941 17.5657L3.48921 10.4243C3.23103 8.61696 4.63341 7 6.45906 7H17.541C19.3667 7 20.769 8.61696 20.5109 10.4243L20.2204 12.4578" stroke="#000000" stroke-width="2" stroke-linecap="round"></path> <path d="M19 18C19 19.6569 17.6569 21 16 21C14.3431 21 13 19.6569 13 18C13 16.3431 14.3431 15 16 15C17.6569 15 19 16.3431 19 18Z" stroke="#000000" stroke-width="2"></path> </g></svg>
+    New Arrivals
+</button>
+
+<a class="rd-nav-btn" href="/pages/special-order-request" target="_blank">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M5 3H15L19 7V21H5V3Z"
+        stroke="#000000"
+        stroke-width="1.8"
+        stroke-linejoin="round"/>
+  <path d="M15 3V8H20"
+        stroke="#000000"
+        stroke-width="1.8"
+        stroke-linejoin="round"/>
+  <path d="M8 12H16M8 15H16M8 18H13"
+        stroke="#000000"
+        stroke-width="1.8"
+        stroke-linecap="round"/>
+  <path d="M17.5 14.5L21 18L17.5 21.5"
+        stroke="#000000"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"/>
+</svg>
+    Special Order Req
+</a>
+
+
+<section class="side-divider"></section>
+<a class="rd-nav-btn"
+   href="https://cdn.shopify.com/s/files/1/0981/0844/0757/files/RMA_Form.pdf?v=1782810491"
+   target="_blank"
+   rel="noopener">
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-file-earmark-arrow-down-fill" viewBox="0 0 16 16">
+  <path d="M9.293 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V4.707A1 1 0 0 0 13.707 4L10 .293A1 1 0 0 0 9.293 0M9.5 3.5v-2l3 3h-2a1 1 0 0 1-1-1m-1 4v3.793l1.146-1.147a.5.5 0 0 1 .708.708l-2 2a.5.5 0 0 1-.708 0l-2-2a.5.5 0 0 1 .708-.708L7.5 11.293V7.5a.5.5 0 0 1 1 0"/>
+</svg>
+   RMA English
+</a>
+
+<a class="rd-nav-btn"
+   href="https://cdn.shopify.com/s/files/1/0981/0844/0757/files/RMA_Form_French.pdf?v=1782810718"
+   target="_blank"
+   rel="noopener">
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-file-earmark-arrow-down-fill" viewBox="0 0 16 16">
+  <path d="M9.293 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V4.707A1 1 0 0 0 13.707 4L10 .293A1 1 0 0 0 9.293 0M9.5 3.5v-2l3 3h-2a1 1 0 0 1-1-1m-1 4v3.793l1.146-1.147a.5.5 0 0 1 .708.708l-2 2a.5.5 0 0 1-.708 0l-2-2a.5.5 0 0 1 .708-.708L7.5 11.293V7.5a.5.5 0 0 1 1 0"/>
+</svg>
+   RMA French
+</a>
+ <section class="side-divider"></section>
+      <button class="rd-nav-btn" data-target="rd-spending"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-currency-dollar" viewBox="0 0 16 16">
+  <path d="M4 10.781c.148 1.667 1.513 2.85 3.591 3.003V15h1.043v-1.216c2.27-.179 3.678-1.438 3.678-3.3 0-1.59-.947-2.51-2.956-3.028l-.722-.187V3.467c1.122.11 1.879.714 2.07 1.616h1.47c-.166-1.6-1.54-2.748-3.54-2.875V1H7.591v1.233c-1.939.23-3.27 1.472-3.27 3.156 0 1.454.966 2.483 2.661 2.917l.61.162v4.031c-1.149-.17-1.94-.8-2.131-1.718zm3.391-3.836c-1.043-.263-1.6-.825-1.6-1.616 0-.944.704-1.641 1.8-1.828v3.495l-.2-.05zm1.591 1.872c1.287.323 1.852.859 1.852 1.769 0 1.097-.826 1.828-2.2 1.939V8.73z"/>
+</svg>&nbsp; Total Spending</button>
+<button class="rd-nav-btn" data-target="rd-invoices">
+  <svg xmlns="http://www.w3.org/2000/svg"
+       width="16"
+       height="16"
+       fill="currentColor"
+       viewBox="0 0 16 16">
+    <path d="M1.92.506a.5.5 0 0 1 .434.14L3 1.293l.646-.647a.5.5 0 0 1 .708 0L5 1.293l.646-.647a.5.5 0 0 1 .708 0L7 1.293l.646-.647a.5.5 0 0 1 .708 0L9 1.293l.646-.647a.5.5 0 0 1 .708 0l.646.647.646-.647a.5.5 0 0 1 .708 0l.646.647.646-.647a.5.5 0 0 1 .801.13l.5 1A.5.5 0 0 1 15 2v12a.5.5 0 0 1-.053.224l-.5 1a.5.5 0 0 1-.8.13L13 14.707l-.646.647a.5.5 0 0 1-.708 0L11 14.707l-.646.647a.5.5 0 0 1-.708 0L9 14.707l-.646.647a.5.5 0 0 1-.708 0L7 14.707l-.646.647a.5.5 0 0 1-.708 0L5 14.707l-.646.647a.5.5 0 0 1-.708 0L3 14.707l-.646.647a.5.5 0 0 1-.801-.13l-.5-1A.5.5 0 0 1 1 14V2a.5.5 0 0 1 .053-.224.5.5 0 0 1 .367-.27Z"/>
+    <path d="M3 4.5a.5.5 0 0 1 .5-.5h6a.5.5 0 1 1 0 1h-6A.5.5 0 0 1 3 4.5Zm0 2a.5.5 0 0 1 .5-.5h6a.5.5 0 1 1 0 1h-6A.5.5 0 0 1 3 6.5Zm0 2a.5.5 0 0 1 .5-.5h6a.5.5 0 1 1 0 1h-6A.5.5 0 0 1 3 8.5Z"/>
+  </svg>
+  &nbsp; Invoices
+</button>
+ <button class="rd-nav-btn" data-target="rd-profile"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-person-circle" viewBox="0 0 16 16">
+        <path fill-rule="evenodd" d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8m8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1"/>
+      </svg>&nbsp; Profile</button>
+      {% comment %} <button class="rd-nav-btn" data-target="rd-password">
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+    <path d="M8 1a4 4 0 0 0-4 4v2H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-1V5a4 4 0 0 0-4-4zm-3 6V5a3 3 0 1 1 6 0v2H5z"/>
+  </svg>
+  &nbsp; Password
+</button> {% endcomment %}
+      <button class="rd-nav-btn" data-target="rd-address"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-geo" viewBox="0 0 16 16">
+  <path fill-rule="evenodd" d="M8 1a3 3 0 1 0 0 6 3 3 0 0 0 0-6M4 4a4 4 0 1 1 4.5 3.969V13.5a.5.5 0 0 1-1 0V7.97A4 4 0 0 1 4 3.999zm2.493 8.574a.5.5 0 0 1-.411.575c-.712.118-1.28.295-1.655.493a1.3 1.3 0 0 0-.37.265.3.3 0 0 0-.057.09V14l.002.008.016.033a.6.6 0 0 0 .145.15c.165.13.435.27.813.395.751.25 1.82.414 3.024.414s2.273-.163 3.024-.414c.378-.126.648-.265.813-.395a.6.6 0 0 0 .146-.15l.015-.033L12 14v-.004a.3.3 0 0 0-.057-.09 1.3 1.3 0 0 0-.37-.264c-.376-.198-.943-.375-1.655-.493a.5.5 0 1 1 .164-.986c.77.127 1.452.328 1.957.594C12.5 13 13 13.4 13 14c0 .426-.26.752-.544.977-.29.228-.68.413-1.116.558-.878.293-2.059.465-3.34.465s-2.462-.172-3.34-.465c-.436-.145-.826-.33-1.116-.558C3.26 14.752 3 14.426 3 14c0-.599.5-1 .961-1.243.505-.266 1.187-.467 1.957-.594a.5.5 0 0 1 .575.411"/>
+</svg>&nbsp; Address</button>
+     
+  <path d="M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0"/>
+      <div class="rd-nav-divider"></div>
+      {% comment %} <a class="rd-nav-btn rd-logout" href="{{ routes.account_logout_url }}"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-box-arrow-right" viewBox="0 0 16 16">
+  <path fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0z"/>
+  <path fill-rule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708z"/>
+</svg>&nbsp; Logout</a> {% endcomment %}
+   
+{% if customer %}
+  <a class="rd-nav-btn rd-logout" href="{{ routes.account_logout_url }}">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-box-arrow-right" viewBox="0 0 16 16">
+      <path fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0z"/>
+      <path fill-rule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708z"/>
+    </svg>
+    &nbsp; Logout
+  </a>
+{% else %}
+  <a class="rd-nav-btn" href="{{ routes.account_login_url }}">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-box-arrow-in-right" viewBox="0 0 16 16">
+      <path fill-rule="evenodd" d="M6 3.5A1.5 1.5 0 0 1 7.5 2h7A1.5 1.5 0 0 1 16 3.5v9a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 6 12.5v-2a.5.5 0 0 1 1 0v2a.5.5 0 0 0 .5.5h7a.5.5 0 0 0 .5-.5v-9a.5.5 0 0 0-.5-.5h-7a.5.5 0 0 0-.5.5v2a.5.5 0 0 1-1 0z"/>
+      <path fill-rule="evenodd" d="M.146 8.354a.5.5 0 0 1 0-.708l3-3a.5.5 0 1 1 .708.708L1.707 7.5H10.5a.5.5 0 0 1 0 1H1.707l2.147 2.146a.5.5 0 0 1-.708.708z"/>
+    </svg>
+    &nbsp; Login
+  </a>
+{% endif %}
+</div>
+
+    <div class="rd-main">
+
+      {% comment %} ================= OVERVIEW ================= {% endcomment %}
+      <div class="rd-section active" id="rd-overview">
+
+        {% assign rd_hour = 'now' | date: '%H' | plus: 0 %}
+        <div class="rd-greet">
+       <h2>
+  <span id="greeting">Hello</span>, {{ customer.first_name }} {{ customer.last_name }}
+</h2>
+
+          <p>Here's your account summary for {{ 'now' | date: '%B %Y' }}</p>
+        </div>
+
+        {% assign rd_open_orders = 0 %}
+        {% assign rd_mtd_spend = 0 %}
+        {% assign rd_this_month = 'now' | date: '%Y-%m' %}
+        {% for order in customer.orders %}
+          {% unless order.fulfillment_status == 'fulfilled' %}
+            {% assign rd_open_orders = rd_open_orders | plus: 1 %}
+          {% endunless %}
+          {% assign rd_order_month = order.created_at | date: '%Y-%m' %}
+          {% if rd_order_month == rd_this_month %}
+            {% assign rd_mtd_spend = rd_mtd_spend | plus: order.total_price %}
+          {% endif %}
+        {% endfor %}
+
+        <div class="rd-stats">
+          <div class="rd-stat">
+            <div class="rd-label">Open Orders</div>
+            <div class="rd-value">{{ rd_open_orders }}</div>
+            <div class="rd-sub">Not yet fulfilled</div>
+          </div>
+          <div class="rd-stat">
+            <div class="rd-label">MTD Spend</div>
+            <div class="rd-value">{{ rd_mtd_spend | money }}</div>
+            <div class="rd-sub">{{ 'now' | date: '%B' }} total</div>
+          </div>
+          <div class="rd-stat">
+            <div class="rd-label">Lifetime Spend</div>
+            <div class="rd-value">{{ customer.total_spent | money }}</div>
+            <div class="rd-sub">{{ customer.orders_count }} orders total</div>
+          </div>
+          <div class="rd-stat">
+            <div class="rd-label">Outstanding Balance</div>
+            <div class="rd-value" id="rdOverviewOutstanding">—</div>
+            <div class="rd-sub">From invoices</div>
+          </div>
+        </div>
+
+        <div class="rd-card-title">
+          <h3>Recent Orders</h3>
+          <a class="rd-nav-btn" data-target="rd-orders">View all</a>
+        </div>
+        <div class="rd-table-scroll">
+        <table class="rd-table">
+          <thead><tr
+data-search="
+{{ order.name }}
+{{ order.shipping_address.name }}
+{{ order.shipping_address.company }}
+"><th>Order</th><th>Date</th> <th>PO Number</th><th>Ship To Name</th><th>Total</th><th>Status</th></tr></thead>
+          <tbody>
+            {% for order in customer.orders limit: 3 %}
+            <tr>
+              <td>{{ order.name }}</td>
+              <td>{{ order.created_at | date: '%b %d' }}</td>
+              <td>
+  {% if order.note != blank %}
+    {{ order.note }}
+  {% else %}
+    -
+  {% endif %}
+</td>
+              <td>
+  {{ order.shipping_address.name }}
+
+  {% if order.shipping_address.company != blank %}
+    <br>
+    <small>{{ order.shipping_address.company }}</small>
+  {% endif %}
+</td>
+              <td>{{ order.total_price | money }}</td>
+              <td>
+                {% if order.fulfillment_status == 'fulfilled' %}
+                  <span class="rd-badge fulfilled">Shipped</span>
+                {% elsif order.fulfillment_status == 'partial' %}
+                  <span class="rd-badge partial">Partial</span>
+                {% else %}
+                  <span class="rd-badge unfulfilled">Processing</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4">There are no orders right now.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        </div>
+      </div>
+
+      {% comment %} ================= ORDERS ================= {% endcomment %}
+      <div class="rd-section" id="rd-orders">
+        <div>
+        <h2>All Orders</h2>
+        <div class="rd-order-search">
+  <input
+    type="text"
+    id="rdOrderSearch"
+    placeholder="Search by Order # or Ship To Name..."
+  >
+</div>
+</div>
+        <div class="rd-table-scroll">
+        <table class="rd-table">
+          <thead><tr><th>Order</th><th>Date</th> <th>PO Number</th><th>Ship To Name</th><th>Items</th><th>Total</th><th>Status</th><th></th></tr></thead>
+          <tbody>
+           {% for order in customer.orders %}
+<tr
+  data-search="{{ order.name }} {{ order.note }} {{ order.shipping_address.name }} {{ order.shipping_address.company }} {{ order.total_price | money }} {{ order.line_items.size }}">
+              <td>{{ order.name }}</td>
+              <td>{{ order.created_at | date: '%b %d, %Y' }}</td>
+              <td>
+  {% if order.note != blank %}
+    {{ order.note }}
+  {% else %}
+    -
+  {% endif %}
+</td>
+            <td>
+  {{ order.shipping_address.name }}
+
+  {% if order.shipping_address.company != blank %}
+    <br>
+    <small>{{ order.shipping_address.company }}</small>
+  {% endif %}
+</td>
+              <td>{{ order.line_items.size }}</td>
+              <td>{{ order.total_price | money }}</td>
+              <td>
+                {% if order.fulfillment_status == 'fulfilled' %}
+                  <span class="rd-badge fulfilled">Shipped</span>
+                {% elsif order.fulfillment_status == 'partial' %}
+                  <span class="rd-badge partial">Partial</span>
+                {% else %}
+                  <span class="rd-badge unfulfilled">Processing</span>
+                {% endif %}
+              </td>
+              <td><a href="{{ order.customer_url }}">View</a></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6">There are no orders right now.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        </div>
+      </div>
+
+
+            {% comment %} ================= NEW ARRIVALS ================= {% endcomment %}
+
+            {% assign new_arrivals = collections['new-arrivals'] %}
+
+<div class="rd-section" id="rd-new-arrivals">
+
+  <div class="rd-card-title">
+    <h3>New Arrivals</h3>
+  </div>
+
+  <div class="rd-new-grid">
+
+    {% for product in new_arrivals.products limit:8 %}
+
+    <div class="rd-product-card">
+
+ <a href="{{ product.url }}">
+  {% if product.featured_image %}
+    <img
+      src="{{ product.featured_image | image_url: width:600 }}"
+      alt="{{ product.title | escape }}"
+      loading="lazy"
+    >
+  {% else %}
+    <img
+      src="https://cdn.shopify.com/s/files/1/0981/0844/0757/files/Ink_Quest.png?v=1786686761"
+      alt="{{ product.title | escape }}"
+      loading="lazy"
+    >
+  {% endif %}
+</a>
+
+      <h4>{{ product.title }}</h4>
+
+      <div class="rd-price">
+        {{ product.price | money }}
+      </div>
+
+      <form method="post" action="/cart/add">
+        <input type="hidden"
+               name="id"
+               value="{{ product.selected_or_first_available_variant.id }}">
+
+        <button>Add to Cart</button>
+      </form>
+
+    </div>
+
+    {% endfor %}
+
+  </div>
+
+</div>
+            {% comment %} ================= NEW ARRIVALS ================= {% endcomment %}
+
+      {% comment %} ================= WISHLIST ================= {% endcomment %}
+      <div class="rd-section" id="rd-wishlist">
+        <div class="rd-card-title">
+          <h3>My Wishlist</h3>
+        </div>
+        {% comment %} <p style="font-size:13px;color:var(--muted);margin-bottom:10px;">
+          Yeh aapke "Wishlist by Square" app ka live page hai (inline embedded) — data seedha wahi se aa raha hai.
+        </p> {% endcomment %}
+        <iframe class="rd-wishlist-frame" src="{{ wishlist_url }}" title="Wishlist" loading="lazy"></iframe>
+      </div>
+
+      {% comment %} ================= TOTAL SPENDING ================= {% endcomment %}
+      <div class="rd-section" id="rd-spending">
+        <h2>Total Spending</h2>
+
+        {% assign rd_avg_order = 0 %}
+        {% if customer.orders_count > 0 %}
+          {% assign rd_avg_order = customer.total_spent | divided_by: customer.orders_count %}
+        {% endif %}
+
+        <div class="rd-stats">
+          <div class="rd-stat">
+            <div class="rd-label">Lifetime Spend</div>
+            <div class="rd-value">{{ customer.total_spent | money }}</div>
+            <div class="rd-sub">All-time</div>
+          </div>
+          <div class="rd-stat">
+            <div class="rd-label">Total Orders</div>
+            <div class="rd-value">{{ customer.orders_count }}</div>
+            <div class="rd-sub">Lifetime</div>
+          </div>
+          <div class="rd-stat">
+            <div class="rd-label">Avg Order Value</div>
+            <div class="rd-value">{{ rd_avg_order | money }}</div>
+            <div class="rd-sub">Per order</div>
+          </div>
+        </div>
+
+        <div class="rd-card-title"><h3>Order History (last 6 months)</h3></div>
+        <div id="rd-chart" class="rd-chart"></div>
+      </div>
+
+<div class="rd-section" id="rd-invoices">
+
+  <div class="rd-invoice-wrap">
+
+    <div class="rd-invoice-hero">
+      <div>
+        <h2>Invoices</h2>
+        <p>View and download invoices for your account.</p>
+      </div>
+    </div>
+
+    {% if customer %}
+      <script>
+        window.RD_INVOICES = {
+          proxyBase: '/apps/account-billing/customer/invoices',
+          loggedIn: true,
+          pageSize: 20,
+          customerId: {{ customer.id | json }},
+          customerEmail: {{ customer.email | json }},
+          logoUrl: {{ 'inkquest-invoice-logo.svg' | asset_url | json }}
+        };
+        console.log('[RD Invoices] customer logged in', {
+          customerId: window.RD_INVOICES.customerId,
+          customerEmail: window.RD_INVOICES.customerEmail,
+          proxyBase: window.RD_INVOICES.proxyBase
+        });
+      </script>
+
+      <div class="rd-invoice-stats" id="rdInvoiceStats">
+        <div class="rd-invoice-stat">
+          <div class="rd-invoice-stat-top">
+            <div class="rd-invoice-stat-label">Outstanding balance</div>
+          </div>
+          <div class="rd-invoice-stat-value" id="rdInvoiceOutstanding">Loading…</div>
+          <div class="rd-invoice-stat-sub">Across your account</div>
+        </div>
+        <div class="rd-invoice-stat">
+          <div class="rd-invoice-stat-top">
+            <div class="rd-invoice-stat-label">Invoices</div>
+          </div>
+          <div class="rd-invoice-stat-value" id="rdInvoiceCount">Loading…</div>
+          <div class="rd-invoice-stat-sub">On file</div>
+        </div>
+      </div>
+
+      <div class="rd-invoice-toolbar">
+        <div class="rd-invoice-search">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/>
+            <path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <input
+            type="search"
+            id="rdInvoiceSearch"
+            placeholder="Search invoice #, order #, PO..."
+            autocomplete="off"
+          >
+        </div>
+        <input type="date" class="rd-invoice-filter" id="rdInvoiceDateFrom" title="From date" aria-label="From date">
+        <input type="date" class="rd-invoice-filter" id="rdInvoiceDateTo" title="To date" aria-label="To date">
+        <select class="rd-invoice-filter" id="rdInvoiceBalance" aria-label="Balance filter">
+          <option value="">All balances</option>
+          <option value="due">Amount due</option>
+          <option value="paid">Paid / zero due</option>
+        </select>
+        <button type="button" class="rd-invoice-filter" id="rdInvoiceFilterClear" style="font-weight:700;">Clear</button>
+      </div>
+
+      <div class="rd-invoice-table-card">
+        <div class="rd-invoice-table-scroll">
+          <table class="rd-invoice-table">
+            <thead>
+              <tr>
+                <th>Invoice</th>
+                <th>Invoice Date</th>
+                <th>Order</th>
+                <th>Total</th>
+                <th>Amount Due</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="rdInvoiceTableBody">
+              <tr>
+                <td colspan="6">
+                  <div class="rd-invoice-loading">Loading invoices…</div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="rd-invoice-pager" id="rdInvoicePager" hidden>
+          <div class="rd-invoice-pager-info" id="rdInvoicePagerInfo"></div>
+          <div class="rd-invoice-pager-btns">
+            <button type="button" class="rd-invoice-pager-btn" id="rdInvoicePrev">Previous</button>
+            <button type="button" class="rd-invoice-pager-btn" id="rdInvoiceNext">Next</button>
+          </div>
+        </div>
+      </div>
+    {% else %}
+      <div class="rd-invoice-empty">
+        <h3>Sign in to view invoices</h3>
+        <p>Please log in to see invoices for your account.</p>
+        <p style="margin-top:12px;"><a href="{{ routes.account_login_url }}" style="color:#0d4f4f;font-weight:700;">Log in</a></p>
+      </div>
+    {% endif %}
+
+  </div>
+
+</div>
+
+
+<!-- =====================================================
+     INVOICE MODAL
+===================================================== -->
+
+<div
+  class="rd-invoice-modal"
+  id="rdInvoiceModal"
+>
+
+  <div class="rd-invoice-modal-box">
+
+    <div class="rd-invoice-modal-top">
+
+      <div class="rd-invoice-modal-title">
+        Invoice Detail
+      </div>
+
+      <div class="rd-invoice-modal-actions">
+
+        <button
+          type="button"
+          class="rd-invoice-modal-btn primary"
+          id="rdInvoiceDownloadPdf"
+        >
+          Download PDF
+        </button>
+
+        <button
+          type="button"
+          class="rd-invoice-modal-btn"
+          id="rdInvoiceClose"
+        >
+          Close
+        </button>
+
+      </div>
+
+    </div>
+    <div
+      id="rdInvoicePreview"
+      class="rd-print-invoice"
+    ></div>
+
+  </div>
+
+</div>
+
+
+<!-- =====================================================
+     REAL ORDER DATA FOR JS
+===================================================== -->
+
+
+      {% comment %} ================= ADDRESS ================= {% endcomment %}
+      <div class="rd-section" id="rd-address">
+        <div class="rd-card-title">
+          <h3>Saved Addresses</h3>
+          <a href="{{ routes.account_addresses_url }}">Manage</a>
+        </div>
+        <div class="rd-addr-grid">
+          {% for address in customer.addresses %}
+          <div class="rd-addr-card">
+            {% if address.id == customer.default_address.id %}<span class="rd-addr-badge">Default</span><br>{% endif %}
+            <strong>{{ address.name }}</strong><br>
+            {{ address.company }}{% if address.company != blank %}<br>{% endif %}
+            {{ address.address1 }}<br>
+            {% if address.address2 != blank %}{{ address.address2 }}<br>{% endif %}
+            {{ address.city }}, {{ address.province_code }} {{ address.zip }}<br>
+            {{ address.country }}<br>
+            {{ address.phone }}
+          </div>
+          {% else %}
+          <p>There are no saved addresses.</p>
+          {% endfor %}
+        </div>
+      </div>
+
+      {% comment %} ================= PROFILE ================= {% endcomment %}
+      <div class="rd-section" id="rd-profile">
+        <h2>Profile</h2>
+        <div class="rd-info-grid rd-account-info">
+          <div class="rd-info-item"><strong>Full Name</strong>{{ customer.name }}</div>
+          <div class="rd-info-item"><strong>Email</strong>{{ customer.email }}</div>
+          <div class="rd-info-item"><strong>Phone</strong>{{ customer.phone | default: 'Not provided' }}</div>
+          {% if customer.company %}
+          <div class="rd-info-item"><strong>Company</strong>{{ customer.company.name }}</div>
+          {% endif %}
+          <div class="rd-info-item"><strong>Customer Since</strong>{{ customer.orders.first.created_at | date: '%b %Y' | default: '-' }}</div>
+          <div class="rd-info-item"><strong>Total Orders</strong>{{ customer.orders_count }}</div>
+        </div>
+      </div>
+{% comment %} ================= QUICK RE-ORDER ================= {% endcomment %}
+
+<div class="rd-section" id="rd-reorder">
+
+  <div class="rd-reorder-head">
+    <div>
+      <h2>Quick Re-Order</h2>
+      <p>Quickly reorder products from your previous purchases.</p>
+    </div>
+  </div>
+
+  {% assign shown_products = '' %}
+  {% assign reorder_count = 0 %}
+
+  <div class="rd-reorder-list">
+
+    <!-- SELECT ALL -->
+    <div class="rd-reorder-select-all">
+      <label class="rd-check-label">
+        <input
+          type="checkbox"
+          id="rdReorderSelectAll"
+          class="rd-reorder-checkbox"
+        >
+        <span class="rd-custom-check"></span>
+        <span>Select all</span>
+      </label>
+    </div>
+
+
+    {% for order in customer.orders %}
+
+      {% for item in order.line_items %}
+
+        {% if item.product %}
+
+          {% assign reorder_key = '|' | append: item.product.id | append: '-' | append: item.variant.id | append: '|' %}
+
+          {% unless shown_products contains reorder_key %}
+
+            {% assign shown_products = shown_products | append: reorder_key %}
+            {% assign reorder_count = reorder_count | plus: 1 %}
+
+            {% assign reorder_variant = item.variant %}
+
+            <div
+              class="rd-reorder-item"
+              data-reorder-item
+              data-product-id="{{ item.product.id }}"
+              data-variant-id="{{ reorder_variant.id }}"
+            >
+
+              <!-- CHECKBOX -->
+              <div class="rd-reorder-check">
+
+                <label class="rd-check-label">
+
+                  <input
+                    type="checkbox"
+                    class="rd-reorder-checkbox rd-item-checkbox"
+                  >
+
+                  <span class="rd-custom-check"></span>
+
+                </label>
+
+              </div>
+
+
+              <!-- IMAGE -->
+              <div class="rd-reorder-image">
+
+                <a href="{{ item.product.url }}">
+
+                  {% if item.image %}
+
+                    <img
+                      src="{{ item.image | image_url: width: 300 }}"
+                      alt="{{ item.title | escape }}"
+                      loading="lazy"
+                    >
+
+                  {% elsif item.product.featured_image %}
+
+                    <img
+                      src="{{ item.product.featured_image | image_url: width: 300 }}"
+                      alt="{{ item.product.title | escape }}"
+                      loading="lazy"
+                    >
+
+                 {% else %}
+  <img
+    src="https://cdn.shopify.com/s/files/1/0981/0844/0757/files/Ink_Quest.png?v=1786686761"
+    alt="{{ item.product.title | escape }}"
+    loading="lazy"
+  >
+{% endif %}
+
+                </a>
+
+              </div>
+
+
+              <!-- PRODUCT INFORMATION -->
+              <div class="rd-reorder-info">
+
+                <a
+                  href="{{ item.product.url }}"
+                  class="rd-reorder-title"
+                >
+                  {{ item.product.title }}
+                </a>
+
+
+                {% unless item.variant.title == 'Default Title' %}
+
+                  <div class="rd-reorder-variant">
+                    {{ item.variant.title }}
+                  </div>
+
+                {% endunless %}
+
+
+                {% if item.sku != blank %}
+
+                  <div class="rd-reorder-sku">
+                    SKU: {{ item.sku }}
+                  </div>
+
+                {% endif %}
+
+
+                <div class="rd-reorder-price mobile-price">
+
+                  {{ item.final_price | money }}
+
+                </div>
+
+              </div>
+
+
+              <!-- PRICE -->
+              <div class="rd-reorder-price desktop-price">
+
+                {{ item.final_price | money }}
+
+              </div>
+
+
+              <!-- QUANTITY -->
+              <div class="rd-reorder-qty">
+
+                <button
+                  type="button"
+                  class="rd-qty-btn rd-qty-minus"
+                  aria-label="Decrease quantity"
+                >
+                  −
+                </button>
+
+                <input
+                  type="number"
+                  class="rd-qty-input"
+                  value="1"
+                  min="1"
+                  max="99"
+                  aria-label="Quantity"
+                >
+
+                <button
+                  type="button"
+                  class="rd-qty-btn rd-qty-plus"
+                  aria-label="Increase quantity"
+                >
+                  +
+                </button>
+
+              </div>
+
+
+              <!-- ADD TO CART -->
+              <div class="rd-reorder-action">
+
+                <form
+                  method="post"
+                  action="/cart/add"
+                  class="rd-reorder-form"
+                >
+
+                  <input
+                    type="hidden"
+                    name="id"
+                    value="{{ reorder_variant.id }}"
+                  >
+
+                  <input
+                    type="hidden"
+                    name="quantity"
+                    value="1"
+                    class="rd-hidden-quantity"
+                  >
+
+                  <button
+                    type="submit"
+                    class="rd-reorder-add"
+                    {% unless reorder_variant.available %}
+                      disabled
+                    {% endunless %}
+                  >
+
+                    {% if reorder_variant.available %}
+                      Add to cart
+                    {% else %}
+                      Sold out
+                    {% endif %}
+
+                  </button>
+
+                </form>
+
+              </div>
+
+
+              <!-- REMOVE -->
+              <button
+                type="button"
+                class="rd-reorder-remove"
+                aria-label="Remove product"
+                title="Remove"
+              >
+
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M3 6h18"/>
+                  <path d="M8 6V4h8v2"/>
+                  <path d="M19 6l-1 14H6L5 6"/>
+                  <path d="M10 11v5"/>
+                  <path d="M14 11v5"/>
+                </svg>
+
+              </button>
+
+            </div>
+
+          {% endunless %}
+
+        {% endif %}
+
+      {% endfor %}
+
+    {% endfor %}
+
+
+    {% if reorder_count == 0 %}
+
+      <div class="rd-reorder-empty">
+
+        <div class="rd-empty-icon">
+          ↻
+        </div>
+
+        <h3>No previous products</h3>
+
+        <p>
+          Products from your previous orders will appear here.
+        </p>
+
+        <a href="{{ routes.all_products_collection_url }}">
+          Shop Products
+        </a>
+
+      </div>
+
+    {% endif %}
+
+  </div>
+
+</div>
+
+{% comment %} ================= END QUICK RE-ORDER ================= {% endcomment %}
+
+{% comment %} pasword change {% endcomment %}
+ <div class="rd-section" id="rd-password">
+
+  <div class="rd-card-title">
+    <h3>Change Password</h3>
+  </div>
+
+  <div class="rd-product-card" style="max-width:600px;">
+    <p style="margin-bottom:20px;">
+      Click the button below to receive a password reset email at:
+      <strong>{{ customer.email }}</strong>
+    </p>
+
+    <button type="button" onclick="sendPasswordReset()">
+      Send Password Reset Email
+    </button>
+
+    <div id="rd-password-msg" style="margin-top:15px;"></div>
+
+  </div>
+
+</div>
+{% comment %} pasword change {% endcomment %}
+
+
+
+    </div>
+  </div>
+</div>
+
+{% comment %} Raw order data for the client-side spending chart - built entirely from real customer.orders {% endcomment %}
+<script id="rd-orders-json" type="application/json">
+[
+{% for order in customer.orders %}
+{"date":"{{ order.created_at | date: '%Y-%m-%d' }}","total":{{ order.total_price }}}{% unless forloop.last %},{% endunless %}
+{% endfor %}
+]
+</script>
+
+<script>
+(function(){
+  // Tab switching
+  var buttons = document.querySelectorAll('.rd-nav-btn[data-target]');
+  buttons.forEach(function(btn){
+    btn.addEventListener('click', function(e){
+      e.preventDefault();
+      var target = btn.getAttribute('data-target');
+      document.querySelectorAll('.rd-sidebar .rd-nav-btn').forEach(function(b){ b.classList.remove('active'); });
+      document.querySelectorAll('.rd-sidebar .rd-nav-btn[data-target="' + target + '"]').forEach(function(b){ b.classList.add('active'); });
+      document.querySelectorAll('.rd-section').forEach(function(s){ s.classList.remove('active'); });
+      document.getElementById(target).classList.add('active');
+    });
+  });
+
+  // Build "last 6 months" spend chart from real order data
+  try {
+    var raw = JSON.parse(document.getElementById('rd-orders-json').textContent || '[]');
+    var months = [];
+    var now = new Date();
+    for (var i = 5; i >= 0; i--) {
+      var d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push({ key: d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'),
+                    label: d.toLocaleString('default', { month: 'short' }),
+                    total: 0 });
+    }
+    raw.forEach(function(o){
+      var key = o.date.slice(0, 7);
+      var m = months.find(function(mm){ return mm.key === key; });
+      if (m) m.total += o.total;
+    });
+    var maxTotal = Math.max.apply(null, months.map(function(m){ return m.total; })) || 1;
+    var chart = document.getElementById('rd-chart');
+    var moneyFmt = {{ shop.money_format | json }};
+    function formatMoney(cents){
+      var amount = (cents / 100).toFixed(2);
+      return moneyFmt.replace(/\{\{\s*amount\s*\}\}/, amount);
+    }
+    months.forEach(function(m){
+      var pct = Math.round((m.total / maxTotal) * 100);
+      var col = document.createElement('div');
+      col.className = 'rd-chart-col';
+      col.innerHTML =
+        '<div class="rd-chart-val">' + (m.total > 0 ? formatMoney(m.total) : '') + '</div>' +
+        '<div class="rd-chart-bar" style="height:' + Math.max(pct, 2) + '%"></div>' +
+        '<div class="rd-chart-label">' + m.label + '</div>';
+      chart.appendChild(col);
+    });
+  } catch (err) {
+    console.error('Spending chart error:', err);
+  }
+})();
+
+
+
+const orderSearch = document.getElementById("rdOrderSearch");
+
+if (orderSearch) {
+
+  orderSearch.addEventListener("input", function () {
+
+    const value = this.value.toLowerCase();
+
+    document.querySelectorAll("#rd-orders tbody tr").forEach(function (row) {
+
+      const text = (row.dataset.search || "").toLowerCase();
+
+      row.style.display = text.includes(value) ? "" : "none";
+
+    });
+
+  });
+
+}
+
+function sendPasswordReset(){
+
+  fetch('/account/recover', {
+    method:'POST',
+    headers:{
+      'Content-Type':'application/x-www-form-urlencoded'
+    },
+    body:'email=' + encodeURIComponent('{{ customer.email }}')
+  })
+  .then(function(){
+
+      document.getElementById('rd-password-msg').innerHTML =
+      '<span style="color:green;">Password reset email has been sent successfully.</span>';
+
+  })
+  .catch(function(){
+
+      document.getElementById('rd-password-msg').innerHTML =
+      '<span style="color:red;">Unable to send password reset email.</span>';
+
+  });
+
+}
+
+const toggle=document.querySelector(".rd-mobile-toggle");
+const sidebar=document.querySelector(".rd-sidebar");
+const overlay=document.querySelector(".rd-overlay");
+const close=document.querySelector(".rd-close-menu button");
+
+if(toggle){
+
+toggle.onclick=function(){
+sidebar.classList.add("open");
+overlay.classList.add("active");
+document.body.style.overflow="hidden";
+}
+
+close.onclick=hideMenu;
+overlay.onclick=hideMenu;
+
+document.querySelectorAll(".rd-sidebar .rd-nav-btn").forEach(btn=>{
+btn.addEventListener("click",hideMenu);
+});
+
+function hideMenu(){
+sidebar.classList.remove("open");
+overlay.classList.remove("active");
+document.body.style.overflow="";
+}
+
+}
+</script>
+
+<script>
+  const hour = new Date().getHours();
+  let greeting;
+
+  if (hour < 12) {
+    greeting = "Good morning";
+  } else if (hour < 18) {
+    greeting = "Good afternoon";
+  } else {
+    greeting = "Good evening";
+  }
+
+  document.getElementById("greeting").innerText = greeting;
+
+
+  /* =========================================================
+   QUICK RE-ORDER
+========================================================= */
+
+(function () {
+
+  var reorderItems = document.querySelectorAll(
+    '[data-reorder-item]'
+  );
+
+  var selectAll = document.getElementById(
+    'rdReorderSelectAll'
+  );
+
+
+  /*
+   * SELECT ALL
+   */
+
+  if (selectAll) {
+
+    selectAll.addEventListener('change', function () {
+
+      var checked = this.checked;
+
+      document
+        .querySelectorAll('.rd-item-checkbox')
+        .forEach(function (checkbox) {
+
+          checkbox.checked = checked;
+
+        });
+
+    });
+
+  }
+
+
+  /*
+   * INDIVIDUAL CHECKBOXES
+   */
+
+  document
+    .querySelectorAll('.rd-item-checkbox')
+    .forEach(function (checkbox) {
+
+      checkbox.addEventListener('change', function () {
+
+        if (!selectAll) return;
+
+        var all = document.querySelectorAll(
+          '.rd-item-checkbox'
+        );
+
+        var checked = document.querySelectorAll(
+          '.rd-item-checkbox:checked'
+        );
+
+        selectAll.checked =
+          all.length > 0 &&
+          checked.length === all.length;
+
+      });
+
+    });
+
+
+  /*
+   * QUANTITY
+   */
+
+  reorderItems.forEach(function (item) {
+
+    var minus = item.querySelector('.rd-qty-minus');
+    var plus = item.querySelector('.rd-qty-plus');
+    var input = item.querySelector('.rd-qty-input');
+    var hiddenQuantity = item.querySelector(
+      '.rd-hidden-quantity'
+    );
+
+
+    if (!input) return;
+
+
+    function updateQuantity(value) {
+
+      value = parseInt(value, 10);
+
+      if (isNaN(value)) {
+        value = 1;
+      }
+
+      value = Math.max(1, Math.min(99, value));
+
+      input.value = value;
+
+      if (hiddenQuantity) {
+        hiddenQuantity.value = value;
+      }
+
+    }
+
+
+    if (minus) {
+
+      minus.addEventListener('click', function () {
+
+        updateQuantity(
+          parseInt(input.value, 10) - 1
+        );
+
+      });
+
+    }
+
+
+    if (plus) {
+
+      plus.addEventListener('click', function () {
+
+        updateQuantity(
+          parseInt(input.value, 10) + 1
+        );
+
+      });
+
+    }
+
+
+    input.addEventListener('input', function () {
+
+      updateQuantity(this.value);
+
+    });
+
+
+    /*
+     * ADD TO CART
+     */
+
+    var form = item.querySelector(
+      '.rd-reorder-form'
+    );
+
+    if (form) {
+
+      form.addEventListener('submit', function () {
+
+        if (hiddenQuantity) {
+
+          hiddenQuantity.value =
+            input.value || 1;
+
+        }
+
+      });
+
+    }
+
+
+    /*
+     * REMOVE FROM CURRENT LIST
+     */
+
+    var remove = item.querySelector(
+      '.rd-reorder-remove'
+    );
+
+    if (remove) {
+
+      remove.addEventListener('click', function () {
+
+        item.classList.add('rd-removed');
+
+        setTimeout(function () {
+
+          item.remove();
+
+          var remaining =
+            document.querySelectorAll(
+              '[data-reorder-item]'
+            );
+
+          if (remaining.length === 0) {
+
+            var list =
+              document.querySelector(
+                '.rd-reorder-list'
+              );
+
+            if (list) {
+
+              list.innerHTML =
+                '<div class="rd-reorder-empty">' +
+                '<div class="rd-empty-icon">↻</div>' +
+                '<h3>No products selected</h3>' +
+                '<p>Your reorder list is currently empty.</p>' +
+                '<a href="{{ routes.all_products_collection_url }}">Shop Products</a>' +
+                '</div>';
+
+            }
+
+          }
+
+        }, 250);
+
+      });
+
+    }
+
+  });
+
+})();
+</script>
+<script src="{{ 'rd-invoices.js' | asset_url }}&v=20261008b" defer></script>
+
+<!-- =========================================================
+     INK QUEST RESELLER PORTAL - EN / FR UI TRANSLATION
+     This only translates static UI text. Shopify/customer/order
+     data remains fully dynamic and untouched.
+========================================================= -->
+<script>
+(function () {
+  'use strict';
+
+  const RD_UI_LOCALE = {{ request.locale.iso_code | default: 'en' | json }};
+  const RD_IS_FRENCH = String(RD_UI_LOCALE || '').toLowerCase().indexOf('fr') === 0;
+
+  if (!RD_IS_FRENCH) return;
+
+  const RD_FR = {
+    'Dashboard Menu': 'Menu du tableau de bord',
+    'Overview': 'Aperçu',
+    'Orders': 'Commandes',
+    'Quick Re-Order': 'Commande rapide',
+    'Wishlist': 'Liste de souhaits',
+    'New Arrivals': 'Nouveautés',
+    'RMA English': 'RMA Anglais',
+    'RMA French': 'RMA Français',
+    'Total Spending': 'Dépenses totales',
+    'Profile': 'Profil',
+    'Password': 'Mot de passe',
+    'Logout': 'Déconnexion',
+    'Login': 'Connexion',
+
+    'Hello': 'Bonjour',
+    'Good morning': 'Bonjour',
+    'Good afternoon': 'Bon après-midi',
+    'Good evening': 'Bonsoir',
+
+    "Here's your account summary for": 'Voici le résumé de votre compte pour',
+    'Open Orders': 'Commandes ouvertes',
+    'Not yet fulfilled': 'Pas encore expédiées',
+    'MTD Spend': 'Dépenses du mois',
+    'Lifetime Spend': 'Dépenses cumulées',
+    'orders total': 'commandes au total',
+    'Recent Orders': 'Commandes récentes',
+    'View all': 'Voir tout',
+    'View': 'Voir',
+    'All Orders': 'Toutes les commandes',
+    'There are no orders right now.': 'Il n’y a aucune commande pour le moment.',
+    'Search by Order # or Ship To Name...': 'Rechercher par n° de commande ou nom du destinataire...',
+    'Order': 'Commande',
+    'Date': 'Date',
+    'PO Number': 'Numéro de BC',
+    'Ship To Name': 'Nom du destinataire',
+    'Items': 'Articles',
+    'Total': 'Total',
+    'Status': 'Statut',
+    'Shipped': 'Expédiée',
+    'Partial': 'Partielle',
+    'Processing': 'En traitement',
+
+    'Add to Cart': 'Ajouter au panier',
+    'Add to cart': 'Ajouter au panier',
+    'Sold out': 'Épuisé',
+    'My Wishlist': 'Ma liste de souhaits',
+    'Total Spending': 'Dépenses totales',
+    'All-time': 'Depuis toujours',
+    'Total Orders': 'Total des commandes',
+    'Lifetime': 'Cumulatif',
+    'Avg Order Value': 'Valeur moyenne de commande',
+    'Per order': 'Par commande',
+    'Order History (last 6 months)': 'Historique des commandes (6 derniers mois)',
+
+    'Invoices': 'Factures',
+    'View, manage and send your order invoices to ERP.': 'Consultez, gérez et envoyez vos factures de commande à l’ERP.',
+    'ERP Connected': 'ERP connecté',
+    'Total Invoices': 'Total des factures',
+    'All orders': 'Toutes les commandes',
+    'Total Value': 'Valeur totale',
+    'Total invoiced amount': 'Montant total facturé',
+    'Paid': 'Payée',
+    'Paid invoices': 'Factures payées',
+    'Pending': 'En attente',
+    'Awaiting payment': 'En attente de paiement',
+    'Search invoice, order, PO or company...': 'Rechercher une facture, une commande, un BC ou une entreprise...',
+    'All Invoices': 'Toutes les factures',
+    'Refunded': 'Remboursée',
+    '● Paid': '● Payée',
+    '● Pending': '● En attente',
+    '● Refunded': '● Remboursée',
+    'Payment': 'Paiement',
+    'Amount': 'Montant',
+    'Actions': 'Actions',
+    'View Order': 'Voir la commande',
+    'View Invoice': 'Voir la facture',
+    'Send to ERP': 'Envoyer à l’ERP',
+    '↑ ERP': '↑ ERP',
+    'No invoices yet': 'Aucune facture pour le moment',
+    'Your invoices will appear here after placing an order.': 'Vos factures apparaîtront ici après avoir passé une commande.',
+    'Invoice Preview': 'Aperçu de la facture',
+    'Print / PDF': 'Imprimer / PDF',
+    'Close': 'Fermer',
+
+    'Saved Addresses': 'Adresses enregistrées',
+    'Manage': 'Gérer',
+    'Default': 'Par défaut',
+    'There are no saved addresses.': 'Aucune adresse enregistrée.',
+    'Full Name': 'Nom complet',
+    'Email': 'E-mail',
+    'Phone': 'Téléphone',
+    'Not provided': 'Non fourni',
+    'Company': 'Entreprise',
+    'Customer Since': 'Client depuis',
+
+    'Quickly reorder products from your previous purchases.': 'Recommandez rapidement les produits de vos achats précédents.',
+    'Select all': 'Tout sélectionner',
+    'Decrease quantity': 'Diminuer la quantité',
+    'Quantity': 'Quantité',
+    'Increase quantity': 'Augmenter la quantité',
+    'Remove product': 'Supprimer le produit',
+    'Remove': 'Supprimer',
+    'No previous products': 'Aucun produit précédent',
+    'Products from your previous orders will appear here.': 'Les produits de vos commandes précédentes apparaîtront ici.',
+    'Shop Products': 'Voir les produits',
+
+    'Change Password': 'Changer le mot de passe',
+    'Click the button below to receive a password reset email at:': 'Cliquez sur le bouton ci-dessous pour recevoir un e-mail de réinitialisation du mot de passe à :',
+    'Send Password Reset Email': 'Envoyer l’e-mail de réinitialisation',
+    'Password reset email has been sent successfully.': 'L’e-mail de réinitialisation du mot de passe a été envoyé avec succès.',
+    'Unable to send password reset email.': 'Impossible d’envoyer l’e-mail de réinitialisation du mot de passe.',
+
+    'INVOICE': 'FACTURE',
+    'Bill To': 'Facturer à',
+    'Ship To': 'Expédier à',
+    'Order Information': 'Informations de commande',
+    'Product': 'Produit',
+    'Qty': 'Qté',
+    'Unit Price': 'Prix unitaire',
+    'Invoice Notes': 'Notes de facture',
+    'Thank you for your business.': 'Merci pour votre confiance.',
+    'This invoice is generated from your': 'Cette facture est générée à partir de votre',
+    'Ink Quest reseller order.': 'commande de revendeur Ink Quest.',
+    'Subtotal': 'Sous-total',
+    'Discount': 'Rabais',
+    'Shipping': 'Expédition',
+    'Tax': 'Taxes',
+    'Canada Reseller Portal': 'Portail des revendeurs du Canada',
+    'ERP API request failed': 'La requête de l’API ERP a échoué',
+    'Sending...': 'Envoi...',
+    'Sending invoice to ERP...': 'Envoi de la facture à l’ERP...',
+    'Invoice successfully sent to ERP.': 'Facture envoyée à l’ERP avec succès.',
+    '✓ Sent': '✓ Envoyée',
+    'Paid invoices': 'Factures payées',
+    'Unable to send invoice to ERP. Please try again.': 'Impossible d’envoyer la facture à l’ERP. Veuillez réessayer.',
+
+    'Jan': 'janv.',
+    'Feb': 'févr.',
+    'Mar': 'mars',
+    'Apr': 'avr.',
+    'May': 'mai',
+    'Jun': 'juin',
+    'Jul': 'juil.',
+    'Aug': 'août',
+    'Sep': 'sept.',
+    'Oct': 'oct.',
+    'Nov': 'nov.',
+    'Dec': 'déc.'
+  };
+
+  const RD_SUBSTRING_FR = [
+    ["Here's your account summary for", 'Voici le résumé de votre compte pour'],
+    ['orders total', 'commandes au total'],
+    ['Click the button below to receive a password reset email at:', 'Cliquez sur le bouton ci-dessous pour recevoir un e-mail de réinitialisation du mot de passe à :'],
+    ['Password reset email has been sent successfully.', 'L’e-mail de réinitialisation du mot de passe a été envoyé avec succès.'],
+    ['Unable to send password reset email.', 'Impossible d’envoyer l’e-mail de réinitialisation du mot de passe.']
+  ];
+
+  function normalize(value) {
+    return String(value || '')
+      .replace(/\u00a0/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function translateTextNode(node) {
+    const original = node.nodeValue;
+    if (!original || !/[A-Za-z]/.test(original)) return;
+
+    const normalized = normalize(original);
+    if (!normalized) return;
+
+    if (Object.prototype.hasOwnProperty.call(RD_FR, normalized)) {
+      const start = original.search(/\S/);
+      const end = original.search(/\s*$/);
+      const leading = start > 0 ? original.slice(0, start) : '';
+      const trailing = end >= 0 ? original.slice(end) : '';
+      node.nodeValue = leading + RD_FR[normalized] + trailing;
+      return;
+    }
+
+    let updated = original;
+    RD_SUBSTRING_FR.forEach(function (pair) {
+      updated = updated.split(pair[0]).join(pair[1]);
+    });
+
+    Object.keys(RD_FR).forEach(function (key) {
+      if (key.length < 3 || key.indexOf(' ') === -1) return;
+      if (updated.indexOf(key) !== -1) {
+        updated = updated.split(key).join(RD_FR[key]);
+      }
+    });
+
+    if (updated !== original) node.nodeValue = updated;
+  }
+
+  function translateAttributes(root) {
+    const elements = root.querySelectorAll ? root.querySelectorAll('input, textarea, select, button, a, iframe, [aria-label], [title], [placeholder]') : [];
+    elements.forEach(function (el) {
+      ['placeholder', 'title', 'aria-label'].forEach(function (attr) {
+        if (!el.hasAttribute(attr)) return;
+        const value = normalize(el.getAttribute(attr));
+        if (Object.prototype.hasOwnProperty.call(RD_FR, value)) {
+          el.setAttribute(attr, RD_FR[value]);
+        }
+      });
+    });
+  }
+
+  function translateRoot(root) {
+    if (!root) return;
+
+    if (root.nodeType === Node.TEXT_NODE) {
+      translateTextNode(root);
+      return;
+    }
+
+    if (root.nodeType !== Node.ELEMENT_NODE) return;
+    if (/^(SCRIPT|STYLE|NOSCRIPT|TEMPLATE)$/i.test(root.tagName)) return;
+
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode: function (node) {
+        const parent = node.parentElement;
+        if (!parent || /^(SCRIPT|STYLE|NOSCRIPT|TEMPLATE)$/i.test(parent.tagName)) {
+          return NodeFilter.FILTER_REJECT;
+        }
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    });
+
+    const nodes = [];
+    let current;
+    while ((current = walker.nextNode())) nodes.push(current);
+    nodes.forEach(translateTextNode);
+    translateAttributes(root);
+  }
+
+  function translateMonthNames(root) {
+    const months = {
+      January: 'janvier', February: 'février', March: 'mars', April: 'avril',
+      May: 'mai', June: 'juin', July: 'juillet', August: 'août',
+      September: 'septembre', October: 'octobre', November: 'novembre', December: 'décembre'
+    };
+
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    const nodes = [];
+    let node;
+    while ((node = walker.nextNode())) nodes.push(node);
+
+    nodes.forEach(function (textNode) {
+      if (!textNode.nodeValue) return;
+      let value = textNode.nodeValue;
+      Object.keys(months).forEach(function (month) {
+        value = value.replace(new RegExp('\\b' + month + '\\b', 'g'), months[month]);
+      });
+      if (value !== textNode.nodeValue) textNode.nodeValue = value;
+    });
+  }
+
+  function applyTranslations(root) {
+    translateRoot(root || document.body);
+    translateMonthNames(root || document.body);
+  }
+
+  applyTranslations(document.body);
+
+  const observer = new MutationObserver(function (mutations) {
+    mutations.forEach(function (mutation) {
+      mutation.addedNodes.forEach(function (node) {
+        if (node.nodeType === Node.TEXT_NODE) {
+          translateTextNode(node);
+        } else if (node.nodeType === Node.ELEMENT_NODE) {
+          applyTranslations(node);
+        }
+      });
+    });
+  });
+
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+
+  // The spending chart uses browser locale for month names.
+  // This keeps the existing chart/UI unchanged while making its month labels French.
+  window.INKQUEST_RD_LOCALE = RD_IS_FRENCH ? 'fr-CA' : 'en-CA';
+})();
+</script>

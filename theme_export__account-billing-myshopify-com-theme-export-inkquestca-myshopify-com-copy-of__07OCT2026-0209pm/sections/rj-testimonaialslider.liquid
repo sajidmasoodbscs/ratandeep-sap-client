@@ -1,0 +1,213 @@
+<section
+  class="testimonial-slider"
+  style="color: {{ section.settings.text_color }};"
+>
+  <div class="testimonial-container">
+    <div class="swiper testimonialSwiper">
+      <div class="swiper-wrapper">
+        {% for block in section.blocks %}
+          <div class="swiper-slide testimonial-slide">
+            <div class="testimonial-inner" style="background-color: {{ section.settings.background_color }};border-radius:20px;">
+              <div class="testimonial-image" style="margin-top:30px;">
+                {% if block.settings.photo != blank %}
+                  <img src="{{ block.settings.photo | img_url: '400x400' }}" alt="{{ block.settings.name }}">
+                {% endif %}
+                <p class="testimonial-role">{{ block.settings.role }}</p>
+              </div>
+              <div class="testimonial-content">
+                <h3>{{block.settings.testimonial_head}}</h3>
+                <div class="testimonial-quote" style="color: {{ section.settings.highlight_color }};">
+                  {{ block.settings.quote }}
+                </div>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+
+      <div class="testimonial-buttons">
+        <div class="swiper-button-prev"></div>
+        <div class="swiper-button-next"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+.testimonial-slider {
+  padding: 50px 20px;
+  border-radius: 16px;
+}
+.testimonial-container {
+  max-width: 75%;
+  margin: auto;
+}
+.testimonial-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0px;
+}
+.testimonial-image {
+  flex: 0.7;
+  text-align: center;
+}
+.testimonial-image img {
+  width: 280px;
+  height: 320px;
+  object-fit: cover;
+  border-radius: 16px;
+}
+.testimonial-role {
+  margin-top: 10px;
+  font-weight: 500;
+}
+.testimonial-content {
+  flex: 1;
+  padding:50px;
+}
+.testimonial-content h3 {
+  font-size: 20px;
+  margin-bottom: 15px;
+}
+.testimonial-quote {
+  font-size: 18px;
+  line-height: 1.6;
+}
+.testimonial-buttons {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+}
+.swiper-button-prev,
+.swiper-button-next {
+  position: static;
+  margin: 0 10px;
+  background: #fff;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+.swiper-button-prev::after,
+.swiper-button-next::after {
+  font-size: 16px;
+  color: #000;
+}
+@media (max-width: 768px) {
+  .testimonial-inner {
+    flex-direction: column;
+  }
+  .testimonial-content {
+    text-align: center;
+    padding:20px;
+  }
+.testimonial-quote {
+    font-size: 14px;
+    padding: 0 20px;
+}
+.testimonial-container {
+  max-width: 100%;
+  margin: auto;
+}
+}
+</style>
+
+<!-- Swiper CSS -->
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/swiper@9/swiper-bundle.min.css"
+/>
+
+<!-- Swiper JS -->
+<script src="https://cdn.jsdelivr.net/npm/swiper@9/swiper-bundle.min.js"></script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    new Swiper('.testimonialSwiper', {
+      loop: false,
+      autoplay: {
+        delay: 10000,
+        disableOnInteraction: false,
+      },
+      navigation: {
+        nextEl: '.swiper-button-next',
+        prevEl: '.swiper-button-prev',
+      },
+      slidesPerView: 1,
+      spaceBetween: 30,
+      speed: 700,
+      grabCursor: true,
+    });
+  });
+</script>
+
+{% schema %}
+{
+  "name": "Testimonial Slider",
+  "settings": [
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "Background color",
+      "default": "#f4f4f4"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Text color",
+      "default": "#000000"
+    },
+    {
+      "type": "color",
+      "id": "highlight_color",
+      "label": "Highlight color",
+      "default": "#00b588"
+    }
+  ],
+  "blocks": [
+    {
+      "type": "testimonial",
+      "name": "Testimonial",
+      "settings": [
+        {
+          "type": "image_picker",
+          "id": "photo",
+          "label": "Client photo"
+        },
+        {
+          "type": "text",
+          "id": "name",
+          "label": "Client name",
+          "default": "John Doe"
+        },
+        {
+          "type": "text",
+          "id": "role",
+          "label": "Client role",
+          "default": "Canadian Reseller Partner"
+        },
+        {
+          "type": "richtext",
+          "id": "quote",
+          "label": "Testimonial text",
+          "default": "<p>Ink Quest delivers every time—authentic products, fast delivery, and exceptional service.</p>"
+        },
+        {
+          "type": "richtext",
+          "id": "testimonial_head",
+          "label": "Testimonial text",
+          "default": "<p>Ink Quest delivers every time—authentic products, fast delivery, and exceptional service.</p>"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Testimonial Slider",
+      "category": "Testimonials"
+    }
+  ]
+}
+{% endschema %}

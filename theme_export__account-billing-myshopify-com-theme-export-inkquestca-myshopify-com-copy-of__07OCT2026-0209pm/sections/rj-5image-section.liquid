@@ -1,0 +1,163 @@
+{% schema %}
+{
+  "name": "Dynamic Product Grid",
+  "settings": [],
+  "blocks": [
+    {
+      "type": "image_block",
+      "name": "Image",
+      "settings": [
+        {
+          "type": "image_picker",
+          "id": "image",
+          "label": "Upload Image"
+        },
+        {
+          "type": "url",
+          "id": "collection_link",
+          "label": "Link to Collection"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Dynamic Product Grid",
+      "category": "Custom"
+    }
+  ]
+}
+{% endschema %}
+
+<style>
+.dynamic-product-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-areas:
+    "left center right";
+  gap: 15px;
+  justify-content: center;
+  align-items: center;
+  padding: 30px 0;
+  max-width:75%;
+  width: 100%;
+  margin: auto;
+}
+
+.dynamic-product-grid .image-block {
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  border: 2px solid #e5e5e5;
+ box-shadow: rgba(50, 50, 93, 0.25) 0px 6px 12px -2px, rgba(0, 0, 0, 0.3) 0px 3px 7px -3px;
+}
+
+.dynamic-product-grid .image-block img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: 20px;
+  padding: 10px;
+}
+
+/* Layout placement */
+.dynamic-product-grid .center {
+  grid-area: center;
+}
+
+.dynamic-product-grid .side {
+  display: grid;
+  grid-template-rows: repeat(2, 1fr);
+  gap: 15px;
+  height: 100%;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .dynamic-product-grid {
+    display: flex;
+    flex-direction: column;
+    max-width: 100%;
+    padding:0 20px;
+  }
+
+  .dynamic-product-grid .side,
+  .dynamic-product-grid .center {
+    display: block;
+    width: 100%;
+  }
+
+  .dynamic-product-grid .image-block {
+    margin-bottom: 15px;
+  }
+}
+
+/* Fix: remove white gap under left column images */
+.dynamic-product-grid .side .image-block {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+}
+
+.dynamic-product-grid .side .image-block img {
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: 20px;
+  padding: 10px;
+}
+</style>
+
+<h2 style="text-align: center; font-weight: 800; margin-top: 80px;color:#00404C;font-size:26px">Product Categories</h2>
+<p style="text-align: center;">A full range of print solutions, all under one roof:</p>
+
+<div class="dynamic-product-grid">
+  <div class="side left">
+    {% for block in section.blocks limit: 2 %}
+      {% if block.settings.image %}
+        <div class="image-block">
+          {% if block.settings.collection_link != blank %}
+            <a href="{{ block.settings.collection_link }}">
+          {% endif %}
+              <img src="{{ block.settings.image | img_url: '800x' }}" alt="Image {{ forloop.index }}">
+          {% if block.settings.collection_link != blank %}
+            </a>
+          {% endif %}
+        </div>
+      {% endif %}
+    {% endfor %}
+  </div>
+
+  <div class="center">
+    {% assign center_block = section.blocks[2] %}
+    {% if center_block.settings.image %}
+      <div class="image-block">
+        {% if center_block.settings.collection_link != blank %}
+          <a href="{{ center_block.settings.collection_link }}">
+        {% endif %}
+            <img src="{{ center_block.settings.image | img_url: '1000x' }}" alt="Center Image">
+        {% if center_block.settings.collection_link != blank %}
+          </a>
+        {% endif %}
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="side right">
+    {% for block in section.blocks offset: 3 limit: 2 %}
+      {% if block.settings.image %}
+        <div class="image-block">
+          {% if block.settings.collection_link != blank %}
+            <a href="{{ block.settings.collection_link }}">
+          {% endif %}
+              <img src="{{ block.settings.image | img_url: '800x' }}" alt="Image {{ forloop.index }}">
+          {% if block.settings.collection_link != blank %}
+            </a>
+          {% endif %}
+        </div>
+      {% endif %}
+    {% endfor %}
+  </div>
+</div>

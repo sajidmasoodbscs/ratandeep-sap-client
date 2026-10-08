@@ -1,0 +1,125 @@
+{%- comment %}BSS Login{% endcomment -%}{%- assign bss_product__has_only_default_variant = false %} {% assign _variants_count = 0 %} {% assign bss_product__first_available_variant = nil %} {% assign bss_product__selected_variant = nil %} {% assign bss_product__selected_or_first_available_variant = nil %} {% assign use_variant = true %} {% for variant in product.variants %} {% capture var %} {% render 'bss-lock-condition', scope: 'subject', subject: variant, subject_parent: product, bss_lock_action: 'handle-variant-default' %} {% endcapture %} {% if var contains "true" %} {% continue %} {% endif %} {% assign _variants_count = _variants_count | plus: 1 %} {% if bss_product__first_available_variant == nil and variant.available %} {% assign bss_product__first_available_variant = variant %} {% endif %} {% if bss_product__selected_variant == nil and variant.selected %} {% assign bss_product__selected_variant = variant %} {% endif %} {% if variant == product.selected_or_first_available_variant %} {% assign bss_product__selected_or_first_available_variant = product.selected_or_first_available_variant %} {% endif %} {% endfor %} {% if _variants_count == 1 %} {% assign bss_product__has_only_default_variant = true %} {% endif %} {% if bss_product__selected_or_first_available_variant == nil %} {% assign bss_product__selected_or_first_available_variant = bss_product__first_available_variant %} {% endif -%}{%- comment %}BSS-Login{% endcomment -%}
+{% comment %}
+  Renders product variant options
+
+  Accepts:
+  - product: {Object} product object.
+  - option: {Object} current product_option object.
+  - block: {Object} block object.
+  - picker_type: {String} type of picker to dispay
+
+
+  Usage:
+  {% render 'product-variant-options',
+    product: product,
+    option: option,
+    block: block
+    picker_type: picker_type
+  %}
+{% endcomment %}
+{%- liquid
+  assign product_form_id = 'product-form-' | append: section.id
+-%}
+
+{%- for value in option.values -%}{%- comment %}BSS Login{% endcomment -%}{% assign bss_value__selected = value.selected  %} {% assign bss_options_index = option.position | minus: 1 %} {% assign bss_is_variant_selected = bss_product__selected_or_first_available_variant.options[bss_options_index] %} {% capture bss_lock_check %} {% render 'bss-lock-condition', scope: 'subject', subject: value, subject_parent: option, bss_lock_action: 'hide-variant-option' %} {% endcapture %} {% unless bss_lock_check contains 'Liquid error' %} {% if bss_lock_check contains 'true' %} {% continue %} {% else %} {% if value  == bss_is_variant_selected %} {% assign bss_value__selected = true %} {% endif %} {% endif %} {% endunless %}{%- comment %}BSS-Login{% endcomment -%}
+
+  {%- liquid
+    assign swatch_focal_point = null
+    if value.swatch.image
+      assign image_url = value.swatch.image | image_url: width: 50
+      assign swatch_value = 'url(' | append: image_url | append: ')'
+      assign swatch_focal_point = value.swatch.image.presentation.focal_point
+    elsif value.swatch.color
+      assign swatch_value = 'rgb(' | append: value.swatch.color.rgb | append: ')'
+    else
+      assign swatch_value = null
+    endif
+
+    assign option_disabled = true
+    if value.available
+      assign option_disabled = false
+    endif
+  -%}
+
+  {%- capture input_id -%}
+    {{ section.id }}-{{ option.position }}-{{ forloop.index0 -}}
+  {%- endcapture -%}
+
+  {%- capture input_name -%}
+    {{ option.name }}-{{ option.position }}
+  {%- endcapture -%}
+
+  {%- capture input_dataset -%}
+    data-product-url="{{ value.product_url }}"
+    data-option-value-id="{{ value.id }}"
+  {%- endcapture -%}
+
+  {%- capture label_unavailable -%}
+    <span class="visually-hidden label-unavailable">
+      {{- 'products.product.variant_sold_out_or_unavailable' | t -}}
+    </span>
+  {%- endcapture -%}
+
+  {% assign escaped_value = value | escape %}
+
+  {%- if picker_type == 'swatch' -%}
+    {%- capture help_text -%}
+      <span class="visually-hidden">{{ escaped_value }}</span>
+      {{ label_unavailable }}
+    {%- endcapture -%}
+
+    {%
+      render 'swatch-input',
+      id: input_id,
+      name: input_name,
+      value: escaped_value,
+      swatch: value.swatch,
+      product_form_id: product_form_id,
+      checked: bss_value__selected,
+      visually_disabled: option_disabled,
+      shape: block.settings.swatch_shape,
+      help_text: help_text,
+      additional_props: input_dataset
+    %}
+  {%- elsif picker_type == 'button' -%}
+    <input
+      type="radio"
+      id="{{ input_id }}"
+      name="{{ input_name | escape }}"
+      value="{{ escaped_value }}"
+      form="{{ product_form_id }}"
+      {% if bss_value__selected %}
+        checked
+      {% endif %}
+      {% if option_disabled %}
+        class="disabled"
+      {% endif %}
+      {{ input_dataset }}
+    >
+    <label for="{{ input_id }}">
+      {{ value -}}
+      {{ label_unavailable }}
+    </label>
+  {%- elsif picker_type == 'dropdown' or picker_type == 'swatch_dropdown' -%}
+    <option
+      id="{{ input_id }}"
+      value="{{ escaped_value }}"
+      {% if bss_value__selected %}
+        selected="selected"
+      {% endif %}
+      {% if swatch_value and picker_type == 'swatch_dropdown' %}
+        data-option-swatch-value="{{ swatch_value }}"
+        {% if swatch_focal_point %}
+          data-option-swatch-focal-point="{{ swatch_focal_point }}"
+        {% endif %}
+      {% endif %}
+      {{ input_dataset }}
+    >
+      {% if option_disabled -%}
+        {{- 'products.product.value_unavailable' | t: option_value: value -}}
+      {%- else -%}
+        {{- value -}}
+      {%- endif %}
+    </option>
+  {%- endif -%}
+{%- endfor -%}

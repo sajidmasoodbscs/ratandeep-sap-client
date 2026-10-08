@@ -1,0 +1,132 @@
+{{ 'po-upload.css' | asset_url | stylesheet_tag }}
+
+<div class="po-upload" id="po-upload-{{ section.id }}"
+     data-index-url="{{ 'po-catalog-index.json' | asset_url }}"
+     data-xlsx-url="{{ 'po-xlsx.full.min.js' | asset_url }}"
+     data-pdfjs-url="{{ 'po-pdf.min.js' | asset_url }}"
+     data-pdfjs-worker-url="{{ 'po-pdf.worker.min.js' | asset_url }}"
+     data-tesseract-url="{{ 'po-tesseract.min.js' | asset_url }}"
+     data-tesseract-worker-url="{{ 'po-tesseract-worker.min.js' | asset_url }}"
+     data-tesseract-core-file-url="{{ 'tesseract-core-simd-lstm.wasm.js' | asset_url }}"
+     data-tesseract-lang-file-url="{{ 'eng.traineddata.gz' | asset_url }}">
+  <p class="po-upload__kicker">Purchase order</p>
+  <h2 class="po-upload__heading">{{ section.settings.heading }}</h2>
+  <div class="po-upload__intro">{{ section.settings.intro }}</div>
+
+  <div class="po-upload__steps-card">
+    <ol class="po-upload__steps">
+      <li>
+        <div><strong>Upload your PO</strong>
+        <span>Drop in your PDF or Excel PO. We read the items, quantities, PO number and ship-to automatically.</span></div>
+      </li>
+      <li>
+        <div><strong>Review matched items</strong>
+        <span>Each line is matched to our catalog. Adjust quantities and remove anything you don't need.</span></div>
+      </li>
+      <li>
+        <div><strong>Add to cart</strong>
+        <span>One click adds everything to your cart, with your PO number attached.</span></div>
+      </li>
+      <li>
+        <div><strong>Checkout</strong>
+        <span>Your PO number fills the cart's Purchase Order Number field automatically.</span></div>
+      </li>
+    </ol>
+  </div>
+
+  <div class="po-upload__form-card">
+    <div class="po-upload__dropzone" data-po-dropzone>
+      <p class="po-upload__drop-text">Drag &amp; drop your PO file here, or</p>
+      <label class="po-upload__browse">
+        Choose file
+        <input type="file" data-po-input hidden
+               accept=".pdf,.xls,.xlsx">
+      </label>
+      <p class="po-upload__hint">Accepted: PDF, XLS, XLSX &mdash; max 10&nbsp;MB</p>
+      <p class="po-upload__sample">
+        <a href="{{ 'po-sample-po.xlsx' | asset_url }}" download>Download a sample PO</a>
+        to see the expected format.
+      </p>
+    </div>
+
+    <div class="po-upload__status" data-po-status hidden></div>
+
+    <div class="po-upload__results" data-po-results hidden>
+      <div class="po-upload__details" data-po-details hidden>
+        <label class="po-upload__po-row">
+          <span>PO Number</span>
+          <input type="text" data-po-number aria-label="Purchase order number">
+        </label>
+        <div class="po-upload__po-row" data-po-shipto-row>
+          <span>Ship to</span>
+          <span data-po-shipto></span>
+        </div>
+      </div>
+      <h3>Matched items</h3>
+      <p class="po-upload__note po-upload__note--info">Please review the items and quantities below. If any item is incorrect, remove it here &mdash; you can add it manually from the store after the remaining items are in your cart.</p>
+      <table class="po-upload__table">
+        <thead><tr><th>Code</th><th>Product</th><th>Qty</th><th></th></tr></thead>
+        <tbody data-po-matched></tbody>
+      </table>
+
+      <div data-po-ambiguous-wrap hidden>
+        <h3>Which product did you mean?</h3>
+        <p class="po-upload__note">These codes match more than one product &mdash; pick the right one.</p>
+        <table class="po-upload__table">
+          <thead><tr><th>Code</th><th>Product</th><th>Qty</th></tr></thead>
+          <tbody data-po-ambiguous></tbody>
+        </table>
+      </div>
+
+      <div data-po-unmatched-wrap hidden>
+        <h3>Could not match</h3>
+        <p class="po-upload__note">These lines were <strong>not</strong> added. Add them manually from the store if needed.</p>
+        <table class="po-upload__table po-upload__table--unmatched">
+          <thead><tr><th>Line</th><th>Reason</th></tr></thead>
+          <tbody data-po-unmatched></tbody>
+        </table>
+      </div>
+
+      <button type="button" class="po-upload__add button" data-po-add>
+        Add matched items to cart
+      </button>
+      <p class="po-upload__cart-note" data-po-cart-note hidden></p>
+    </div>
+  </div>
+
+  <div class="po-upload__info-card">
+    <h3>Good to know</h3>
+    <ul>
+      <li>Accepted files: PDF or Excel (.xls / .xlsx), up to 10&nbsp;MB.</li>
+      <li>Scanned or photo PDFs can't be read &mdash; please use a PDF with selectable text.</li>
+      <li>Your PO number fills the cart's Purchase Order Number field automatically.</li>
+      <li><strong>The ship-to address shown is for reference &mdash; the final shipping address will be asked at checkout.</strong></li>
+    </ul>
+  </div>
+</div>
+
+<script src="{{ 'po-match.js' | asset_url }}" defer></script>
+<script src="{{ 'po-upload.js' | asset_url }}" defer></script>
+
+{% schema %}
+{
+  "name": "PO Upload",
+  "settings": [
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Heading",
+      "default": "Upload your purchase order"
+    },
+    {
+      "type": "richtext",
+      "id": "intro",
+      "label": "Intro text",
+      "default": "<p>Send us your purchase order and skip the manual line-by-line entry. We match every item to our catalog and fill your cart in seconds.</p>"
+    }
+  ],
+  "presets": [
+    { "name": "PO Upload" }
+  ]
+}
+{% endschema %}

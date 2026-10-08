@@ -830,6 +830,11 @@ app.listen(PORT, async () => {
     console.error("Settings table init:", e.message);
   }
   try {
+    await PriceChangeDB.createSapCustomerCooldownTable();
+  } catch (e) {
+    console.error("SAP customer cooldown table init:", e.message);
+  }
+  try {
     shopify.api.webhooks.addHandlers(webhookHandlers);
     console.log("Webhook handlers registered (incl. ORDERS_CREATE). Subscriptions are created per shop on install/OAuth.");
   } catch (e) {

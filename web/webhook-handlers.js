@@ -5,7 +5,8 @@ import { PriceChangeDB } from "./price-change-db.js";
 import {
   buildSapRootCustomerXml,
   normalizeShopifyCustomerId,
-  postSapWebhook,
+  postSapWebhookForCustomer,
+  touchSapCustomer,
 } from "./helper/sap-api.js";
 import {
   createRedisClient,
@@ -30,6 +31,8 @@ async function ensureSapPricesAfterOrder(shop, order) {
     console.log("[Webhook ORDERS_CREATE] No customer on order — skipping SAP (cannot key Redis)");
     return { ok: false, reason: "no_customer" };
   }
+
+  await touchSapCustomer(shopifyCustomerId);
 
   const redisConfig = getRedisConfigFromEnv();
   if (!redisConfig) {
@@ -69,7 +72,23 @@ async function ensureSapPricesAfterOrder(shop, order) {
   );
 
   const xmlData = buildSapRootCustomerXml(shopifyCustomerId);
-  const { ok, status, text } = await postSapWebhook(xmlData, "ORDERS_CREATE");
+  const { ok, skipped, reason, status, text, secondsRemaining } =
+    await postSapWebhookForCustomer(shopifyCustomerId, xmlData, "ORDERS_CREATE");
+
+  if (skipped) {
+    console.log(
+      `[Webhook ORDERS_CREATE] SAP skipped (${reason}) — Redis still readable`,
+      secondsRemaining ? `${secondsRemaining}s left` : ""
+    );
+    return {
+      ok: true,
+      skipped: true,
+      reason,
+      secondsRemaining,
+      skuCount: skus.length,
+      missingCount: missingSkus.length,
+    };
+  }
 
   if (!ok) {
     console.error("[Webhook ORDERS_CREATE] SAP webhook failed:", status, text);

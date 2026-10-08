@@ -1,0 +1,281 @@
+<div class="approved-login-wrap">
+
+  <div class="approved-login-box">
+
+    <div class="approved-login-title">
+      Sign In
+    </div>
+
+    <div class="approved-login-text">
+      Enter your email address to continue.
+    </div>
+
+    <form id="approvedLoginForm">
+
+      <div class="approved-login-field">
+        <label for="approvedLoginEmail">Email Address</label>
+
+        <input
+          type="email"
+          id="approvedLoginEmail"
+          placeholder="Enter your email"
+          autocomplete="email"
+          required
+        >
+      </div>
+
+      <button
+        type="submit"
+        id="approvedLoginButton"
+        class="approved-login-button"
+      >
+        Continue
+      </button>
+
+      <div
+        id="approvedLoginMessage"
+        class="approved-login-message"
+      ></div>
+
+    </form>
+
+  </div>
+
+</div>
+
+
+<style>
+
+.approved-login-wrap {
+  width: 100%;
+  max-width: 520px;
+  margin: 60px auto;
+  padding: 20px;
+}
+
+.approved-login-box {
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  padding: 40px;
+}
+
+.approved-login-title {
+  font-size: 28px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.approved-login-text {
+  font-size: 15px;
+  color: #666;
+  margin-bottom: 30px;
+}
+
+.approved-login-field {
+  margin-bottom: 20px;
+}
+
+.approved-login-field label {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.approved-login-field input {
+  width: 100%;
+  height: 50px;
+  border: 1px solid #ccc;
+  padding: 0 14px;
+  font-size: 15px;
+  box-sizing: border-box;
+}
+
+.approved-login-button {
+  width: 100%;
+  height: 50px;
+  border: 0;
+  background: #000;
+  color: #fff;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.approved-login-button:disabled {
+  opacity: .6;
+  cursor: not-allowed;
+}
+
+.approved-login-message {
+  margin-top: 18px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.approved-login-message.error {
+  color: #c40000;
+}
+
+.approved-login-message.success {
+  color: #087a3d;
+}
+
+</style>
+
+
+<script>
+
+document.addEventListener("DOMContentLoaded", function () {
+
+  const form = document.getElementById("approvedLoginForm");
+  const emailInput = document.getElementById("approvedLoginEmail");
+  const button = document.getElementById("approvedLoginButton");
+  const message = document.getElementById("approvedLoginMessage");
+
+
+  /*
+   * TEMPORARY TEST DATA
+   *
+   * Ye sirf frontend testing ke liye hai.
+   * Baad mein yahi function Shopify/backend
+   * approval check se replace hoga.
+   */
+
+  const approvedEmails = [
+    "approved@test.com",
+    "demo@approved.com"
+  ];
+
+
+  function checkApproval(email) {
+
+    return approvedEmails.includes(
+      email.toLowerCase().trim()
+    );
+
+  }
+
+
+  form.addEventListener("submit", function (event) {
+
+    event.preventDefault();
+
+    const email = emailInput.value
+      .trim()
+      .toLowerCase();
+
+    message.className = "approved-login-message";
+    message.innerHTML = "";
+
+    if (!email) {
+      message.classList.add("error");
+      message.textContent = "Please enter your email address.";
+      return;
+    }
+
+
+    button.disabled = true;
+    button.textContent = "Checking...";
+
+
+    /*
+     * Simulate Shopify checking
+     */
+
+    setTimeout(function () {
+
+      const approved = checkApproval(email);
+
+
+      if (approved) {
+
+        message.classList.add("success");
+
+        message.textContent =
+          "Your account is approved. Redirecting to login...";
+
+
+        /*
+         * TEMPORARY TEST
+         *
+         * Yahan baad mein Shopify customer
+         * login/OTP flow connect karenge.
+         */
+
+        setTimeout(function () {
+
+          window.location.href =
+            "/account/login";
+
+        }, 1000);
+
+
+      } else {
+
+        message.classList.add("error");
+
+        message.innerHTML = `
+          <strong>Your account is not approved yet.</strong><br>
+          Please complete the reseller registration form
+          and wait for approval.
+          <br><br>
+          <a href="/pages/become-a-reseller">
+            Complete Registration
+          </a>
+        `;
+
+        button.disabled = false;
+        button.textContent = "Continue";
+
+      }
+
+    }, 700);
+
+  });
+
+});
+
+</script>
+
+{% schema %}
+{
+  "name": "Login",
+  "tag": "section",
+  "settings": [
+    {
+      "type": "text",
+      "id": "heading_text",
+      "label": "Heading",
+      "default": "Product Information & Specifications"
+    },
+    {
+      "type": "richtext",
+      "id": "left_description",
+      "label": "Description (Left Side)",
+      "default": "<p>Add your product description here.</p>"
+    }
+  ],
+  "blocks": [
+    {
+      "type": "spec_row",
+      "name": "Specification Row",
+      "settings": [
+        {
+          "type": "text",
+          "id": "label",
+          "label": "Label (e.g. Page Yield)"
+        },
+        {
+          "type": "text",
+          "id": "value",
+          "label": "Value"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Login"
+    }
+  ]
+}
+{% endschema %}

@@ -1,0 +1,448 @@
+
+{% assign ai_gen_id = block.id | replace: '_', '' | downcase %}
+
+{% style %}
+  .ai-feature-blocks-{{ ai_gen_id }} {
+    padding: 40px 20px;
+  }
+
+  .ai-feature-blocks__container-{{ ai_gen_id }} {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    max-width: 75%;
+    margin: 0 auto;
+  }
+
+  .ai-feature-block-{{ ai_gen_id }} {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 30px 20px;
+    border-radius: {{ block.settings.border_radius }}px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: transparent;
+    border: 1px solid transparent;
+    border: 2px solid rgb(234, 231, 231);
+  }
+
+  .ai-feature-block-{{ ai_gen_id }}.active {
+    background: {{ block.settings.active_gradient_start }};
+    background: linear-gradient(135deg, {{ block.settings.active_gradient_start }} 0%, {{ block.settings.active_gradient_end }} 100%);
+    border-color: {{ block.settings.active_gradient_start }};
+  }
+
+  .ai-feature-block__icon-wrapper-{{ ai_gen_id }} {
+    width: {{ block.settings.icon_size }}px;
+    height: {{ block.settings.icon_size }}px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    position: relative;
+  }
+
+  .ai-feature-block__icon-{{ ai_gen_id }} {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    position: absolute;
+    top: 0;
+    left: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .ai-feature-block__icon-default-{{ ai_gen_id }} {
+    opacity: 1;
+  }
+
+  .ai-feature-block__icon-active-{{ ai_gen_id }} {
+    opacity: 0;
+  }
+
+  .ai-feature-block-{{ ai_gen_id }}.active .ai-feature-block__icon-default-{{ ai_gen_id }} {
+    opacity: 0;
+  }
+
+  .ai-feature-block-{{ ai_gen_id }}.active .ai-feature-block__icon-active-{{ ai_gen_id }} {
+    opacity: 1;
+  }
+
+  .ai-feature-block__icon-wrapper-{{ ai_gen_id }} svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .ai-feature-block-{{ ai_gen_id }}:not(.active) .ai-feature-block__icon-wrapper-{{ ai_gen_id }} svg {
+    fill: {{ block.settings.icon_color }};
+  }
+
+  .ai-feature-block-{{ ai_gen_id }}.active .ai-feature-block__icon-wrapper-{{ ai_gen_id }} svg {
+    fill: {{ block.settings.active_icon_color }};
+  }
+
+  .ai-feature-block__heading-{{ ai_gen_id }} {
+    font-size: {{ block.settings.heading_size }}px;
+    font-weight: 600;
+    margin: 0 0 8px 0;
+    color: {{ block.settings.text_color }};
+    transition: color 0.3s ease;
+  }
+
+  .ai-feature-block-{{ ai_gen_id }}.active .ai-feature-block__heading-{{ ai_gen_id }} {
+    color: {{ block.settings.active_text_color }};
+  }
+
+  .ai-feature-block__description-{{ ai_gen_id }} {
+    font-size: {{ block.settings.description_size }}px;
+    line-height: 1.5;
+    margin: 0;
+    color: {{ block.settings.text_color }};
+    transition: color 0.3s ease;
+  }
+
+  .ai-feature-block-{{ ai_gen_id }}.active .ai-feature-block__description-{{ ai_gen_id }} {
+    color: {{ block.settings.active_text_color }};
+  }
+
+  @media screen and (max-width: 989px) {
+    .ai-feature-blocks__container-{{ ai_gen_id }} {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+  }
+
+  @media screen and (max-width: 749px) {
+    .ai-feature-blocks__container-{{ ai_gen_id }} {
+      margin: 0 20px;
+      grid-template-columns: 1fr;
+      gap: 0;
+      overflow-x: auto;
+      display: flex;
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      padding-bottom: 10px;
+    }
+
+    .ai-feature-blocks__container-{{ ai_gen_id }}::-webkit-scrollbar {
+      display: none;
+    }
+
+    .ai-feature-block-{{ ai_gen_id }} {
+      min-width: 280px;
+      scroll-snap-align: start;
+      margin-right: 16px;
+    }
+
+    .ai-feature-block-{{ ai_gen_id }}:last-child {
+      margin-right: 0;
+    }
+  }
+{% endstyle %}
+
+<feature-blocks-{{ ai_gen_id }} class="ai-feature-blocks-{{ ai_gen_id }}" {{ block.shopify_attributes }}>
+  <div class="ai-feature-blocks__container-{{ ai_gen_id }}">
+    {% for i in (1..4) %}
+      {% liquid
+        assign icon_key = 'block_' | append: i | append: '_icon'
+        assign icon_active_key = 'block_' | append: i | append: '_icon_active'
+        assign heading_key = 'block_' | append: i | append: '_heading'
+        assign description_key = 'block_' | append: i | append: '_description'
+        
+        assign icon = block.settings[icon_key]
+        assign icon_active = block.settings[icon_active_key]
+        assign heading = block.settings[heading_key]
+        assign description = block.settings[description_key]
+      %}
+      
+      <div 
+        class="ai-feature-block-{{ ai_gen_id }} {% if i == 1 %}active{% endif %}" 
+        data-block-index="{{ i }}"
+      >
+        <div class="ai-feature-block__icon-wrapper-{{ ai_gen_id }}">
+          {% if icon != blank %}
+            <img 
+              src="{{ icon | image_url: width: 200 }}" 
+              alt="{{ heading | escape }}"
+              class="ai-feature-block__icon-{{ ai_gen_id }} ai-feature-block__icon-default-{{ ai_gen_id }}"
+              loading="lazy"
+              width="{{ block.settings.icon_size }}"
+              height="{{ block.settings.icon_size }}"
+            >
+          {% else %}
+            <div class="ai-feature-block__icon-{{ ai_gen_id }} ai-feature-block__icon-default-{{ ai_gen_id }}">
+              {{ 'image' | placeholder_svg_tag }}
+            </div>
+          {% endif %}
+          
+          {% if icon_active != blank %}
+            <img 
+              src="{{ icon_active | image_url: width: 200 }}" 
+              alt="{{ heading | escape }}"
+              class="ai-feature-block__icon-{{ ai_gen_id }} ai-feature-block__icon-active-{{ ai_gen_id }}"
+              loading="lazy"
+              width="{{ block.settings.icon_size }}"
+              height="{{ block.settings.icon_size }}"
+            >
+          {% elsif icon != blank %}
+            <img 
+              src="{{ icon | image_url: width: 200 }}" 
+              alt="{{ heading | escape }}"
+              class="ai-feature-block__icon-{{ ai_gen_id }} ai-feature-block__icon-active-{{ ai_gen_id }}"
+              loading="lazy"
+              width="{{ block.settings.icon_size }}"
+              height="{{ block.settings.icon_size }}"
+            >
+          {% else %}
+            <div class="ai-feature-block__icon-{{ ai_gen_id }} ai-feature-block__icon-active-{{ ai_gen_id }}">
+              {{ 'image' | placeholder_svg_tag }}
+            </div>
+          {% endif %}
+        </div>
+        
+        {% if heading != blank %}
+          <h3 class="ai-feature-block__heading-{{ ai_gen_id }}">{{ heading }}</h3>
+        {% endif %}
+        
+        {% if description != blank %}
+          <p class="ai-feature-block__description-{{ ai_gen_id }}">{{ description }}</p>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+</feature-blocks-{{ ai_gen_id }}>
+
+<script>
+  (function() {
+    class FeatureBlocks{{ ai_gen_id }} extends HTMLElement {
+      constructor() {
+        super();
+        this.blocks = this.querySelectorAll('.ai-feature-block-{{ ai_gen_id }}');
+      }
+
+      connectedCallback() {
+        this.setupEventListeners();
+      }
+
+      setupEventListeners() {
+        this.blocks.forEach((block) => {
+          block.addEventListener('click', () => {
+            this.blocks.forEach(b => b.classList.remove('active'));
+            block.classList.add('active');
+          });
+        });
+      }
+    }
+
+    customElements.define('feature-blocks-{{ ai_gen_id }}', FeatureBlocks{{ ai_gen_id }});
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Feature blocks",
+  "tag": null,
+  "settings": [
+    {
+      "type": "header",
+      "content": "Block 1"
+    },
+    {
+      "type": "image_picker",
+      "id": "block_1_icon",
+      "label": "Icon"
+    },
+    {
+      "type": "image_picker",
+      "id": "block_1_icon_active",
+      "label": "Active icon"
+    },
+    {
+      "type": "text",
+      "id": "block_1_heading",
+      "label": "Heading",
+      "default": "Feature One"
+    },
+    {
+      "type": "textarea",
+      "id": "block_1_description",
+      "label": "Description",
+      "default": "Describe your feature here with engaging details."
+    },
+    {
+      "type": "header",
+      "content": "Block 2"
+    },
+    {
+      "type": "image_picker",
+      "id": "block_2_icon",
+      "label": "Icon"
+    },
+    {
+      "type": "image_picker",
+      "id": "block_2_icon_active",
+      "label": "Active icon"
+    },
+    {
+      "type": "text",
+      "id": "block_2_heading",
+      "label": "Heading",
+      "default": "Feature Two"
+    },
+    {
+      "type": "textarea",
+      "id": "block_2_description",
+      "label": "Description",
+      "default": "Describe your feature here with engaging details."
+    },
+    {
+      "type": "header",
+      "content": "Block 3"
+    },
+    {
+      "type": "image_picker",
+      "id": "block_3_icon",
+      "label": "Icon"
+    },
+    {
+      "type": "image_picker",
+      "id": "block_3_icon_active",
+      "label": "Active icon"
+    },
+    {
+      "type": "text",
+      "id": "block_3_heading",
+      "label": "Heading",
+      "default": "Feature Three"
+    },
+    {
+      "type": "textarea",
+      "id": "block_3_description",
+      "label": "Description",
+      "default": "Describe your feature here with engaging details."
+    },
+    {
+      "type": "header",
+      "content": "Block 4"
+    },
+    {
+      "type": "image_picker",
+      "id": "block_4_icon",
+      "label": "Icon"
+    },
+    {
+      "type": "image_picker",
+      "id": "block_4_icon_active",
+      "label": "Active icon"
+    },
+    {
+      "type": "text",
+      "id": "block_4_heading",
+      "label": "Heading",
+      "default": "Feature Four"
+    },
+    {
+      "type": "textarea",
+      "id": "block_4_description",
+      "label": "Description",
+      "default": "Describe your feature here with engaging details."
+    },
+    {
+      "type": "header",
+      "content": "Style"
+    },
+    {
+      "type": "range",
+      "id": "icon_size",
+      "min": 30,
+      "max": 80,
+      "step": 5,
+      "unit": "px",
+      "label": "Icon size",
+      "default": 50
+    },
+    {
+      "type": "range",
+      "id": "heading_size",
+      "min": 14,
+      "max": 32,
+      "step": 2,
+      "unit": "px",
+      "label": "Heading size",
+      "default": 20
+    },
+    {
+      "type": "range",
+      "id": "description_size",
+      "min": 12,
+      "max": 20,
+      "step": 1,
+      "unit": "px",
+      "label": "Description size",
+      "default": 14
+    },
+    {
+      "type": "range",
+      "id": "border_radius",
+      "min": 0,
+      "max": 30,
+      "step": 2,
+      "unit": "px",
+      "label": "Border radius",
+      "default": 12
+    },
+    {
+      "type": "header",
+      "content": "Colors"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Text",
+      "default": "#121212"
+    },
+    {
+      "type": "color",
+      "id": "icon_color",
+      "label": "Icon",
+      "default": "#121212"
+    },
+    {
+      "type": "header",
+      "content": "Active state"
+    },
+    {
+      "type": "color",
+      "id": "active_gradient_start",
+      "label": "Gradient start",
+      "default": "#334fb4"
+    },
+    {
+      "type": "color",
+      "id": "active_gradient_end",
+      "label": "Gradient end",
+      "default": "#1a2a5e"
+    },
+    {
+      "type": "color",
+      "id": "active_text_color",
+      "label": "Text",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "active_icon_color",
+      "label": "Icon",
+      "default": "#ffffff"
+    }
+  ],
+  "presets": [
+    {
+      "name": "Feature blocks"
+    }
+  ]
+}
+{% endschema %}

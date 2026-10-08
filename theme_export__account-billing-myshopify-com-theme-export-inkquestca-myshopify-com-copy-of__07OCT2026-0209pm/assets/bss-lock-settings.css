@@ -1,0 +1,149 @@
+
+        .bss-lock-passcode-container-6509.page-width.bsscommerce-passcode-container .bss-commerce-passcode-container-2 {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            margin-top: 16px;
+        }
+        .bss-lock-passcode-container-6509 .bss-commerce-passcode-input-label {
+            margin-bottom: 4px;
+            display: flex;
+            width: 100%;
+            justify-content: flex-start;
+            font-size: 14px;
+            color: rgba(0, 0, 0, 1);
+            font-weight: normal;
+            font-style: normal;
+            text-decoration: none;
+        }
+
+        .bss-lock-passcode-container-6509.page-width #bsscommerce-ltap-password {
+            display: flex;
+            flex-direction: inherit;
+            row-gap: 6px;
+            column-gap: 6px;
+            max-width: 100%;
+            max-height: 200px;
+            align-items: center;
+            height: 42px;
+        }
+        .bss-lock-passcode-container-6509 .bss-password-form-wrapper {
+            display: flex;
+            align-items: center;
+            border: 1px solid;
+            border-color: rgba(0, 0, 0, 1);
+            border-radius: 5px;
+            overflow: hidden;
+            background-color: #fff;
+            margin-right: 6px;
+            flex: 1;
+            justify-content: space-between;
+        }
+        .bss-lock-passcode-container-6509.page-width.bsscommerce-passcode-container .bss-password-form-wrapper {
+            width: 335px;
+            max-width: 100%;
+            max-height: 200px;
+            height: 100%;
+        }
+        .bss-lock-passcode-container-6509 #bsscommerce-password {
+            padding: 8px 0 8px 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            border: none;
+            margin-right: 5px;
+            box-shadow: none;
+            outline: none;
+        }
+        .bss-lock-passcode-container-6509.page-width.bsscommerce-passcode-container #bsscommerce-password {
+            width: 335px;
+        }    
+        .bss-lock-passcode-container-6509 .toggle-passcode-input {
+            background-color: 
+            transparent; 
+            border: none; 
+            line-height: 0; 
+            padding: 8px; 
+            cursor: pointer; 
+            fill: #BABEC3;
+        }
+        .bss-lock-passcode-container-6509 #bsscommerce-password-submit {
+            color: rgba(255, 255, 255, 1) !important;
+            background-color: rgba(0, 0, 0, 1) !important;
+            border: 1px solid #ccc;
+            padding: 5px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            height: 42px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        .bss-lock-passcode-container-6509.page-width.bsscommerce-passcode-container #bsscommerce-password-submit {
+            max-height: 200px;
+            max-width: 100%;
+            width: 79px;
+        }                
+    
+        .bss-lock-message-element-6509 {
+            font-size: 14px !important;
+            font-weight: normal !important;
+            font-style: normal !important;
+            text-decoration: none !important;
+            text-align: center !important;
+            color: rgba(0, 0, 0, 1) !important;
+            display: inline-block !important;
+            font-family: inherit !important;
+        }
+
+        
+        
+    
+    .bss-countdown-wrapper-page:has([data-countdown-rule-id="6509"]) {
+        margin: auto;
+        display: flex;
+        flex-wrap: wrap;
+        width: 50%;
+        flex-direction: row;
+        justify-content: center;
+        align-items: center;
+        color: rgba(0, 0, 0, 1);
+        font-family: inherit;
+        background-color: inherit;
+    }
+    .bss-timer-page[data-countdown-rule-id="6509"] {
+        color: rgba(0, 0, 0, 1);
+        font-family: inherit;
+    }
+    @media (max-width: 640px) {
+        .bss-countdown-wrapper-page:has([data-countdown-rule-id="6509"]) {
+            width: 100%;
+            flex-direction: row;
+            justify-content: center;
+            align-items: center;
+        }
+        
+    }
+
+    .bss-countdown-wrapper-price:has([data-countdown-rule-id="6509"]) {
+        display: flex;
+        flex-wrap: wrap;
+        width: 100%;
+        gap: 6px;
+        justify-content: center;
+        color: rgba(0, 0, 0, 1);
+        font-family: inherit;
+        background-color: rgba(255, 255, 255, 1);
+    }
+    .bss-timer-price[data-countdown-rule-id="6509"] {
+        font-family: inherit;
+        color: rgba(0, 0, 0, 1)
+    }
+    
+    .bss-lock-passcode-container-6509 {}[id*='MainProduct']:has(.bss-lock-element) [id*='Quantity-Form']{ cursor: not-allowed; opacity: .5; pointer-events: none }[id*='MainProduct']:has(.bss-lock-element) [id*='ProductSubmitButton'] { cursor: not-allowed !important; opacity: .5 !important; pointer-events: none !important; }[id*='MainProduct']:has(.bss-lock-element) .shopify-payment-button { cursor: not-allowed !important; opacity: .5 !important; pointer-events: none !important; }.variant-item:has(.bss-lock-element) .variant-item__quantity { cursor: not-allowed !important; opacity: .5 !important; pointer-events: none !important; }.variant-item__price:has(.bss-lock-element) .variant-item__old-price { display: none; }.product-card-wrapper:has(.bss-lock-element) form[id*="quick-add"] { cursor: not-allowed !important; opacity: .5 !important; pointer-events: none !important; }.product-card-wrapper:has(.bss-lock-element) quantity-input { cursor: not-allowed !important; opacity: .5 !important; pointer-events: none !important; }
+        .bss-hide-atc + * {
+            display: none !important;
+        }
+			.bss-lock-hidden { display: none; }
+			script#bss-behavior-script { display: none !important }
+		
+

@@ -1,0 +1,238 @@
+{% assign ai_gen_id = block.id | replace: '_', '' | downcase %}
+
+{% style %}
+  .ai-three-image-grid-{{ ai_gen_id }} {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: {{ block.settings.gap }}px;
+    max-width: 75%;
+    margin: 0px auto 60px auto;
+  }
+
+  .ai-three-image-grid__left-{{ ai_gen_id }} {
+    {% comment %} grid-row: 1 / 3; {% endcomment %}
+    position: relative;
+    overflow: hidden;
+    border-radius: {{ block.settings.border_radius }}px;
+  }
+
+  .ai-three-image-grid__right-{{ ai_gen_id }} {
+    display: flex;
+    flex-direction: column;
+    gap: {{ block.settings.gap }}px;
+  }
+
+  .ai-three-image-grid__right-top-{{ ai_gen_id }} {
+    position: relative;
+    overflow: hidden;
+    border-radius: {{ block.settings.border_radius }}px;
+    {% comment %} flex: {{ block.settings.top_image_ratio }}; {% endcomment %}
+  }
+
+  .ai-three-image-grid__right-bottom-{{ ai_gen_id }} {
+    position: relative;
+    overflow: hidden;
+    border-radius: {{ block.settings.border_radius }}px;
+    flex: {{ block.settings.bottom_image_ratio }};
+  }
+
+  .ai-three-image-grid__image-{{ ai_gen_id }} {
+    width: 100%;
+    height: auto;
+    object-fit: cover;
+    display: block;
+        border-radius: 12px;
+  }
+
+  .ai-three-image-grid__placeholder-{{ ai_gen_id }} {
+    width: 100%;
+    height: 100%;
+    background-color: #f4f4f4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+
+  .ai-three-image-grid__placeholder-{{ ai_gen_id }} svg {
+    width: 100%;
+    height: 100%;
+    max-width: 200px;
+    max-height: 200px;
+  }
+
+  .ai-three-image-grid__empty-state-{{ ai_gen_id }} {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 8px 16px;
+    font-size: 14px;
+    color: #666;
+    text-align: center;
+    pointer-events: none;
+  }
+
+  @media screen and (max-width: 749px) {
+    .ai-three-image-grid-{{ ai_gen_id }} {
+      grid-template-columns: 1fr;
+      gap: {{ block.settings.gap | times: 0.75 }}px;
+      max-width: 100%;
+      padding:0 20px;
+    }
+
+    .ai-three-image-grid__left-{{ ai_gen_id }} {
+      grid-row: auto;
+      {% comment %} min-height: 300px; {% endcomment %}
+    }
+
+    .ai-three-image-grid__right-{{ ai_gen_id }} {
+      gap: {{ block.settings.gap | times: 0.75 }}px;
+    }
+
+    .ai-three-image-grid__right-top-{{ ai_gen_id }},
+    .ai-three-image-grid__right-bottom-{{ ai_gen_id }} {
+      {% comment %} min-height: 200px; {% endcomment %}
+    }
+  
+  }
+{% endstyle %}
+
+<div class="ai-three-image-grid-{{ ai_gen_id }}" {{ block.shopify_attributes }}>
+  <div class="ai-three-image-grid__left-{{ ai_gen_id }}">
+    {% if block.settings.left_image %}
+      <img
+        src="{{ block.settings.left_image | image_url: width: 1200 }}"
+        alt="{{ block.settings.left_image.alt | escape }}"
+        loading="lazy"
+        width="{{ block.settings.left_image.width }}"
+        height="{{ block.settings.left_image.height }}"
+        class="ai-three-image-grid__image-{{ ai_gen_id }}"
+      >
+    {% else %}
+      <div class="ai-three-image-grid__placeholder-{{ ai_gen_id }}">
+        {{ 'image' | placeholder_svg_tag }}
+        <div class="ai-three-image-grid__empty-state-{{ ai_gen_id }}">
+          Add left image
+        </div>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="ai-three-image-grid__right-{{ ai_gen_id }}">
+    <div class="ai-three-image-grid__right-top-{{ ai_gen_id }}">
+      {% if block.settings.top_right_image %}
+        <img
+          src="{{ block.settings.top_right_image | image_url: width: 800 }}"
+          alt="{{ block.settings.top_right_image.alt | escape }}"
+          loading="lazy"
+          width="{{ block.settings.top_right_image.width }}"
+          height="{{ block.settings.top_right_image.height }}"
+          class="ai-three-image-grid__image-{{ ai_gen_id }}"
+        >
+      {% else %}
+        <div class="ai-three-image-grid__placeholder-{{ ai_gen_id }}">
+          {{ 'image' | placeholder_svg_tag }}
+          <div class="ai-three-image-grid__empty-state-{{ ai_gen_id }}">
+            Add top right image
+          </div>
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="ai-three-image-grid__right-bottom-{{ ai_gen_id }}">
+      {% if block.settings.bottom_right_image %}
+        <img
+          src="{{ block.settings.bottom_right_image | image_url: width: 800 }}"
+          alt="{{ block.settings.bottom_right_image.alt | escape }}"
+          loading="lazy"
+          width="{{ block.settings.bottom_right_image.width }}"
+          height="{{ block.settings.bottom_right_image.height }}"
+          class="ai-three-image-grid__image-{{ ai_gen_id }}"
+        >
+      {% else %}
+        <div class="ai-three-image-grid__placeholder-{{ ai_gen_id }}">
+          {{ 'image' | placeholder_svg_tag }}
+          <div class="ai-three-image-grid__empty-state-{{ ai_gen_id }}">
+            Add bottom right image
+          </div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% schema %}
+{
+  "name": "Three image grid",
+  "tag": null,
+  "settings": [
+    {
+      "type": "header",
+      "content": "Images"
+    },
+    {
+      "type": "image_picker",
+      "id": "left_image",
+      "label": "Left image"
+    },
+    {
+      "type": "image_picker",
+      "id": "top_right_image",
+      "label": "Top right image"
+    },
+    {
+      "type": "image_picker",
+      "id": "bottom_right_image",
+      "label": "Bottom right image"
+    },
+    {
+      "type": "header",
+      "content": "Layout"
+    },
+    {
+      "type": "range",
+      "id": "top_image_ratio",
+      "min": 1,
+      "max": 3,
+      "step": 0.5,
+      "label": "Top right image height ratio",
+      "default": 1
+    },
+    {
+      "type": "range",
+      "id": "bottom_image_ratio",
+      "min": 1,
+      "max": 3,
+      "step": 0.5,
+      "label": "Bottom right image height ratio",
+      "default": 1.5
+    },
+    {
+      "type": "range",
+      "id": "gap",
+      "min": 0,
+      "max": 40,
+      "step": 4,
+      "label": "Gap between images",
+      "unit": "px",
+      "default": 8
+    },
+    {
+      "type": "range",
+      "id": "border_radius",
+      "min": 0,
+      "max": 40,
+      "step": 2,
+      "label": "Corner radius",
+      "unit": "px",
+      "default": 0
+    }
+  ],
+  "presets": [
+    {
+      "name": "Three image grid"
+    }
+  ]
+}
+{% endschema %}

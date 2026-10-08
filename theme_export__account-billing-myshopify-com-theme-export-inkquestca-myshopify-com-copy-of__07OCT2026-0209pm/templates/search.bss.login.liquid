@@ -1,0 +1,28 @@
+{%- layout none -%}
+{%- paginate search.results by 1000 -%}
+{%- capture result -%}
+[{%- for product in search.results -%}
+  {%- assign lock = false -%}
+  {%- assign hide_product = false -%}
+  {%- assign content = "" -%}
+  {%- capture bss_lock_check -%}{% render 'bss-lock-condition', scope: 'subject', subject: product, subject_parent: product, variable: 'price', get_content: true, bss_lock_action: 'bss_hide_price' %}{%- endcapture -%}
+  {%- if bss_lock_check contains 'bss-lock-element' -%}
+    {%- assign lock = true -%}
+    {%- assign content = bss_lock_check -%}
+  {%- endif -%}
+  {% capture bss_lock_check_hide_product %}{% render 'bss-lock-condition', scope: 'subject', subject: product, variable: 'transparent' %}{% endcapture %}{% if bss_lock_check_hide_product contains 'true' %}{%- assign hide_product = true -%}{% endif %}
+  {%- unless lock or hide_product -%} {%- continue -%} {%- endunless -%}
+  { "id": "{{ product.id }}",
+  "lock": {{ lock }},
+  "hideProduct": {{ hide_product }},
+  "lockElement": {{ content | lstrip | rstrip |json }},
+  "handle": "{{ product.handle }}"
+  },
+{%- endfor -%}]
+{%- endcapture -%}
+{%- if result contains ',' -%} {%- assign result = result | remove_last: ',' -%} {%- endif -%}
+{
+  "lockElements": {{ result | json}},
+  "pages": {{ paginate.pages }}
+}
+{%- endpaginate -%}

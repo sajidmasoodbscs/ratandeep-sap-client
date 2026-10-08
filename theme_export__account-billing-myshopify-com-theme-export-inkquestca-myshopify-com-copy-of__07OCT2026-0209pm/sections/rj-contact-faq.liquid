@@ -1,0 +1,231 @@
+<section class="faq-two-col">
+  <div class="faq-container">
+    
+    <h2 class="faq-title">{{ section.settings.main_heading }}</h2>
+
+    <div class="faq-grid">
+      
+      <!-- LEFT COLUMN -->
+      <div class="faq-col">
+        
+        {% if section.settings.left_heading != blank %}
+          <h3 class="faq-sub-heading">{{ section.settings.left_heading }}</h3>
+        {% endif %}
+
+        {% for block in section.blocks %}
+          {% if block.type == 'left_faq' %}
+          <div class="faq-item" {{ block.shopify_attributes }}>
+            <div class="faq-question">
+              <span>{{ block.settings.question }}</span>
+              <button class="faq-toggle">+</button>
+            </div>
+            <div class="faq-answer">
+              {{ block.settings.answer }}
+            </div>
+          </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+
+      <!-- RIGHT COLUMN -->
+      <div class="faq-col">
+
+        {% if section.settings.right_heading != blank %}
+          <h3 class="faq-sub-heading">{{ section.settings.right_heading }}</h3>
+        {% endif %}
+
+        {% for block in section.blocks %}
+          {% if block.type == 'right_faq' %}
+          <div class="faq-item" {{ block.shopify_attributes }}>
+            <div class="faq-question">
+              <span>{{ block.settings.question }}</span>
+              <button class="faq-toggle">+</button>
+            </div>
+            <div class="faq-answer">
+              {{ block.settings.answer }}
+            </div>
+          </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<style>
+.faq-two-col {
+  padding: 20px 20px;
+}
+
+.faq-container {
+  max-width: 75%;
+  margin: 0 auto;
+}
+
+.faq-title {
+  text-align: center;
+  font-size: 24px;
+  margin-bottom: 40px;
+  font-weight: 700;
+  color:#00404c;
+}
+
+.faq-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px 40px;
+}
+
+.faq-sub-heading {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 20px;
+  padding-Left:10px;
+}
+
+.faq-item {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px 25px;
+  border: 1px solid #eee;
+  transition: 0.3s ease;
+}
+
+.faq-item.open {
+  border-color: #000;
+}
+
+.faq-question {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+}
+
+.faq-question span {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.faq-toggle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: #00404c;
+  color: #fff;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.faq-answer {
+  margin-top: 15px;
+  display: none;
+  font-size: 16px;
+  line-height: 1.6;
+  color: #555;
+}
+
+/* MOBILE */
+@media(max-width: 768px){
+  .faq-grid {
+    grid-template-columns: 1fr;
+  }
+  .faq-container {
+  max-width: 100%;
+  margin: 0 auto;
+}
+}
+</style>
+
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll(".faq-item").forEach((item) => {
+    item.querySelector(".faq-question").addEventListener("click", () => {
+      
+      const answer = item.querySelector(".faq-answer");
+      const toggle = item.querySelector(".faq-toggle");
+
+      if (answer.style.display === "block") {
+        answer.style.display = "none";
+        toggle.textContent = "+";
+        item.classList.remove("open");
+      } else {
+        answer.style.display = "block";
+        toggle.textContent = "−";
+        item.classList.add("open");
+      }
+
+    });
+  });
+});
+</script>
+
+
+{% schema %}
+{
+  "name": "Two Column FAQ",
+  "settings": [
+    {
+      "type": "text",
+      "id": "main_heading",
+      "label": "Main Heading",
+      "default": "Frequently Asked Questions"
+    },
+    {
+      "type": "text",
+      "id": "left_heading",
+      "label": "Left Column Heading",
+      "default": "General Questions"
+    },
+    {
+      "type": "text",
+      "id": "right_heading",
+      "label": "Right Column Heading",
+      "default": "More Questions"
+    }
+  ],
+  "blocks": [
+    {
+      "type": "left_faq",
+      "name": "Left Column FAQ",
+      "settings": [
+        {
+          "type": "text",
+          "id": "question",
+          "label": "Question"
+        },
+        {
+          "type": "textarea",
+          "id": "answer",
+          "label": "Answer"
+        }
+      ]
+    },
+    {
+      "type": "right_faq",
+      "name": "Right Column FAQ",
+      "settings": [
+        {
+          "type": "text",
+          "id": "question",
+          "label": "Question"
+        },
+        {
+          "type": "textarea",
+          "id": "answer",
+          "label": "Answer"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Two Column FAQ"
+    }
+  ]
+}
+{% endschema %}

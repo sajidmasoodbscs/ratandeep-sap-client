@@ -1,0 +1,190 @@
+<!-- sections/why-inkquest-stands-out.liquid -->
+<section class="why-inkquest">
+  <div class="page-width">
+    {% if section.settings.heading != blank %}
+      <h2 class="why-inkquest-heading text-center mb-10">{{ section.settings.heading }}</h2>
+    {% endif %}
+    {% if section.settings.subheading != blank %}
+      <p class="why-inkquest-subheading text-center mb-16">{{ section.settings.subheading }}</p>
+    {% endif %}
+
+    <div class="why-inkquest__blocks">
+      {% for block in section.blocks %}
+        {% assign index_mod = forloop.index0 | modulo: 2 %}
+        <div class="why-inkquest__item {% if index_mod == 0 %}image-left{% else %}image-right{% endif %}" style="background-color: {{ block.settings.bg_color }}; color: {{ block.settings.text_color }};">
+          <div class="why-inkquest__image">
+            {% if block.settings.image != blank %}
+              <img src="{{ block.settings.image | image_url: width: 800 }}" alt="{{ block.settings.heading }}" loading="lazy">
+            {% endif %}
+          </div>
+          <div class="why-inkquest__content">
+            {% if block.settings.heading != blank %}
+              <h3>{{ block.settings.heading }}</h3>
+            {% endif %}
+            {% if block.settings.text != blank %}
+              <p>{{ block.settings.text }}</p>
+            {% endif %}
+            {% if block.settings.list != blank %}
+              <ul>
+                {% assign items = block.settings.list | split: ',' %}
+                {% for item in items %}
+                  <li>{{ item | strip }}</li>
+                {% endfor %}
+              </ul>
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<style>
+.why-inkquest {
+  padding: 60px 20px;
+}
+.why-inkquest-heading {
+  font-size: 2rem;
+  font-weight: 700;
+}
+.why-inkquest-subheading {
+  font-size: 1rem;
+  color: #666;
+}
+.why-inkquest__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 40px;
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+/* Alternating Layout */
+.why-inkquest__item.image-left .why-inkquest__image {
+  order: 2; /* image on right */
+}
+.why-inkquest__item.image-left .why-inkquest__content {
+  order: 1; /* content on left */
+}
+
+.why-inkquest__item.image-right .why-inkquest__image {
+  order: 1; /* image on left */
+}
+.why-inkquest__item.image-right .why-inkquest__content {
+  order: 2; /* content on right */
+}
+
+.why-inkquest__image {
+  flex: 1;
+  max-width:42%;
+}
+.why-inkquest__image img {
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+}
+.why-inkquest__content {
+  flex: 1;
+  padding: 30px;
+}
+.why-inkquest__content h3 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+.why-inkquest__content p {
+  font-size: 1rem;
+  margin-bottom: 10px;
+}
+.why-inkquest__content ul {
+  padding-left: 20px;
+  margin: 0;
+}
+.why-inkquest__content li {
+  margin-bottom: 5px;
+  list-style: disc;
+}
+
+/* Mobile */
+@media (max-width: 767px) {
+  .why-inkquest__item {
+    flex-direction: column;
+  }
+  .why-inkquest__image,
+  .why-inkquest__content {
+    width: 100%;
+    order: unset !important;
+    padding: 20px;
+  }
+}
+</style>
+
+{% schema %}
+{
+  "name": "Why Ink Quest Section",
+  "settings": [
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Main Heading",
+      "default": "Why Ink Quest Stands Out"
+    },
+    {
+      "type": "text",
+      "id": "subheading",
+      "label": "Subheading",
+      "default": "At Ink Quest, we're more than a supplier — we're your trusted Canadian wholesale partner."
+    }
+  ],
+  "blocks": [
+    {
+      "type": "feature",
+      "name": "Feature Block",
+      "settings": [
+        {
+          "type": "text",
+          "id": "heading",
+          "label": "Block Heading",
+          "default": "Authenticity You Can Trust"
+        },
+        {
+          "type": "textarea",
+          "id": "text",
+          "label": "Block Description",
+          "default": "Professional solutions for long-term trust."
+        },
+        {
+          "type": "textarea",
+          "id": "list",
+          "label": "List (comma-separated)",
+          "default": "Premium Quality Products, Trusted Expert Guidance, Easy Returns, Transparent Policies"
+        },
+        {
+          "type": "image_picker",
+          "id": "image",
+          "label": "Block Image"
+        },
+        {
+          "type": "color",
+          "id": "bg_color",
+          "label": "Background Color",
+          "default": "#f9f9f9"
+        },
+        {
+          "type": "color",
+          "id": "text_color",
+          "label": "Text Color",
+          "default": "#000000"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Why Ink Quest Section",
+      "category": "Custom Sections"
+    }
+  ]
+}
+{% endschema %}

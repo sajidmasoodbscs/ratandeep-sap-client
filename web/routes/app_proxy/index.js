@@ -5,8 +5,9 @@ import { PriceChangeDB } from '../../price-change-db.js';
 import {
   buildSapRootCustomerXml,
   normalizeShopifyCustomerId,
-  postSapWebhook,
+  postSapWebhookForCustomer,
   resolveRedisKeyPrefix,
+  touchSapCustomer,
 } from '../../helper/sap-api.js';
 import {
   createRedisClient,
@@ -205,6 +206,7 @@ proxyRouter.post("/sapcall", async (req, res) => {
 
     const shopifyCustomerId = normalizeShopifyCustomerId(shopifyCustId);
     console.log("[Proxy] /sapcall — normalized Shopify customer id:", shopifyCustomerId);
+    await touchSapCustomer(shopifyCustomerId);
 
     const redisKey = await resolveRedisKeyPrefix(sessionRes.session, shopifyCustId);
     const sapRedisId = redisKey.prefix;
@@ -243,7 +245,22 @@ proxyRouter.post("/sapcall", async (req, res) => {
     console.log(`[Proxy] /sapcall: ${itemsMissingInRedis.length} of ${validItems.length} items missing in Redis. Calling SAP...`);
 
     const xmlData = buildSapRootCustomerXml(shopifyCustomerId);
-    const { ok, text: responseText } = await postSapWebhook(xmlData, "/sapcall");
+    const { ok, skipped, reason, text: responseText, secondsRemaining } =
+      await postSapWebhookForCustomer(shopifyCustomerId, xmlData, "/sapcall");
+
+    if (skipped) {
+      console.log(`[Proxy] /sapcall: SAP skipped (${reason}) — still using Redis`);
+      const skus = validItems.map((item) => ({ sku: item.sku, quantity: item.quantity }));
+      return res.status(200).json({
+        message: "SAP webhook skipped (cooldown)",
+        reason,
+        secondsRemaining,
+        skus,
+        shopifyCustomerId,
+        sapRedisId,
+        webhookResponse: "[cooldown]",
+      });
+    }
 
     if (ok) {
       console.log(`[Proxy] /sapcall: Webhook successful. Polling Redis for ${itemsMissingInRedis.length} SKUs...`);
@@ -600,6 +617,7 @@ async function handleAllSkusSync(req, res, source) {
 
     const shopifyCustomerId = normalizeShopifyCustomerId(shopifyCustId);
     console.log(`[Proxy] /${source} — normalized Shopify customer id:`, shopifyCustomerId);
+    await touchSapCustomer(shopifyCustomerId);
 
     const redisKey = await resolveRedisKeyPrefix(sessionRes.session, shopifyCustId);
     const sapRedisId = redisKey.prefix;
@@ -650,7 +668,23 @@ async function handleAllSkusSync(req, res, source) {
     console.log(`[Proxy] /${source}: ${skusMissingInRedis.length} of ${allSKUs.length} SKUs missing in Redis. Calling SAP...`);
 
     const xmlData = buildSapRootCustomerXml(shopifyCustomerId);
-    const { ok, text: responseText } = await postSapWebhook(xmlData, `/${source}`);
+    const { ok, skipped, reason, text: responseText, secondsRemaining } =
+      await postSapWebhookForCustomer(shopifyCustomerId, xmlData, `/${source}`);
+
+    if (skipped) {
+      console.log(`[Proxy] /${source}: SAP skipped (${reason}) — still using Redis`);
+      const skus = allSKUs.map((sku) => ({ sku: sku.trim(), quantity: 1 }));
+      return res.status(200).json({
+        message: "SAP webhook skipped (cooldown)",
+        reason,
+        secondsRemaining,
+        totalSKUs: skus.length,
+        skus,
+        shopifyCustomerId,
+        sapRedisId,
+        webhookResponse: "[cooldown]",
+      });
+    }
 
     if (ok) {
       console.log(`[Proxy] /${source}: Webhook successful. Polling Redis...`);
@@ -700,6 +734,7 @@ proxyRouter.post("/cart-price-sync", async (req, res) => {
     }
     const shopifyCustomerId = normalizeShopifyCustomerId(shopifyCustId);
     console.log("[Proxy] /cart-price-sync — normalized Shopify customer id:", shopifyCustomerId);
+    await touchSapCustomer(shopifyCustomerId);
 
     const redisKey = await resolveRedisKeyPrefix(sessionRes.session, shopifyCustId);
     const sapRedisId = redisKey.prefix;
@@ -746,8 +781,17 @@ proxyRouter.post("/cart-price-sync", async (req, res) => {
 
     try {
       const sapXmlData = buildSapRootCustomerXml(shopifyCustomerId);
-      const { ok } = await postSapWebhook(sapXmlData, "/cart-price-sync");
-      if (ok) {
+      const { ok, skipped, reason, secondsRemaining } = await postSapWebhookForCustomer(
+        shopifyCustomerId,
+        sapXmlData,
+        "/cart-price-sync"
+      );
+      if (skipped) {
+        console.log(
+          `[Proxy] /cart-price-sync: SAP skipped (${reason}) — reading Redis only`,
+          secondsRemaining ? `${secondsRemaining}s left` : ""
+        );
+      } else if (ok) {
         console.log("[Proxy] /cart-price-sync: SAP call successful. Polling Redis...");
         await pollRedisForPrices(sapRedisId, missingSkusInRedis.map(i => i.sku || i.variant_sku));
       } else {
@@ -798,6 +842,7 @@ proxyRouter.post("/get-price-by-sku", async (req, res) => {
     }
 
     const shopifyCustomerId = normalizeShopifyCustomerId(shopifyCustId);
+    await touchSapCustomer(shopifyCustomerId);
     const redisKey = await resolveRedisKeyPrefix(sessionRes.session, shopifyCustId);
     const sapRedisId = redisKey.prefix;
     console.log(`[Proxy] /get-price-by-sku:`, { shopifyCustomerId, redisKey, sku });
@@ -870,19 +915,44 @@ proxyRouter.post("/get-price-by-sku", async (req, res) => {
     console.log(`[Proxy] /get-price-by-sku: Cache miss for ${trimmedSku}. Calling SAP...`);
 
     const sapXmlData = buildSapRootCustomerXml(shopifyCustomerId);
-    const { ok: sapOk } = await postSapWebhook(sapXmlData, "/get-price-by-sku");
-    if (!sapOk) {
-      console.warn("[Proxy] /get-price-by-sku: SAP webhook non-OK — polling Redis anyway");
+    const { ok: sapOk, skipped, reason, secondsRemaining } = await postSapWebhookForCustomer(
+      shopifyCustomerId,
+      sapXmlData,
+      "/get-price-by-sku"
+    );
+
+    let polledPriceMap = {};
+    if (skipped) {
+      console.log(
+        `[Proxy] /get-price-by-sku: SAP skipped (${reason}) — reading Redis only`,
+        secondsRemaining ? `${secondsRemaining}s left` : ""
+      );
+      const redisAgain = createRedisClient(redisConfigBySku);
+      try {
+        const again = await getRedisPricesForSkus(redisAgain, sapRedisId, [trimmedSku]);
+        polledPriceMap = again.priceMap || {};
+      } finally {
+        try {
+          await redisAgain.quit();
+        } catch (_) {}
+      }
+    } else {
+      if (!sapOk) {
+        console.warn("[Proxy] /get-price-by-sku: SAP webhook non-OK — polling Redis anyway");
+      }
+      const polled = await pollRedisForPrices(sapRedisId, [trimmedSku]);
+      polledPriceMap = polled.priceMap || {};
     }
 
-    const { priceMap: polledPriceMap } = await pollRedisForPrices(sapRedisId, [trimmedSku]);
     const finalPrice = polledPriceMap[trimmedSku];
     const resolved = resolveAgainstShopify(finalPrice);
 
     return res.status(200).json({
       message:
         resolved.price == null
-          ? "Price not in Redis after SAP load"
+          ? skipped
+            ? "Price not in Redis (SAP cooldown)"
+            : "Price not in Redis after SAP load"
           : resolved.source === "shopify"
             ? "Redis price higher than Shopify — returning Shopify price"
             : "Price from Redis",
@@ -891,6 +961,7 @@ proxyRouter.post("/get-price-by-sku", async (req, res) => {
       source: resolved.source,
       redisPrice: resolved.redisPrice,
       shopifyPrice: resolved.shopifyPrice,
+      ...(skipped ? { sapSkipped: true, reason, secondsRemaining } : {}),
     });
   } catch (error) {
     console.error("/get-price-by-sku error:", error.message);

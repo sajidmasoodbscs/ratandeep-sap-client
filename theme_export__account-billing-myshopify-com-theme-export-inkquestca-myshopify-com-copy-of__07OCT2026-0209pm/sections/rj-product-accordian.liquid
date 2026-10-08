@@ -1,0 +1,219 @@
+<div class="spec-box-123 container-fluid">
+  <div class="header open" onclick="toggleSpecBox123(this)">
+    {{ section.settings.heading_text }}
+    <span class="arrow">&#9650;</span>
+  </div>
+
+  <div class="content" style="display: block;">
+    <div class="details">
+      
+      <div class="left">
+        {{ section.settings.left_description }}
+      </div>
+      <div class="right">
+        <table>
+          {% for block in section.blocks %}
+            {% if block.settings.label != blank and block.settings.value != blank %}
+              <tr>
+                <td>{{ block.settings.label }}</td>
+                <td>{{ block.settings.value }}</td>
+              </tr>
+            {% endif %}
+          {% endfor %}
+        </table>
+      </div>
+
+
+    </div>
+  </div>
+</div>
+
+<style>
+  .spec-box-123 {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: rgba(149, 157, 165, 0.2) 0px 8px 24px;
+    background-color: #fff;
+    margin-top: 40px;
+    width: 85%;
+    margin: 50px auto;
+  }
+
+  .spec-box-123 .header {
+    background-color: #f8f9fa;
+    padding: 15px 20px;
+    font-size: 19px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background 0.3s ease;
+  }
+
+  .spec-box-123 .header:hover {
+    background-color: #eaeaea;
+  }
+
+  .spec-box-123 .arrow {
+    font-size: 18px;
+    transition: transform 0.3s ease;
+  }
+
+  .spec-box-123 .open .arrow {
+    transform: rotate(180deg);
+  }
+
+  .spec-box-123 .content {
+    display: none;
+    border-top: 1px solid #ddd;
+  }
+
+  .spec-box-123 .details {
+    display: flex;
+    flex-wrap: wrap;
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .spec-box-123 .left,
+  .spec-box-123 .right {
+    flex: 1 1 300px;
+    box-sizing: border-box;
+    min-width: 300px;
+  }
+
+  .spec-box-123 .left {
+    padding: 15px 20px;
+  }
+
+  .spec-box-123 .right table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align:left;
+  }
+
+  .spec-box-123 .right tr:nth-child(even) {
+    background-color: #f8f8f8;
+  }
+
+  .spec-box-123 .right tr:nth-child(odd) {
+    background-color: #ffffff;
+  }
+
+  .spec-box-123 .right td {
+    padding: 12px 20px;
+    vertical-align: top;
+    border-bottom: 1px solid #e1e1e1;
+    font-size: 15px;
+  }
+
+  .spec-box-123 .right td:first-child {
+    font-weight: 600;
+    color: #333;
+    width: 40%;
+    position: relative;
+  }
+
+  .spec-box-123 .right td:first-child::after {
+    content: "";
+    position: absolute;
+    top: 10%;
+    right: 0;
+    width: 1px;
+    height: 80%;
+    background-color: #e1e1e1;
+  }
+
+  @media (max-width: 768px) {
+    .spec-box-123 .left,
+    .spec-box-123 .right {
+      flex: 1 1 100%;
+    }
+
+    .spec-box-123 .left {
+      order: 2;
+    }
+
+    .spec-box-123 .right {
+      order: 1;
+    }
+
+    .spec-box-123 .header {
+      padding: 15px 10px;
+    }
+      .spec-box-123 {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: rgba(149, 157, 165, 0.2) 0px 8px 24px;
+    background-color: #fff;
+    margin-top: 40px;
+    width: 90%;
+    margin: 50px auto;
+  
+  }
+  }
+</style>
+
+<script>
+  function toggleSpecBox123(header) {
+    const content = header.nextElementSibling;
+    const arrow = header.querySelector('.arrow');
+
+    if (content.style.display === "block") {
+      content.style.display = "none";
+      arrow.innerHTML = "&#9660;";
+      header.classList.remove("open");
+    } else {
+      content.style.display = "block";
+      arrow.innerHTML = "&#9650;";
+      header.classList.add("open");
+    }
+  }
+</script>
+
+{% schema %}
+{
+  "name": "Product Info",
+  "tag": "section",
+  "settings": [
+    {
+      "type": "text",
+      "id": "heading_text",
+      "label": "Heading",
+      "default": "Product Information & Specifications"
+    },
+    {
+      "type": "richtext",
+      "id": "left_description",
+      "label": "Description (Left Side)",
+      "default": "<p>Add your product description here.</p>"
+    }
+  ],
+  "blocks": [
+    {
+      "type": "spec_row",
+      "name": "Specification Row",
+      "settings": [
+        {
+          "type": "text",
+          "id": "label",
+          "label": "Label (e.g. Page Yield)"
+        },
+        {
+          "type": "text",
+          "id": "value",
+          "label": "Value"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Product Info & Specifications (Dynamic)"
+    }
+  ]
+}
+{% endschema %}

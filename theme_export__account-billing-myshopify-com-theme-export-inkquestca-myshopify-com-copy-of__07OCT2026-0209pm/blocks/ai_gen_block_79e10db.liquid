@@ -1,0 +1,654 @@
+{% doc %}
+  @prompt
+    muje ek transperante header chahiye jo desktop me left me logo add krne ka option de or biche me menu jo mene shopify pr bnay h wo menu add kru to wo usko featch krele or left side pr account ka icon or language transpater icon chahiye jo english or french me pure store ki language cunvert kre us icon ke sath en/fr esa kuch short bhi chlega for better understanding and onscroll header sticky hona chahiye jo normal transperant rhega or scroll krne k bd whte background ho jay 
+    
+    mobile me header left me logo right me hamburger menu rhega side se open close rhega with simple and classic animation
+{% enddoc %}
+{% assign ai_gen_id = block.id | replace: '_', '' | downcase %}
+
+{% style %}
+  .ai-header-{{ ai_gen_id }} {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .ai-header-{{ ai_gen_id }}.transparent {
+    background-color: transparent;
+  }
+
+  .ai-header-{{ ai_gen_id }}.scrolled {
+    background-color: {{ block.settings.scrolled_bg_color }};
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .ai-header-container-{{ ai_gen_id }} {
+    max-width: {{ block.settings.container_width }}px;
+    margin: 0 auto;
+    padding: {{ block.settings.header_padding }}px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .ai-header-logo-{{ ai_gen_id }} {
+    flex-shrink: 0;
+  }
+
+  .ai-header-logo-{{ ai_gen_id }} img {
+    display: block;
+    max-width: {{ block.settings.logo_width }}px;
+    height: auto;
+  }
+
+  .ai-header-logo-placeholder-{{ ai_gen_id }} {
+    width: {{ block.settings.logo_width }}px;
+    height: 40px;
+    background-color: rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    color: #666;
+  }
+
+  .ai-header-nav-{{ ai_gen_id }} {
+    flex-grow: 1;
+    display: flex;
+    justify-content: center;
+  }
+
+  .ai-header-menu-{{ ai_gen_id }} {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    gap: {{ block.settings.menu_spacing }}px;
+  }
+
+  .ai-header-menu-item-{{ ai_gen_id }} {
+    position: relative;
+  }
+
+  .ai-header-menu-link-{{ ai_gen_id }} {
+    color: {{ block.settings.menu_text_color }};
+    text-decoration: none;
+    font-size: {{ block.settings.menu_font_size }}px;
+    font-weight: {{ block.settings.menu_font_weight }};
+    padding: 8px 12px;
+    display: block;
+    transition: color 0.3s ease;
+  }
+
+  .ai-header-{{ ai_gen_id }}.scrolled .ai-header-menu-link-{{ ai_gen_id }} {
+    color: {{ block.settings.scrolled_menu_text_color }};
+  }
+
+  .ai-header-menu-link-{{ ai_gen_id }}:hover {
+    color: {{ block.settings.menu_hover_color }};
+  }
+
+  .ai-header-actions-{{ ai_gen_id }} {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .ai-header-icon-btn-{{ ai_gen_id }} {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: {{ block.settings.icon_color }};
+    transition: color 0.3s ease;
+  }
+
+  .ai-header-{{ ai_gen_id }}.scrolled .ai-header-icon-btn-{{ ai_gen_id }} {
+    color: {{ block.settings.scrolled_icon_color }};
+  }
+
+  .ai-header-icon-btn-{{ ai_gen_id }}:hover {
+    color: {{ block.settings.icon_hover_color }};
+  }
+
+  .ai-header-icon-{{ ai_gen_id }} {
+    width: 24px;
+    height: 24px;
+  }
+
+  .ai-header-lang-text-{{ ai_gen_id }} {
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .ai-header-mobile-toggle-{{ ai_gen_id }} {
+    display: none;
+  }
+
+  .ai-header-mobile-menu-{{ ai_gen_id }} {
+    display: none;
+  }
+
+  @media screen and (max-width: 989px) {
+    .ai-header-nav-{{ ai_gen_id }} {
+      display: none;
+    }
+
+    .ai-header-actions-{{ ai_gen_id }} {
+      display: none;
+    }
+
+    .ai-header-mobile-toggle-{{ ai_gen_id }} {
+      display: block;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 8px;
+      color: {{ block.settings.icon_color }};
+    }
+
+    .ai-header-{{ ai_gen_id }}.scrolled .ai-header-mobile-toggle-{{ ai_gen_id }} {
+      color: {{ block.settings.scrolled_icon_color }};
+    }
+
+    .ai-header-hamburger-{{ ai_gen_id }} {
+      width: 24px;
+      height: 20px;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .ai-header-hamburger-line-{{ ai_gen_id }} {
+      width: 100%;
+      height: 2px;
+      background-color: currentColor;
+      transition: all 0.3s ease;
+    }
+
+    .ai-header-mobile-menu-{{ ai_gen_id }} {
+      position: fixed;
+      top: 0;
+      right: -100%;
+      width: 80%;
+      max-width: 400px;
+      height: 100vh;
+      background-color: {{ block.settings.mobile_menu_bg }};
+      box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
+      transition: right 0.3s ease;
+      z-index: 1001;
+      overflow-y: auto;
+    }
+
+    .ai-header-mobile-menu-{{ ai_gen_id }}.active {
+      right: 0;
+    }
+
+    .ai-header-mobile-header-{{ ai_gen_id }} {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    }
+
+    .ai-header-mobile-close-{{ ai_gen_id }} {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 8px;
+      color: {{ block.settings.mobile_menu_text_color }};
+    }
+
+    .ai-header-mobile-nav-{{ ai_gen_id }} {
+      padding: 20px;
+    }
+
+    .ai-header-mobile-menu-list-{{ ai_gen_id }} {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .ai-header-mobile-menu-item-{{ ai_gen_id }} {
+      margin-bottom: 8px;
+    }
+
+    .ai-header-mobile-menu-link-{{ ai_gen_id }} {
+      color: {{ block.settings.mobile_menu_text_color }};
+      text-decoration: none;
+      font-size: 16px;
+      padding: 12px 0;
+      display: block;
+      transition: color 0.3s ease;
+    }
+
+    .ai-header-mobile-menu-link-{{ ai_gen_id }}:hover {
+      color: {{ block.settings.menu_hover_color }};
+    }
+
+    .ai-header-mobile-actions-{{ ai_gen_id }} {
+      padding: 20px;
+      border-top: 1px solid rgba(0, 0, 0, 0.1);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .ai-header-overlay-{{ ai_gen_id }} {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.5);
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s ease, visibility 0.3s ease;
+      z-index: 1000;
+    }
+
+    .ai-header-overlay-{{ ai_gen_id }}.active {
+      opacity: 1;
+      visibility: visible;
+    }
+  }
+{% endstyle %}
+
+<transparent-header-{{ ai_gen_id }}
+  class="ai-header-{{ ai_gen_id }} transparent"
+  {{ block.shopify_attributes }}
+>
+  <div class="ai-header-container-{{ ai_gen_id }}">
+    <div class="ai-header-logo-{{ ai_gen_id }}">
+      {% if block.settings.logo %}
+        <a href="/">
+          <img
+            src="{{ block.settings.logo | image_url: width: 400 }}"
+            alt="{{ shop.name }}"
+            width="{{ block.settings.logo_width }}"
+            height="auto"
+            loading="eager"
+          >
+        </a>
+      {% else %}
+        <div class="ai-header-logo-placeholder-{{ ai_gen_id }}">
+          Logo
+        </div>
+      {% endif %}
+    </div>
+
+    <nav class="ai-header-nav-{{ ai_gen_id }}">
+      {% if block.settings.menu != blank %}
+        <ul class="ai-header-menu-{{ ai_gen_id }}">
+          {% for link in linklists[block.settings.menu].links %}
+            <li class="ai-header-menu-item-{{ ai_gen_id }}">
+              <a href="{{ link.url }}" class="ai-header-menu-link-{{ ai_gen_id }}">
+                {{ link.title }}
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </nav>
+
+    <div class="ai-header-actions-{{ ai_gen_id }}">
+      <a href="/account" class="ai-header-icon-btn-{{ ai_gen_id }}" aria-label="Account">
+        <svg class="ai-header-icon-{{ ai_gen_id }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+          <circle cx="12" cy="7" r="4"></circle>
+        </svg>
+      </a>
+
+      <button class="ai-header-icon-btn-{{ ai_gen_id }} ai-header-lang-toggle-{{ ai_gen_id }}" aria-label="Change language">
+        <svg class="ai-header-icon-{{ ai_gen_id }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="2" y1="12" x2="22" y2="12"></line>
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+        </svg>
+        <span class="ai-header-lang-text-{{ ai_gen_id }}">EN/FR</span>
+      </button>
+    </div>
+
+    <button class="ai-header-mobile-toggle-{{ ai_gen_id }}" aria-label="Open menu">
+      <div class="ai-header-hamburger-{{ ai_gen_id }}">
+        <span class="ai-header-hamburger-line-{{ ai_gen_id }}"></span>
+        <span class="ai-header-hamburger-line-{{ ai_gen_id }}"></span>
+        <span class="ai-header-hamburger-line-{{ ai_gen_id }}"></span>
+      </div>
+    </button>
+  </div>
+
+  <div class="ai-header-overlay-{{ ai_gen_id }}"></div>
+
+  <div class="ai-header-mobile-menu-{{ ai_gen_id }}">
+    <div class="ai-header-mobile-header-{{ ai_gen_id }}">
+      {% if block.settings.logo %}
+        <img
+          src="{{ block.settings.logo | image_url: width: 200 }}"
+          alt="{{ shop.name }}"
+          width="{{ block.settings.logo_width | times: 0.8 }}"
+          height="auto"
+        >
+      {% else %}
+        <div>Logo</div>
+      {% endif %}
+      <button class="ai-header-mobile-close-{{ ai_gen_id }}" aria-label="Close menu">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
+    <nav class="ai-header-mobile-nav-{{ ai_gen_id }}">
+      {% if block.settings.menu != blank %}
+        <ul class="ai-header-mobile-menu-list-{{ ai_gen_id }}">
+          {% for link in linklists[block.settings.menu].links %}
+            <li class="ai-header-mobile-menu-item-{{ ai_gen_id }}">
+              <a href="{{ link.url }}" class="ai-header-mobile-menu-link-{{ ai_gen_id }}">
+                {{ link.title }}
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </nav>
+
+    <div class="ai-header-mobile-actions-{{ ai_gen_id }}">
+      <a href="/account" class="ai-header-icon-btn-{{ ai_gen_id }}" style="color: {{ block.settings.mobile_menu_text_color }};">
+        <svg class="ai-header-icon-{{ ai_gen_id }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+          <circle cx="12" cy="7" r="4"></circle>
+        </svg>
+        <span>Account</span>
+      </a>
+
+      <button class="ai-header-icon-btn-{{ ai_gen_id }} ai-header-mobile-lang-toggle-{{ ai_gen_id }}" style="color: {{ block.settings.mobile_menu_text_color }};">
+        <svg class="ai-header-icon-{{ ai_gen_id }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="2" y1="12" x2="22" y2="12"></line>
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+        </svg>
+        <span class="ai-header-lang-text-{{ ai_gen_id }}">EN/FR</span>
+      </button>
+    </div>
+  </div>
+</transparent-header-{{ ai_gen_id }}>
+
+<script>
+  (function() {
+    class TransparentHeader{{ ai_gen_id }} extends HTMLElement {
+      constructor() {
+        super();
+        this.header = this;
+        this.mobileToggle = this.querySelector('.ai-header-mobile-toggle-{{ ai_gen_id }}');
+        this.mobileMenu = this.querySelector('.ai-header-mobile-menu-{{ ai_gen_id }}');
+        this.mobileClose = this.querySelector('.ai-header-mobile-close-{{ ai_gen_id }}');
+        this.overlay = this.querySelector('.ai-header-overlay-{{ ai_gen_id }}');
+        this.langToggle = this.querySelector('.ai-header-lang-toggle-{{ ai_gen_id }}');
+        this.mobileLangToggle = this.querySelector('.ai-header-mobile-lang-toggle-{{ ai_gen_id }}');
+        this.currentLang = 'en';
+      }
+
+      connectedCallback() {
+        this.setupScrollListener();
+        this.setupMobileMenu();
+        this.setupLanguageToggle();
+      }
+
+      setupScrollListener() {
+        let lastScroll = 0;
+        window.addEventListener('scroll', () => {
+          const currentScroll = window.pageYOffset;
+          
+          if (currentScroll > 50) {
+            this.header.classList.add('scrolled');
+            this.header.classList.remove('transparent');
+          } else {
+            this.header.classList.remove('scrolled');
+            this.header.classList.add('transparent');
+          }
+          
+          lastScroll = currentScroll;
+        });
+      }
+
+      setupMobileMenu() {
+        this.mobileToggle.addEventListener('click', () => {
+          this.mobileMenu.classList.add('active');
+          this.overlay.classList.add('active');
+          document.body.style.overflow = 'hidden';
+        });
+
+        this.mobileClose.addEventListener('click', () => {
+          this.closeMobileMenu();
+        });
+
+        this.overlay.addEventListener('click', () => {
+          this.closeMobileMenu();
+        });
+
+        const mobileLinks = this.querySelectorAll('.ai-header-mobile-menu-link-{{ ai_gen_id }}');
+        mobileLinks.forEach(link => {
+          link.addEventListener('click', () => {
+            this.closeMobileMenu();
+          });
+        });
+      }
+
+      closeMobileMenu() {
+        this.mobileMenu.classList.remove('active');
+        this.overlay.classList.remove('active');
+        document.body.style.overflow = '';
+      }
+
+      setupLanguageToggle() {
+        const toggleLanguage = () => {
+          this.currentLang = this.currentLang === 'en' ? 'fr' : 'en';
+          
+          const langTexts = this.querySelectorAll('.ai-header-lang-text-{{ ai_gen_id }}');
+          langTexts.forEach(text => {
+            text.textContent = this.currentLang === 'en' ? 'EN/FR' : 'FR/EN';
+          });
+
+          console.log('Language switched to:', this.currentLang);
+        };
+
+        if (this.langToggle) {
+          this.langToggle.addEventListener('click', toggleLanguage);
+        }
+
+        if (this.mobileLangToggle) {
+          this.mobileLangToggle.addEventListener('click', toggleLanguage);
+        }
+      }
+    }
+
+    customElements.define('transparent-header-{{ ai_gen_id }}', TransparentHeader{{ ai_gen_id }});
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Transparent header",
+  "tag": null,
+  "settings": [
+    {
+      "type": "header",
+      "content": "Logo"
+    },
+    {
+      "type": "image_picker",
+      "id": "logo",
+      "label": "Logo image"
+    },
+    {
+      "type": "range",
+      "id": "logo_width",
+      "min": 50,
+      "max": 300,
+      "step": 10,
+      "unit": "px",
+      "label": "Logo width",
+      "default": 120
+    },
+    {
+      "type": "header",
+      "content": "Navigation"
+    },
+    {
+      "type": "link_list",
+      "id": "menu",
+      "label": "Menu",
+      "default": "main-menu"
+    },
+    {
+      "type": "range",
+      "id": "menu_spacing",
+      "min": 10,
+      "max": 50,
+      "step": 5,
+      "unit": "px",
+      "label": "Menu spacing",
+      "default": 30
+    },
+    {
+      "type": "range",
+      "id": "menu_font_size",
+      "min": 12,
+      "max": 20,
+      "step": 1,
+      "unit": "px",
+      "label": "Menu font size",
+      "default": 16
+    },
+    {
+      "type": "select",
+      "id": "menu_font_weight",
+      "label": "Menu font weight",
+      "options": [
+        {
+          "value": "400",
+          "label": "Normal"
+        },
+        {
+          "value": "500",
+          "label": "Medium"
+        },
+        {
+          "value": "600",
+          "label": "Semi-bold"
+        },
+        {
+          "value": "700",
+          "label": "Bold"
+        }
+      ],
+      "default": "500"
+    },
+    {
+      "type": "header",
+      "content": "Colors - Transparent state"
+    },
+    {
+      "type": "color",
+      "id": "menu_text_color",
+      "label": "Menu text",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "menu_hover_color",
+      "label": "Menu hover",
+      "default": "#cccccc"
+    },
+    {
+      "type": "color",
+      "id": "icon_color",
+      "label": "Icons",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "icon_hover_color",
+      "label": "Icons hover",
+      "default": "#cccccc"
+    },
+    {
+      "type": "header",
+      "content": "Colors - Scrolled state"
+    },
+    {
+      "type": "color",
+      "id": "scrolled_bg_color",
+      "label": "Background",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "scrolled_menu_text_color",
+      "label": "Menu text",
+      "default": "#000000"
+    },
+    {
+      "type": "color",
+      "id": "scrolled_icon_color",
+      "label": "Icons",
+      "default": "#000000"
+    },
+    {
+      "type": "header",
+      "content": "Mobile menu"
+    },
+    {
+      "type": "color",
+      "id": "mobile_menu_bg",
+      "label": "Background",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "mobile_menu_text_color",
+      "label": "Text",
+      "default": "#000000"
+    },
+    {
+      "type": "header",
+      "content": "Layout"
+    },
+    {
+      "type": "range",
+      "id": "container_width",
+      "min": 1000,
+      "max": 1600,
+      "step": 100,
+      "unit": "px",
+      "label": "Container width",
+      "default": 1200
+    },
+    {
+      "type": "range",
+      "id": "header_padding",
+      "min": 10,
+      "max": 40,
+      "step": 5,
+      "unit": "px",
+      "label": "Vertical padding",
+      "default": 20
+    }
+  ],
+  "presets": [
+    {
+      "name": "Transparent header"
+    }
+  ]
+}
+{% endschema %}

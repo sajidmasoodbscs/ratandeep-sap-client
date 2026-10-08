@@ -1,0 +1,301 @@
+<div class="page-width">
+  <h1 class="page-title" style="text-align:center; margin-bottom: 24px;">{{ page.title }}</h1>
+<style>
+.iq-guide { max-width: 960px; margin: 0 auto; font-family: var(--font-body-family, Poppins, sans-serif); color: #222; line-height: 1.6; }
+.iq-hero { background: linear-gradient(135deg, #0b3d44 0%, #1a7a6d 100%); color: #fff; padding: 40px 24px; text-align: center; border-radius: 12px; margin-bottom: 24px; }
+.iq-hero h1 { margin: 0 0 8px; color: #fff; font-size: 1.8em; font-family: var(--font-heading-family, Poppins, sans-serif); }
+.iq-hero p { margin: 0; opacity: 0.92; }
+.iq-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 28px; }
+.iq-card { background: #fff; border-radius: 12px; padding: 22px 14px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.07); cursor: pointer; border-top: 4px solid #1a7a6d; display: block; text-decoration: none; color: #222; }
+.iq-card.gold { border-top-color: #e6a817; }
+.iq-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
+.iq-card .e { font-size: 1.7em; margin-bottom: 6px; }
+.iq-card .t { font-weight: 700; color: #0b3d44; font-family: var(--font-heading-family, Poppins, sans-serif); }
+.iq-card .d { font-size: 0.82em; color: #666; }
+.iq-acc { background: #fff; border-radius: 10px; margin-bottom: 12px; box-shadow: 0 1px 6px rgba(0,0,0,0.06); }
+.iq-acc.gold { border: 2px solid #e6a817; }
+.iq-toggle { display: none; }
+.iq-label { display: block; padding: 18px 22px; font-weight: 700; color: #0b3d44; cursor: pointer; font-size: 1.05em; font-family: var(--font-heading-family, Poppins, sans-serif); }
+.iq-label::after { content: "+"; float: right; color: #1a7a6d; font-size: 1.3em; line-height: 1; }
+.iq-toggle:checked + .iq-label::after { content: "−"; }
+.iq-body { max-height: 0; overflow: hidden; transition: max-height 0.35s ease; }
+.iq-toggle:checked + .iq-label + .iq-body { max-height: 4000px; }
+.iq-inner { padding: 0 22px 22px; }
+.iq-step { background: #f0f7f5; border-radius: 8px; padding: 12px 16px; margin: 10px 0; }
+.iq-tip { background: #fff8e1; border-left: 4px solid #e6a817; padding: 10px 14px; margin: 12px 0; }
+.iq-gray { background: #f7f7f7; border-radius: 8px; padding: 12px 16px; margin: 10px 0; }
+.iq-contact { background: #0b3d44; color: #fff; border-radius: 10px; padding: 18px 22px; margin-top: 12px; }
+.iq-contact p { margin: 0 0 8px; color: #fff; }
+@media (max-width: 700px) { .iq-cards { grid-template-columns: 1fr 1fr; } }
+/* ---- Guided tour (pure CSS) ---- */
+.tour-radio { display: none; }
+.tour-start { display: inline-block; margin-top: 16px; background: #e6a817; color: #0b3d44; font-weight: 800; padding: 12px 28px; border-radius: 30px; cursor: pointer; font-size: 1em; }
+.tour-start:hover { background: #f0b92e; }
+.tour-bar { display: none; position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); width: calc(100% - 36px); max-width: 560px; background: #0b3d44; color: #fff; border-radius: 14px; padding: 18px 22px; box-shadow: 0 8px 30px rgba(0,0,0,0.35); z-index: 1000; }
+.tour-bar h4 { margin: 0 0 4px; color: #e6a817; font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.08em; }
+.tour-bar .tt { margin: 0 0 6px; font-weight: 700; font-size: 1.1em; color: #fff; font-family: var(--font-heading-family, Poppins, sans-serif); }
+.tour-bar p { margin: 0 0 14px; font-size: 0.9em; opacity: 0.92; color: #fff; }
+.tour-nav { display: flex; justify-content: space-between; align-items: center; }
+.tour-btn { display: inline-block; padding: 8px 20px; border-radius: 20px; cursor: pointer; font-weight: 700; font-size: 0.9em; }
+.tour-next { background: #e6a817; color: #0b3d44; }
+.tour-back { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,0.4); }
+.tour-end { background: transparent; color: rgba(255,255,255,0.7); text-decoration: underline; font-size: 0.85em; cursor: pointer; }
+.tour-dots { text-align: center; font-size: 0.75em; opacity: 0.7; margin-top: 10px; color: #fff; }
+#tour0:checked ~ .tour-bar.t0, #tour1:checked ~ .tour-bar.t1, #tour2:checked ~ .tour-bar.t2, #tour3:checked ~ .tour-bar.t3, #tour4:checked ~ .tour-bar.t4, #tour5:checked ~ .tour-bar.t5 { display: block; }
+#tour0:checked ~ #sec0, #tour1:checked ~ #sec1, #tour2:checked ~ #sec2, #tour3:checked ~ #sec3, #tour4:checked ~ #sec4, #tour5:checked ~ #sec5 { outline: 3px solid #e6a817; outline-offset: 2px; }
+#tour0:checked ~ #sec0 .iq-body, #tour1:checked ~ #sec1 .iq-body, #tour2:checked ~ #sec2 .iq-body, #tour3:checked ~ #sec3 .iq-body, #tour4:checked ~ #sec4 .iq-body, #tour5:checked ~ #sec5 .iq-body { max-height: 4000px; }
+#tour0:checked ~ #sec0 .iq-label::after, #tour1:checked ~ #sec1 .iq-label::after, #tour2:checked ~ #sec2 .iq-label::after, #tour3:checked ~ #sec3 .iq-label::after, #tour4:checked ~ #sec4 .iq-label::after, #tour5:checked ~ #sec5 .iq-label::after { content: "−"; }
+/* tour: close non-active sections */
+#tour0:checked ~ #sec1 .iq-body, #tour0:checked ~ #sec2 .iq-body, #tour0:checked ~ #sec3 .iq-body, #tour0:checked ~ #sec4 .iq-body, #tour0:checked ~ #sec5 .iq-body { max-height: 0; }
+#tour0:checked ~ #sec1 .iq-label::after, #tour0:checked ~ #sec2 .iq-label::after, #tour0:checked ~ #sec3 .iq-label::after, #tour0:checked ~ #sec4 .iq-label::after, #tour0:checked ~ #sec5 .iq-label::after { content: "+"; }
+#tour1:checked ~ #sec0 .iq-body, #tour1:checked ~ #sec2 .iq-body, #tour1:checked ~ #sec3 .iq-body, #tour1:checked ~ #sec4 .iq-body, #tour1:checked ~ #sec5 .iq-body { max-height: 0; }
+#tour1:checked ~ #sec0 .iq-label::after, #tour1:checked ~ #sec2 .iq-label::after, #tour1:checked ~ #sec3 .iq-label::after, #tour1:checked ~ #sec4 .iq-label::after, #tour1:checked ~ #sec5 .iq-label::after { content: "+"; }
+#tour2:checked ~ #sec0 .iq-body, #tour2:checked ~ #sec1 .iq-body, #tour2:checked ~ #sec3 .iq-body, #tour2:checked ~ #sec4 .iq-body, #tour2:checked ~ #sec5 .iq-body { max-height: 0; }
+#tour2:checked ~ #sec0 .iq-label::after, #tour2:checked ~ #sec1 .iq-label::after, #tour2:checked ~ #sec3 .iq-label::after, #tour2:checked ~ #sec4 .iq-label::after, #tour2:checked ~ #sec5 .iq-label::after { content: "+"; }
+#tour3:checked ~ #sec0 .iq-body, #tour3:checked ~ #sec1 .iq-body, #tour3:checked ~ #sec2 .iq-body, #tour3:checked ~ #sec4 .iq-body, #tour3:checked ~ #sec5 .iq-body { max-height: 0; }
+#tour3:checked ~ #sec0 .iq-label::after, #tour3:checked ~ #sec1 .iq-label::after, #tour3:checked ~ #sec2 .iq-label::after, #tour3:checked ~ #sec4 .iq-label::after, #tour3:checked ~ #sec5 .iq-label::after { content: "+"; }
+#tour4:checked ~ #sec0 .iq-body, #tour4:checked ~ #sec1 .iq-body, #tour4:checked ~ #sec2 .iq-body, #tour4:checked ~ #sec3 .iq-body, #tour4:checked ~ #sec5 .iq-body { max-height: 0; }
+#tour4:checked ~ #sec0 .iq-label::after, #tour4:checked ~ #sec1 .iq-label::after, #tour4:checked ~ #sec2 .iq-label::after, #tour4:checked ~ #sec3 .iq-label::after, #tour4:checked ~ #sec5 .iq-label::after { content: "+"; }
+#tour5:checked ~ #sec0 .iq-body, #tour5:checked ~ #sec1 .iq-body, #tour5:checked ~ #sec2 .iq-body, #tour5:checked ~ #sec3 .iq-body, #tour5:checked ~ #sec4 .iq-body { max-height: 0; }
+#tour5:checked ~ #sec0 .iq-label::after, #tour5:checked ~ #sec1 .iq-label::after, #tour5:checked ~ #sec2 .iq-label::after, #tour5:checked ~ #sec3 .iq-label::after, #tour5:checked ~ #sec4 .iq-label::after { content: "+"; }
+</style>
+<div class="iq-guide">
+<input type="radio" name="tour" id="tour-off" class="tour-radio" checked>
+<input type="radio" name="tour" id="tour0" class="tour-radio">
+<input type="radio" name="tour" id="tour1" class="tour-radio">
+<input type="radio" name="tour" id="tour2" class="tour-radio">
+<input type="radio" name="tour" id="tour3" class="tour-radio">
+<input type="radio" name="tour" id="tour4" class="tour-radio">
+<input type="radio" name="tour" id="tour5" class="tour-radio">
+
+<div class="iq-hero">
+<h1>How to Use Our Website</h1>
+<p>Everything you need to order from InkQuest — pick a topic below.</p>
+<label class="tour-start" for="tour0">Take a Tour &#9654;</label>
+</div>
+
+<div class="iq-cards">
+<label class="iq-card" for="iq0"><div class="e">&#128100;</div><div class="t">Get an Account</div><div class="d">Apply, get approved, log in</div></label>
+<label class="iq-card" for="iq1"><div class="e">&#128269;</div><div class="t">Find Products</div><div class="d">Search by SKU, code, or model</div></label>
+<label class="iq-card" for="iq2"><div class="e">&#128722;</div><div class="t">Place an Order</div><div class="d">Cart, PO number, checkout</div></label>
+<label class="iq-card gold" for="iq3"><div class="e">&#128229;</div><div class="t">Upload a PO</div><div class="d">The fastest way to order</div></label>
+<label class="iq-card" for="iq4"><div class="e">&#128202;</div><div class="t">Your Dashboard</div><div class="d">Orders, invoices, wishlist</div></label>
+<label class="iq-card" for="iq5"><div class="e">&#10067;</div><div class="t">Need Help?</div><div class="d">Contact us, FAQ, links</div></label>
+</div>
+
+<div class="iq-acc" id="sec0">
+<input type="radio" name="iq-acc" id="iq0" class="iq-toggle" checked>
+<label class="iq-label" for="iq0">1. Getting Your Account &amp; Logging In</label>
+<div class="iq-body"><div class="iq-inner">
+<div class="iq-step"><strong>Step 1 – Apply:</strong> If you don't have an account yet, click <strong>BECOME A RESELLER</strong> in the top menu, fill out the application form, and send it to us.</div>
+<div class="iq-step"><strong>Step 2 – Approval:</strong> We'll review your application and set up your account. You'll receive a confirmation once it's approved.</div>
+<div class="iq-step"><strong>Step 3 – Log in:</strong> Come back to inkquest.ca, click the account icon (person symbol) at the top-right, and log in using your <strong>registered email address</strong>.</div>
+<div class="iq-step"><strong>Step 4:</strong> Once logged in, you'll see the <strong>Ink Quest – Canada Reseller Portal</strong> dashboard with a greeting and your account summary.</div>
+<div class="iq-tip"><strong>Tip:</strong> Use the <strong>EN / FR</strong> buttons at the top-right to switch between English and French.</div>
+</div></div>
+</div>
+
+<div class="iq-acc" id="sec1">
+<input type="radio" name="iq-acc" id="iq1" class="iq-toggle">
+<label class="iq-label" for="iq1">2. Finding Products</label>
+<div class="iq-body"><div class="iq-inner">
+<p><strong>Top menu:</strong></p>
+<ul>
+<li><strong>WHO WE ARE</strong> – Learn about InkQuest and our story.</li>
+<li><strong>WHAT WE SELL</strong> – Browse products by category (toner, ink, printers, and more).</li>
+<li><strong>WHERE WE ARE</strong> – Our store locations across Canada.</li>
+<li><strong>BECOME A RESELLER</strong> – New here? Fill out the application form on this page to request an account.</li>
+<li><strong>SPECIAL ORDER REQ.</strong> – Request a product you can't find on the website.</li>
+<li><strong>CONTACT US</strong> – Get in touch with our team.</li>
+</ul>
+<p><strong>Search:</strong> Type a product name, SKU, cartridge code (e.g. CF362A), or printer model into the search bar at the top of every page.</p>
+<p><strong>Browse:</strong> Use the <strong>WHAT WE SELL</strong> menu to browse by category.</p>
+<p><strong>Product pages:</strong> Each product page shows cartridge details, compatible printers, and pricing. Click <strong>Add to Cart</strong> to add it to your order.</p>
+<div class="iq-tip"><strong>Tip:</strong> Save items you buy often to your <strong>Wishlist</strong> (star icon) so you can find them quickly next time.</div>
+</div></div>
+</div>
+
+<div class="iq-acc" id="sec2">
+<input type="radio" name="iq-acc" id="iq2" class="iq-toggle">
+<label class="iq-label" for="iq2">3. Placing an Order</label>
+<div class="iq-body"><div class="iq-inner">
+<div class="iq-step"><strong>Step 1:</strong> Add products to your cart from product pages or search results.</div>
+<div class="iq-step"><strong>Step 2:</strong> Click the cart icon (top-right) to review your items. Adjust quantities if needed.</div>
+<div class="iq-step"><strong>Step 3:</strong> If you're ordering against a purchase order, enter your <strong>PO Number</strong> in the Purchase Order Number field on the cart page.</div>
+<div class="iq-step"><strong>Step 4:</strong> Click <strong>Checkout</strong>, enter your shipping and payment details, and place your order.</div>
+</div></div>
+</div>
+
+<div class="iq-acc gold" id="sec3">
+<input type="radio" name="iq-acc" id="iq3" class="iq-toggle">
+<label class="iq-label" for="iq3">4. Uploading a Purchase Order (Fastest Way to Order)</label>
+<div class="iq-body"><div class="iq-inner">
+<p>Instead of adding items one by one, upload your purchase order file and we'll fill your cart automatically — the fastest way to place a large order.</p>
+<div class="iq-step"><strong>Step 1 – Upload:</strong> Go to the <strong>Upload Purchase Order</strong> page. Drag &amp; drop your PO file, or click <strong>Choose file</strong>. Accepted files: <strong>PDF, XLS, XLSX</strong> (max 10 MB).</div>
+<div class="iq-step"><strong>Step 2 – Review:</strong> We read your file and match every line to our catalog. Check the matched items, adjust quantities, and remove anything you don't need. Your <strong>PO number</strong> is detected automatically — you can edit it if needed.</div>
+<div class="iq-step"><strong>Step 3 – Add to cart:</strong> Click <strong>Add matched items to cart</strong>. Everything goes into your cart at once, with your PO number attached.</div>
+<div class="iq-step"><strong>Step 4 – Checkout:</strong> Review your cart and check out as normal. Your PO number is already filled in.</div>
+<div class="iq-tip"><strong>Tip:</strong> Not sure about the format? Click <strong>Download a sample PO</strong> on the upload page to see an example file.</div>
+<div class="iq-gray">
+<strong>Good to know:</strong>
+<ul style="margin: 8px 0;">
+<li>Scanned or photo PDFs can't be read — please use a PDF with selectable text or an Excel file.</li>
+<li>If a product code matches more than one product, we'll ask you to pick the right one.</li>
+<li>Lines we can't match are shown separately and are <strong>not</strong> added to your cart.</li>
+<li>The ship-to address shown on the upload page is for reference — you'll enter the final shipping address at checkout.</li>
+</ul>
+</div>
+</div></div>
+</div>
+
+<div class="iq-acc" id="sec4">
+<input type="radio" name="iq-acc" id="iq4" class="iq-toggle">
+<label class="iq-label" for="iq4">5. Your Reseller Dashboard</label>
+<div class="iq-body"><div class="iq-inner">
+<p>After logging in, your dashboard gives you quick access to everything. The <strong>Overview</strong> shows your account summary at a glance:</p>
+<ul>
+<li><strong>Open Orders</strong> – Orders not yet fulfilled.</li>
+<li><strong>MTD Spend</strong> – Your total spending for the current month.</li>
+<li><strong>Lifetime Spend</strong> – Your all-time total with us.</li>
+</ul>
+<p><strong>Recent Orders</strong> lists your latest orders with these columns:</p>
+<ul>
+<li><strong>Order</strong> – The order number (click to see details).</li>
+<li><strong>Date</strong> – When the order was placed.</li>
+<li><strong>PO Number</strong> – The purchase order number attached to the order.</li>
+<li><strong>Ship To Name</strong> – Where the order is being shipped.</li>
+<li><strong>Total</strong> – The order total.</li>
+<li><strong>Status</strong> – Current status (e.g. pending, fulfilled).</li>
+</ul>
+<p>Click <strong>View all</strong> to see your full order history. The sidebar gives you:</p>
+<ul>
+<li><strong>Overview</strong> – Account summary: open orders, monthly and lifetime spend.</li>
+<li><strong>Orders</strong> – Order history and tracking.</li>
+<li><strong>Quick Re-Order</strong> – Re-order previous items without searching again.</li>
+<li><strong>Upload PO</strong> – Upload a purchase order file to fill your cart automatically.</li>
+<li><strong>Wishlist</strong> – Products you've saved for later.</li>
+<li><strong>New Arrivals</strong> – The latest products added to our catalog.</li>
+<li><strong>Special Order Request</strong> – Request a product you can't find on the website.</li>
+<li><strong>RMA English / RMA French</strong> – Start a return or warranty claim.</li>
+<li><strong>Invoices</strong> – View and download your invoices.</li>
+<li><strong>Profile</strong> – Update your contact details or password.</li>
+<li><strong>Address</strong> – Manage your saved shipping addresses.</li>
+</ul>
+<p><strong>Managing Your Account</strong></p>
+<p><strong>Profile:</strong> Go to <strong>Profile</strong> in the dashboard sidebar to update your contact details or change your password.<br>
+<strong>Addresses:</strong> Go to <strong>Address</strong> to add, edit, or remove shipping addresses. The address you choose at checkout is the one your order ships to.</p>
+</div></div>
+</div>
+
+<div class="iq-acc" id="sec5">
+<input type="radio" name="iq-acc" id="iq5" class="iq-toggle">
+<label class="iq-label" for="iq5">6. Helpful Links &amp; Contact</label>
+<div class="iq-body"><div class="iq-inner">
+<p>At the bottom of every page you'll find quick links:</p>
+<ul>
+<li><strong>Company:</strong> About Us, Contact Us, Brand We Carry, Privacy Policy, Website guide (this page).</li>
+<li><strong>Customer service:</strong> Warranty, RMA/Return, Shipping, Terms &amp; Conditions, Our Catalog, FAQ.</li>
+</ul>
+<p><strong>Join Our Newsletter:</strong> Enter your email in the newsletter box at the bottom of the page and click <strong>Subscribe</strong> to get updates, special offers, and more. You can also follow us on <strong>Facebook, Instagram, and LinkedIn</strong>.</p>
+<div class="iq-contact">
+<p><strong>Edmonton, AB</strong> — 1-800-661-9855<br>
+<strong>Richmond, BC</strong> — 1-800-661-9855<br>
+<strong>St-Eustache, QC</strong> — 1-877-275-5263</p>
+<p style="margin:0;">Or use the <strong>CONTACT US</strong> link in the top menu. For returns and warranty, see <strong>RMA/Return</strong> under Customer Service at the bottom of any page.</p>
+</div>
+</div></div>
+</div>
+
+<div class="tour-bar t0">
+<h4>Website Tour</h4>
+<div class="tt">Step 1: Get an Account</div>
+<p>New here? Click <strong>BECOME A RESELLER</strong> in the top menu and send us your application. Once approved, log in with your registered email.</p>
+<div class="tour-nav">
+<label class="tour-end" for="tour-off">End tour</label>
+<label class="tour-btn tour-next" for="tour1">Next &#9654;</label>
+</div>
+<div class="tour-dots">● ○ ○ ○ ○ ○ &nbsp; 1 of 6</div>
+</div>
+
+<div class="tour-bar t1">
+<h4>Website Tour</h4>
+<div class="tt">Step 2: Find Products</div>
+<p>Search by <strong>SKU, cartridge code, or printer model</strong> — or browse categories under WHAT WE SELL. Star items you buy often to save them to your Wishlist.</p>
+<div class="tour-nav">
+<label class="tour-btn tour-back" for="tour0">&#9664; Back</label>
+<label class="tour-end" for="tour-off">End tour</label>
+<label class="tour-btn tour-next" for="tour2">Next &#9654;</label>
+</div>
+<div class="tour-dots">● ● ○ ○ ○ ○ &nbsp; 2 of 6</div>
+</div>
+
+<div class="tour-bar t2">
+<h4>Website Tour</h4>
+<div class="tt">Step 3: Place an Order</div>
+<p>Add products to your cart, review quantities, enter your <strong>PO Number</strong> on the cart page, then check out.</p>
+<div class="tour-nav">
+<label class="tour-btn tour-back" for="tour1">&#9664; Back</label>
+<label class="tour-end" for="tour-off">End tour</label>
+<label class="tour-btn tour-next" for="tour3">Next &#9654;</label>
+</div>
+<div class="tour-dots">● ● ● ○ ○ ○ &nbsp; 3 of 6</div>
+</div>
+
+<div class="tour-bar t3">
+<h4>Website Tour</h4>
+<div class="tt">Step 4: Upload a PO — the Fastest Way</div>
+<p>Drop your purchase order file (PDF or Excel) on the Upload page. We match every line to our catalog and fill your cart automatically — with your PO number attached.</p>
+<div class="tour-nav">
+<label class="tour-btn tour-back" for="tour2">&#9664; Back</label>
+<label class="tour-end" for="tour-off">End tour</label>
+<label class="tour-btn tour-next" for="tour4">Next &#9654;</label>
+</div>
+<div class="tour-dots">● ● ● ● ○ ○ &nbsp; 4 of 6</div>
+</div>
+
+<div class="tour-bar t4">
+<h4>Website Tour</h4>
+<div class="tt">Step 5: Your Dashboard</div>
+<p>Track <strong>orders, invoices, and spending</strong> from your reseller dashboard. Use Quick Re-Order for repeat items and manage your profile and addresses.</p>
+<div class="tour-nav">
+<label class="tour-btn tour-back" for="tour3">&#9664; Back</label>
+<label class="tour-end" for="tour-off">End tour</label>
+<label class="tour-btn tour-next" for="tour5">Next &#9654;</label>
+</div>
+<div class="tour-dots">● ● ● ● ● ○ &nbsp; 5 of 6</div>
+</div>
+
+<div class="tour-bar t5">
+<h4>Website Tour</h4>
+<div class="tt">Step 6: Need Help?</div>
+<p>Call us at <strong>1-800-661-9855</strong> (AB/BC) or <strong>1-877-275-5263</strong> (QC) — or use CONTACT US in the top menu. You're ready to order!</p>
+<div class="tour-nav">
+<label class="tour-btn tour-back" for="tour4">&#9664; Back</label>
+<label class="tour-btn tour-next" for="tour-off">Finish &#10003;</label>
+</div>
+<div class="tour-dots">● ● ● ● ● ● &nbsp; 6 of 6</div>
+</div>
+
+</div>
+
+</div>
+<script>
+(function() {
+  function scrollToSec(id) {
+    var sec = document.getElementById(id);
+    if (sec) setTimeout(function() { sec.scrollIntoView({behavior: 'smooth', block: 'center'}); }, 60);
+  }
+  document.querySelectorAll('.tour-radio').forEach(function(radio) {
+    radio.addEventListener('change', function() {
+      var m = this.id.match(/^tour(\d+)$/);
+      if (m) scrollToSec('sec' + m[1]);
+    });
+  });
+  document.querySelectorAll('.iq-toggle').forEach(function(radio) {
+    radio.addEventListener('change', function() {
+      var m = this.id.match(/^iq(\d+)$/);
+      if (m) scrollToSec('sec' + m[1]);
+    });
+  });
+})();
+</script>

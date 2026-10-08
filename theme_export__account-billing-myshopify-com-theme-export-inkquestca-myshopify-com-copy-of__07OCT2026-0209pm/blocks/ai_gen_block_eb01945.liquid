@@ -1,0 +1,519 @@
+{% doc %}
+  @prompt
+    create transperante header those have logo in left side and right side hamburger menu with transparent section, also hum header me image add kr ske esa kra
+{% enddoc %}
+{% assign ai_gen_id = block.id | replace: '_', '' | downcase %}
+
+{% style %}
+  .ai-transparent-header-{{ ai_gen_id }} {
+    position: relative;
+    width: 100%;
+    background-color: transparent;
+  }
+
+  .ai-transparent-header__background-{{ ai_gen_id }} {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+  }
+
+  .ai-transparent-header__background-{{ ai_gen_id }} img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .ai-transparent-header__background-placeholder-{{ ai_gen_id }} {
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.1);
+  }
+
+  .ai-transparent-header__background-placeholder-{{ ai_gen_id }} svg {
+    width: 100%;
+    height: 100%;
+    opacity: 0.3;
+  }
+
+  .ai-transparent-header__overlay-{{ ai_gen_id }} {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: {{ block.settings.overlay_color }};
+    opacity: {{ block.settings.overlay_opacity | divided_by: 100.0 }};
+    z-index: 1;
+  }
+
+  .ai-transparent-header__content-{{ ai_gen_id }} {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: {{ block.settings.padding_vertical }}px {{ block.settings.padding_horizontal }}px;
+    max-width: {{ block.settings.max_width }}px;
+    margin: 0 auto;
+  }
+
+  .ai-transparent-header__logo-{{ ai_gen_id }} {
+    display: flex;
+    align-items: center;
+  }
+
+  .ai-transparent-header__logo-{{ ai_gen_id }} img {
+    max-width: {{ block.settings.logo_width }}px;
+    height: auto;
+  }
+
+  .ai-transparent-header__logo-placeholder-{{ ai_gen_id }} {
+    width: {{ block.settings.logo_width }}px;
+    height: 40px;
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: {{ block.settings.menu_color }};
+    font-size: 12px;
+    padding: 8px;
+  }
+
+  .ai-transparent-header__hamburger-{{ ai_gen_id }} {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: {{ block.settings.hamburger_gap }}px;
+    z-index: 3;
+  }
+
+  .ai-transparent-header__hamburger-line-{{ ai_gen_id }} {
+    width: {{ block.settings.hamburger_width }}px;
+    height: {{ block.settings.hamburger_thickness }}px;
+    background-color: {{ block.settings.menu_color }};
+    transition: all 0.3s ease;
+  }
+
+  .ai-transparent-header__hamburger-{{ ai_gen_id }}.active .ai-transparent-header__hamburger-line-{{ ai_gen_id }}:nth-child(1) {
+    transform: rotate(45deg) translate({{ block.settings.hamburger_gap | plus: 2 }}px, {{ block.settings.hamburger_gap | plus: 2 }}px);
+  }
+
+  .ai-transparent-header__hamburger-{{ ai_gen_id }}.active .ai-transparent-header__hamburger-line-{{ ai_gen_id }}:nth-child(2) {
+    opacity: 0;
+  }
+
+  .ai-transparent-header__hamburger-{{ ai_gen_id }}.active .ai-transparent-header__hamburger-line-{{ ai_gen_id }}:nth-child(3) {
+    transform: rotate(-45deg) translate({{ block.settings.hamburger_gap | plus: 2 }}px, -{{ block.settings.hamburger_gap | plus: 2 }}px);
+  }
+
+  .ai-transparent-header__menu-{{ ai_gen_id }} {
+    position: fixed;
+    top: 0;
+    right: -100%;
+    width: {{ block.settings.menu_width }}px;
+    max-width: 90%;
+    height: 100vh;
+    background-color: {{ block.settings.menu_bg_color }};
+    transition: right 0.3s ease;
+    z-index: 1000;
+    overflow-y: auto;
+    padding: 80px 30px 30px;
+  }
+
+  .ai-transparent-header__menu-{{ ai_gen_id }}.active {
+    right: 0;
+  }
+
+  .ai-transparent-header__menu-overlay-{{ ai_gen_id }} {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    z-index: 999;
+  }
+
+  .ai-transparent-header__menu-overlay-{{ ai_gen_id }}.active {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .ai-transparent-header__menu-close-{{ ai_gen_id }} {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    color: {{ block.settings.menu_text_color }};
+  }
+
+  .ai-transparent-header__menu-close-{{ ai_gen_id }} svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .ai-transparent-header__menu-list-{{ ai_gen_id }} {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .ai-transparent-header__menu-item-{{ ai_gen_id }} {
+    margin: 0;
+  }
+
+  .ai-transparent-header__menu-link-{{ ai_gen_id }} {
+    color: {{ block.settings.menu_text_color }};
+    text-decoration: none;
+    font-size: {{ block.settings.menu_font_size }}px;
+    display: block;
+    padding: 10px 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .ai-transparent-header__menu-link-{{ ai_gen_id }}:hover {
+    opacity: 0.7;
+  }
+
+  @media screen and (max-width: 749px) {
+    .ai-transparent-header__content-{{ ai_gen_id }} {
+      padding: {{ block.settings.padding_vertical | times: 0.7 }}px {{ block.settings.padding_horizontal | times: 0.7 }}px;
+    }
+
+    .ai-transparent-header__logo-{{ ai_gen_id }} img {
+      max-width: {{ block.settings.logo_width | times: 0.8 }}px;
+    }
+
+    .ai-transparent-header__logo-placeholder-{{ ai_gen_id }} {
+      width: {{ block.settings.logo_width | times: 0.8 }}px;
+    }
+  }
+{% endstyle %}
+
+<transparent-header-{{ ai_gen_id }} class="ai-transparent-header-{{ ai_gen_id }}" {{ block.shopify_attributes }}>
+  <div class="ai-transparent-header__background-{{ ai_gen_id }}">
+    {% if block.settings.background_image %}
+      <img
+        src="{{ block.settings.background_image | image_url: width: 2000 }}"
+        alt="{{ block.settings.background_image.alt | escape }}"
+        loading="lazy"
+        width="{{ block.settings.background_image.width }}"
+        height="{{ block.settings.background_image.height }}"
+      >
+    {% else %}
+      <div class="ai-transparent-header__background-placeholder-{{ ai_gen_id }}">
+        {{ 'lifestyle-1' | placeholder_svg_tag }}
+      </div>
+    {% endif %}
+  </div>
+
+  {% if block.settings.show_overlay %}
+    <div class="ai-transparent-header__overlay-{{ ai_gen_id }}"></div>
+  {% endif %}
+
+  <div class="ai-transparent-header__content-{{ ai_gen_id }}">
+    <div class="ai-transparent-header__logo-{{ ai_gen_id }}">
+      {% if block.settings.logo %}
+        <img
+          src="{{ block.settings.logo | image_url: width: 400 }}"
+          alt="{{ shop.name }}"
+          loading="lazy"
+          width="{{ block.settings.logo.width }}"
+          height="{{ block.settings.logo.height }}"
+        >
+      {% else %}
+        <div class="ai-transparent-header__logo-placeholder-{{ ai_gen_id }}">
+          Logo
+        </div>
+      {% endif %}
+    </div>
+
+    <button
+      class="ai-transparent-header__hamburger-{{ ai_gen_id }}"
+      aria-label="Toggle menu"
+      aria-expanded="false"
+    >
+      <span class="ai-transparent-header__hamburger-line-{{ ai_gen_id }}"></span>
+      <span class="ai-transparent-header__hamburger-line-{{ ai_gen_id }}"></span>
+      <span class="ai-transparent-header__hamburger-line-{{ ai_gen_id }}"></span>
+    </button>
+  </div>
+
+  <div class="ai-transparent-header__menu-overlay-{{ ai_gen_id }}"></div>
+
+  <nav class="ai-transparent-header__menu-{{ ai_gen_id }}">
+    <button
+      class="ai-transparent-header__menu-close-{{ ai_gen_id }}"
+      aria-label="Close menu"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </button>
+
+    <ul class="ai-transparent-header__menu-list-{{ ai_gen_id }}">
+      {% for link in linklists[block.settings.menu].links %}
+        <li class="ai-transparent-header__menu-item-{{ ai_gen_id }}">
+          <a href="{{ link.url }}" class="ai-transparent-header__menu-link-{{ ai_gen_id }}">
+            {{ link.title }}
+          </a>
+        </li>
+      {% endfor %}
+    </ul>
+  </nav>
+</transparent-header-{{ ai_gen_id }}>
+
+<script>
+  (function() {
+    class TransparentHeader{{ ai_gen_id }} extends HTMLElement {
+      constructor() {
+        super();
+      }
+
+      connectedCallback() {
+        this.hamburger = this.querySelector('.ai-transparent-header__hamburger-{{ ai_gen_id }}');
+        this.menu = this.querySelector('.ai-transparent-header__menu-{{ ai_gen_id }}');
+        this.menuOverlay = this.querySelector('.ai-transparent-header__menu-overlay-{{ ai_gen_id }}');
+        this.closeButton = this.querySelector('.ai-transparent-header__menu-close-{{ ai_gen_id }}');
+
+        this.setupEventListeners();
+      }
+
+      setupEventListeners() {
+        this.hamburger.addEventListener('click', () => this.toggleMenu());
+        this.closeButton.addEventListener('click', () => this.closeMenu());
+        this.menuOverlay.addEventListener('click', () => this.closeMenu());
+
+        document.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape' && this.menu.classList.contains('active')) {
+            this.closeMenu();
+          }
+        });
+      }
+
+      toggleMenu() {
+        const isActive = this.menu.classList.contains('active');
+        if (isActive) {
+          this.closeMenu();
+        } else {
+          this.openMenu();
+        }
+      }
+
+      openMenu() {
+        this.hamburger.classList.add('active');
+        this.menu.classList.add('active');
+        this.menuOverlay.classList.add('active');
+        this.hamburger.setAttribute('aria-expanded', 'true');
+        document.body.style.overflow = 'hidden';
+      }
+
+      closeMenu() {
+        this.hamburger.classList.remove('active');
+        this.menu.classList.remove('active');
+        this.menuOverlay.classList.remove('active');
+        this.hamburger.setAttribute('aria-expanded', 'false');
+        document.body.style.overflow = '';
+      }
+    }
+
+    customElements.define('transparent-header-{{ ai_gen_id }}', TransparentHeader{{ ai_gen_id }});
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Transparent header",
+  "tag": null,
+  "settings": [
+    {
+      "type": "header",
+      "content": "Background"
+    },
+    {
+      "type": "image_picker",
+      "id": "background_image",
+      "label": "Background image"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_overlay",
+      "label": "Show overlay",
+      "default": true
+    },
+    {
+      "type": "color",
+      "id": "overlay_color",
+      "label": "Overlay color",
+      "default": "#000000"
+    },
+    {
+      "type": "range",
+      "id": "overlay_opacity",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "unit": "%",
+      "label": "Overlay opacity",
+      "default": 30
+    },
+    {
+      "type": "header",
+      "content": "Logo"
+    },
+    {
+      "type": "image_picker",
+      "id": "logo",
+      "label": "Logo image"
+    },
+    {
+      "type": "range",
+      "id": "logo_width",
+      "min": 50,
+      "max": 300,
+      "step": 10,
+      "unit": "px",
+      "label": "Logo width",
+      "default": 120
+    },
+    {
+      "type": "header",
+      "content": "Hamburger menu"
+    },
+    {
+      "type": "color",
+      "id": "menu_color",
+      "label": "Hamburger color",
+      "default": "#ffffff"
+    },
+    {
+      "type": "range",
+      "id": "hamburger_width",
+      "min": 20,
+      "max": 40,
+      "step": 2,
+      "unit": "px",
+      "label": "Hamburger width",
+      "default": 30
+    },
+    {
+      "type": "range",
+      "id": "hamburger_thickness",
+      "min": 2,
+      "max": 6,
+      "step": 1,
+      "unit": "px",
+      "label": "Line thickness",
+      "default": 3
+    },
+    {
+      "type": "range",
+      "id": "hamburger_gap",
+      "min": 4,
+      "max": 10,
+      "step": 1,
+      "unit": "px",
+      "label": "Line spacing",
+      "default": 6
+    },
+    {
+      "type": "header",
+      "content": "Menu panel"
+    },
+    {
+      "type": "link_list",
+      "id": "menu",
+      "label": "Menu",
+      "default": "main-menu"
+    },
+    {
+      "type": "range",
+      "id": "menu_width",
+      "min": 250,
+      "max": 500,
+      "step": 10,
+      "unit": "px",
+      "label": "Menu width",
+      "default": 350
+    },
+    {
+      "type": "color",
+      "id": "menu_bg_color",
+      "label": "Background color",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "menu_text_color",
+      "label": "Text color",
+      "default": "#121212"
+    },
+    {
+      "type": "range",
+      "id": "menu_font_size",
+      "min": 14,
+      "max": 24,
+      "step": 1,
+      "unit": "px",
+      "label": "Font size",
+      "default": 18
+    },
+    {
+      "type": "header",
+      "content": "Layout"
+    },
+    {
+      "type": "range",
+      "id": "max_width",
+      "min": 1000,
+      "max": 1600,
+      "step": 100,
+      "unit": "px",
+      "label": "Maximum width",
+      "default": 1200
+    },
+    {
+      "type": "range",
+      "id": "padding_vertical",
+      "min": 10,
+      "max": 60,
+      "step": 5,
+      "unit": "px",
+      "label": "Vertical padding",
+      "default": 20
+    },
+    {
+      "type": "range",
+      "id": "padding_horizontal",
+      "min": 10,
+      "max": 60,
+      "step": 5,
+      "unit": "px",
+      "label": "Horizontal padding",
+      "default": 20
+    }
+  ],
+  "presets": [
+    {
+      "name": "Transparent header"
+    }
+  ]
+}
+{% endschema %}

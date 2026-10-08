@@ -1,0 +1,311 @@
+<style>
+	.bss-loading-newsletter {
+		display: inline-block;
+		height: 45px;
+	}
+
+	.custom__newsletter {
+		display: flex;
+		margin-top: 1em;
+		margin-bottom: 1em;
+		justify-content: center;
+	}
+
+	.bss-commerce-thankyou-text {
+		display: flex;
+		justify-content: center;
+	}
+</style>
+
+{% capture newsletter_label %}{{ 'newsletter.label' | t }}{% endcapture %}
+{% if newsletter_label contains 'Translation missing' %}
+  {% assign newsletter_label = 'Subscribe to our emails' %}
+{% endif %}
+
+{% capture bss_newletter %}
+<div class="bss-commerce-custom-newsletter" style="text-align:center; margin: 2em;">
+	{%- form 'customer', id: 'ContactEmailForm', class: 'custom__newsletter' -%}
+	<input type="hidden" name="contact[tags]" value="newsletter">
+	<div class="newsletter-form__field-wrapper" style="margin: 0 auto;">
+		<div class="field">
+			<input id="NewsletterFormCustom" type="email" name="contact[email]" class="field__input"
+				value="{{ form.email }}" aria-required="true" autocorrect="off" autocapitalize="off"
+				autocomplete="email" {% if form.errors %} autofocus aria-invalid="true"
+				aria-describedby="ContactFooter-error" {% elsif form.posted_successfully? %}
+				aria-describedby="ContactFooter-success" {% endif %} placeholder="{{ newsletter_label }}"
+				required>
+			<label class="field__label" for="NewsletterForm">
+				{{ newsletter_label }}
+			</label>
+			<button type="submit" class="newsletter-form__button field__button" name="commit" id="Subscribe"
+				aria-label="{{ newsletter_label }}">
+				<svg xmlns="http://www.w3.org/2000/svg" fill="none" class="icon icon-arrow" viewBox="0 0 14 10">
+					<path fill="currentColor" fill-rule="evenodd"
+						d="M8.537.808a.5.5 0 0 1 .817-.162l4 4a.5.5 0 0 1 0 .708l-4 4a.5.5 0 1 1-.708-.708L11.793 5.5H1a.5.5 0 0 1 0-1h10.793L8.646 1.354a.5.5 0 0 1-.109-.546"
+						clip-rule="evenodd" />
+				</svg>
+			</button>
+		</div>
+		{%- if form.errors -%}
+		{% capture error_message %}
+		<small class="newsletter-form__message form__message" id="ContactFooter-error">
+			{% render 'icon-error' %}{{ form.errors.translated_fields['email'] | capitalize }}
+			{{ form.errors.messages['email'] }}
+		</small>
+		{% endcapture %}
+		{% if error_message contains 'Liquid error' %}
+		Error !
+		{% else %}
+		{{ error_message }}
+		{% endif %}
+		{%- endif -%}
+	</div>
+	{%- endform -%}
+</div>
+{% endcapture %}
+{% if bss_newletter contains 'Liquid error' %}
+<div class="page-width bss_newletter_contain" style="text-align:center; margin: 3em">
+	{%- assign formId = 'Contact_' | append: section.id -%}
+	{% form 'customer', id: 'ContactEmailForm', novalidate: 'novalidate', class: 'contact-form form-single-field' %}
+	{%- if form.errors contains 'email' -%}
+	<span id="{{ formId }}-email-error" class="input-error-message bss_newletter_error">
+		<span class="visually-hidden">{{ 'general.accessibility.error' | t }}</span>
+		{% capture snippet-error-icon %}
+		{% render 'icon-error' %}
+		{% endcapture %}
+		{% unless snippet-error-icon contains 'Liquid error' %}
+		<span style="width: 18px; margin-right: 6px; display: inherit;">
+			{% render 'icon-error' %}
+		</span>
+		{% endunless %}
+		<span>
+			{{- form.errors.translated_fields.email | capitalize }}
+			{{ form.errors.messages.email }}.</span>
+	</span>
+	{%- else -%}
+	{{ form.errors | default_errors }}
+	{%- endif -%}
+	<input type="hidden" name="contact[tags]" value="newsletter">
+	<div class="newsletter-form__field-wrapper input-group {% if form.errors %} input-group--error{% endif %}"
+		style="text-align:center;">
+		{% if false %}
+		{% capture first_name_locale %}
+		{{ 'general.contact.first_name' | t }}
+		{% endcapture %}
+		{% capture first_name_translate %}
+		{% if first_name_locale contains "Translation missing" %}
+		{{ 'First name' }}
+		{% else %}
+		{{ first_name_locale }}
+		{% endif %}
+		{% endcapture %}
+		<input type="text" name="contact[first_name]" id="bss_newletter_first_name_input"
+			class="input-group__field{% if form.errors %} input--error{% endif %}" value="{{ form.email }}"
+			placeholder="{{ first_name_translate }}" aria-label="{{ first_name_translate }}" aria-required="true"
+			autocorrect="off" autocapitalize="off" {% if form.errors %} aria-invalid="true"
+			aria-describedby="{{ formId }}-first-name-error" data-form-status {% endif %}
+			style="text-align : left; width: fit-content; padding-left:0.5em; margin-bottom: 1em;" required>
+		{% capture last_name_locale %}
+		{{ 'general.contact.last_name' | t }}
+		{% endcapture %}
+		{% capture last_name_translate %}
+		{% if last_name_locale contains "Translation missing" %}
+		{{ 'Last name' }}
+		{% else %}
+		{{ last_name_locale }}
+		{% endif %}
+		{% endcapture %}
+		<input type="text" name="contact[last_name]" id="bss_newletter_last_name_input"
+			class="input-group__field{% if form.errors %} input--error{% endif %}" value="{{ form.email }}"
+			placeholder="{{ last_name_translate }}" aria-label="{{ last_name_translate }}" aria-required="true"
+			autocorrect="off" autocapitalize="off" {% if form.errors %} aria-invalid="true"
+			aria-describedby="{{ formId }}-last-name-error" data-form-status {% endif %}
+			style="text-align : left; width: fit-content; padding-left:0.5em; margin-bottom: 1em;" required>
+		{% endif %}
+		<input type="email" name="contact[email]" id="bss_newletter_input"
+			class="input-group__field{% if form.errors %} input--error{% endif %}" value="{{ form.email }}"
+			placeholder="Email" aria-label="{{ 'general.newsletter_form.email_placeholder' | t }}" aria-required="true"
+			autocorrect="off" autocapitalize="off" {% if form.errors %} aria-invalid="true"
+			aria-describedby="{{ formId }}-email-error" data-form-status {% endif %}
+			style="text-align : left; width: fit-content; padding-left:0.5em; margin-bottom: 1em;" required>
+		<br>
+		{% capture submit_newletter_locale %}
+		{{ 'general.newsletter_form.submit' | t }}
+		{% endcapture %}
+		{% capture submit_newletter_translate %}
+		{% if submit_newletter_locale contains "Translation missing" %}
+		{{ 'Subscribe' }}
+		{% else %}
+		{{ submit_newletter_locale }}
+		{% endif %}
+		{% endcapture %}
+		<span class="input-group__btn field" style="display: flex; justify-content: center;">
+			<button type="submit" class="btn bss_newletter_submit" name="commit" id="Subscribe"
+				style="border: 2px solid black; border-radius: 25px; color: white; background-color: #333300">
+				<span style="padding-left: 1em ; padding-right: 1em;">
+					{{ submit_newletter_translate }}
+				</span>
+			</button>
+		</span>
+	</div>
+	{% endform %}
+</div>
+{% else %}
+{{ bss_newletter }}
+{% endif %}
+<script>
+	function setLoadingSvgStyles(loadingSvg) {
+		if (loadingSvg) {
+			loadingSvg.classList.add("bss-loading-newsletter")
+		}
+	}
+	function createLoadingSvg() {
+		const loadingSvg = document.createElement('span');
+		setLoadingSvgStyles(loadingSvg);
+		loadingSvg.innerHTML = ` <svg class="icon-loading" style="width: 45px; height: 45px; display: none;" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" viewBox="0 0 100 100" enable-background="new 0 0 0 0" xml:space="preserve"> <path fill="#000000" d="M73,50c0-12.7-10.3-23-23-23S27,37.3,27,50 M30.9,50c0-10.5,8.5-19.1,19.1-19.1S69.1,39.5,69.1,50"> <animateTransform attributeName="transform" attributeType="XML" type="rotate" dur="1s" from="0 50 50" to="360 50 50" repeatCount="indefinite" /> </path> </svg> `;
+		return loadingSvg;
+	}
+	function createThankYouNode() {
+		const nodeAppend = document.createElement('div');
+		nodeAppend.innerHTML = `<p class='bss-commerce-thankyou-text' style="margin-top: 0.2em;">{{ sntap_thank_message }}<p>`;
+		return nodeAppend;
+	}
+	function reloadPageWithoutCache() {
+		setTimeout(function () {
+			let href = window.location.href;
+			if (window.location.search) {
+				href += `&no_cache_timestamp=${new Date().getTime()
+					}`;
+			} else {
+				href += `?no_cache_timestamp=${new Date().getTime()
+					}`;
+			}
+			window.location = href;
+		}, 2000);
+	}
+	function handleNewsletterSubmit(e, formNewsletter) {
+		e.preventDefault();
+		if (e.target) {
+			const inputForm = e.target.querySelector("input[type='email']");
+			const form = inputForm.closest('form');
+			const parentElement = form.closest('div');
+			const buttonSubscribe = e.target.querySelector("#Subscribe");
+			const iconLoading = e.target.querySelector(".icon-loading");
+			buttonSubscribe.style.display = "none";
+			iconLoading.style.display = "inline-block";
+			let firstNameInput = null;
+			let lastNameInput = null;
+			if (false) {
+				firstNameInput = e.target.querySelector("#bss_newletter_first_name_input").value;
+				lastNameInput = e.target.querySelector("#bss_newletter_last_name_input").value;
+			}
+			let emailInput = e.target.querySelector("input[type='email']").value;
+			let button = e.target.querySelector('button[type="submit"][name="commit"]');
+			if (button) {
+				button.setAttribute("disabled", "");
+			}
+			let formData = new FormData();
+			formData.append('shop', "{{ shop.permanent_domain }}");
+			formData.append('email', emailInput);
+			
+			const xmlHttp = new XMLHttpRequest();
+			xmlHttp.onreadystatechange = function () {
+				if (xmlHttp.readyState === 4 && xmlHttp.status === 201) {
+					if (xmlHttp.response) {
+						const createSubRes = JSON.parse(xmlHttp.response);
+						if (createSubRes) {
+							let cartData = new FormData();
+							{% for lock_id in bss_lock_ids %}
+								{% unless bss_opened_lock_ids contains lock_id %}
+									{% if lock_id == '6502' %}
+{% unless temp_9378 %}
+    cartData.append('attributes[bss-newsletter-email-9378]', 'true');
+{% endunless %}
+{% endif %}
+								{% endunless %}
+							{% endfor %}
+							const xmlHttp2 = new XMLHttpRequest();
+							xmlHttp2.onreadystatechange = function () {
+								if (xmlHttp2.readyState === 4 && xmlHttp2.status === 200) {
+									const nodeAppend = createThankYouNode();
+									parentElement.append(nodeAppend);
+									iconLoading.style.display = "none";
+									buttonSubscribe.style.display = "block";
+									try {
+									fetch(window.location.href, {
+										headers: {
+										"Pragma": "no-cache",
+										"Expires": -1,
+										"Cache-Control": "no-cache"
+										}
+									}).then(function () {
+										setTimeout(function(){
+										window.location.reload(true);
+										}, 1000)
+									}).catch(function () {
+										reloadPageWithOutCache();
+									});
+									} catch (e) {
+										reloadPageWithOutCache();
+									}
+								}
+							};
+							xmlHttp2.open("post", "/cart/update.js");
+							xmlHttp2.send(cartData);
+						} else {
+							formNewsletter.innerHTML = '<p style="color: red; text-align: center;">Could not create email subscriber</p>';
+						}
+					}
+				}
+			};
+			const submitNewsletterUrl = "{{ bss_server_url }}";			
+			xmlHttp.open("post", submitNewsletterUrl, true);
+			xmlHttp.setRequestHeader("Content-type", "application/json; charset=utf-8");
+			xmlHttp.send(JSON.stringify({ shop: "{{ shop.permanent_domain }}", email: emailInput, firstName: firstNameInput, lastName: lastNameInput }));
+			
+		}
+	}
+	function initNewsletterForm() {
+		const intervalCheck = setInterval(function () {
+			const inputNewsletter = document.querySelectorAll("input[value='newsletter']:not(.bss_replace_sntap)");
+			if (inputNewsletter.length > 0) {
+				for (let i = 0; i < inputNewsletter.length; i++) {
+					const cloneLoading = createLoadingSvg().cloneNode(true);
+					inputNewsletter[i].classList.add("bss_replace_sntap");
+					const formNewsletter = inputNewsletter[i].closest('form');
+					formNewsletter.querySelector(".newsletter-form__field-wrapper .field").appendChild(cloneLoading);
+					formNewsletter.removeAttribute('novalidate');
+					formNewsletter.removeAttribute('action');
+					formNewsletter.removeAttribute('onsubmit');
+					const newForm = formNewsletter.cloneNode(true);
+                    formNewsletter.parentNode.replaceChild(newForm, formNewsletter);
+            
+                    newForm.addEventListener('submit', function (e) {
+                        handleNewsletterSubmit(e, newForm);
+                    });
+				}
+			}
+		}, 1000);
+		setTimeout(() => {
+			clearInterval(intervalCheck);
+		}, 30000)
+	}
+	const form = document.querySelector('#ContactEmailForm');
+	createLoadingSvg();
+	initNewsletterForm();
+
+	const urlBehavior = "{{ bss_behavior_url }}"
+	const ruleId = {{ rule_id }}
+	{%- capture authentication -%}{"domain":"{{ shop.permanent_domain }}","ruleId":{{ rule_id }}}{%- endcapture -%}
+	{% assign authentication = authentication | hmac_sha256: '19f28bb46fef8fa41bd7180b12628ee7' %}
+	fetch(urlBehavior, {
+  		method: "POST", 
+  		headers: { "Content-Type": "application/json", 'Authentication': 'Bearer {{ authentication }}' },
+  		body: JSON.stringify({
+  		domain: window.Shopify.shop,
+  		ruleId: ruleId,
+  		condition_type: 'subscribe_email'
+        })
+   })
+
+</script>

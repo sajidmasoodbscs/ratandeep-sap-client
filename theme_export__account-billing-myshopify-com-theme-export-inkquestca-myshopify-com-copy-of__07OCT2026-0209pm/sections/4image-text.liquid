@@ -1,0 +1,224 @@
+{% schema %}
+{
+  "name": "Customer Feature Section",
+  "settings": [
+    {
+      "type": "text",
+      "id": "section_heading",
+      "label": "Main Section Heading",
+      "default": "Why Choose BeA Yogi"
+    }
+  ],
+  "blocks": [
+    {
+      "type": "feature_block",
+      "name": "Feature Block",
+      "settings": [
+        {
+          "type": "image_picker",
+          "id": "feature_image",
+          "label": "Feature Image"
+        },
+        {
+          "type": "range",
+          "id": "desktop_width",
+          "label": "Desktop Image Width (px)",
+          "min": 200,
+          "max": 1000,
+          "step": 10,
+          "default": 500
+        },
+        {
+          "type": "range",
+          "id": "desktop_height",
+          "label": "Desktop Image Height (px)",
+          "min": 100,
+          "max": 800,
+          "step": 10,
+          "default": 350
+        },
+        {
+          "type": "range",
+          "id": "mobile_width",
+          "label": "Mobile Image Width (px)",
+          "min": 100,
+          "max": 600,
+          "step": 10,
+          "default": 350
+        },
+        {
+          "type": "range",
+          "id": "mobile_height",
+          "label": "Mobile Image Height (px)",
+          "min": 100,
+          "max": 600,
+          "step": 10,
+          "default": 250
+        },
+        {
+  "type": "color",
+  "id": "text_color",
+  "label": "Text Color",
+  "default": "#000000"
+},
+
+        {
+          "type": "color",
+          "id": "background_color",
+          "label": "Block Background Color",
+          "default": "#ffffff"
+        },
+        {
+          "type": "text",
+          "id": "feature_title",
+          "label": "Title",
+          "default": "Authenticity You Can Trust"
+        },
+        {
+          "type": "textarea",
+          "id": "feature_text",
+          "label": "Description",
+          "default": "Experience premium quality materials designed for lasting comfort and genuine feel."
+        },
+        {
+          "type": "richtext",
+          "id": "feature_list",
+          "label": "Bullet Points (optional)",
+          "default": "<ul><li>Pure craftsmanship</li><li>Tested for quality & comfort</li><li>Ethically sourced materials</li></ul>"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Customer Feature Section",
+      "category": "Custom Sections"
+    }
+  ]
+}
+{% endschema %}
+
+<style>
+.customer-feature-wrapper {
+  width: 100%;
+  max-width: 1200px;
+  margin: 60px auto;
+  padding: 0 20px;
+}
+
+.customer-feature-wrapper h2 {
+  text-align: center;
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 2rem;
+}
+
+.customer-feature {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+  margin-bottom: 60px;
+  flex-wrap: wrap;
+  border-radius: 10px;
+  transition: all 0.3s ease;
+}
+
+.customer-feature__image img {
+  border-radius: 10px;
+  object-fit: cover;
+  width: var(--desktop-width);
+  height: var(--desktop-height);
+  transition: all 0.3s ease;
+}
+
+
+
+
+.customer-feature__content {
+  flex: 1 1 50%;
+  padding: 1.5rem;
+  border-radius: 10px;
+}
+
+.customer-feature__content h3 {
+  font-size: 33px;
+  font-weight: 700;
+
+  margin-bottom: 1rem;
+}
+
+.customer-feature__content p {
+  font-size: 16px;
+  line-height: 1.6;
+  margin-bottom: 1rem;
+}
+
+.customer-feature__content ul {
+  padding-left: 1.2rem;
+  margin: 0;
+}
+
+
+
+/* ✅ Mobile Responsive */
+@media screen and (max-width: 400px) {
+  .customer-feature {
+    flex-direction: column !important;
+    text-align: center;
+  }
+  .customer-feature__image img {
+    width: var(--mobile-width);
+    height: var(--mobile-height);
+  }
+  .customer-feature__content ul {
+    text-align: left;
+    display: inline-block;
+  }
+}
+/* ✅ Mobile Responsive */
+@media screen and (max-width: 768px) {
+  .customer-feature__image img {
+    width: var(--mobile-width) !important;
+    height: var(--mobile-height) !important;
+  }
+}
+</style>
+
+<section class="customer-feature-wrapper">
+  {% if section.settings.section_heading != blank %}
+    <h2>{{ section.settings.section_heading }}</h2>
+  {% endif %}
+
+  {% for block in section.blocks %}
+    {% assign reverse = forloop.index | modulo: 2 %}
+    <div 
+      class="customer-feature" 
+      style="background-color: {{ block.settings.background_color }}; flex-direction: {% if reverse == 0 %}row-reverse{% else %}row{% endif %};"
+      {{ block.shopify_attributes }}
+    >
+      <div class="customer-feature__image" 
+           style="flex:1 1 20%; display:flex;">
+        {% if block.settings.feature_image != blank %}
+          <img 
+  src="{{ block.settings.feature_image | image_url: width: 1000 }}" 
+  alt="{{ block.settings.feature_title }}"
+  class="feature-img"
+  style="
+    --desktop-width: {{ block.settings.desktop_width }}px;
+    --desktop-height: {{ block.settings.desktop_height }}px;
+    --mobile-width: {{ block.settings.mobile_width }}px;
+    --mobile-height: {{ block.settings.mobile_height }}px;
+  "
+>
+        {% endif %}
+      </div>
+      <div class="customer-feature__content" 
+     style="flex:1 1 50%; color: {{ block.settings.text_color }};">
+        <h3 style="color: {{ block.settings.text_color }};">{{ block.settings.feature_title }}</h3>
+        <p style="color: {{ block.settings.text_color }};">{{ block.settings.feature_text }}</p>
+        {{ block.settings.feature_list }}
+      </div>
+    </div>
+  {% endfor %}
+</section>

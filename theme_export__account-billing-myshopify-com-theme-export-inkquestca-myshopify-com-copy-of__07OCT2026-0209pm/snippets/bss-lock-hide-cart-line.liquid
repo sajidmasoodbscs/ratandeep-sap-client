@@ -1,0 +1,39 @@
+{% assign enable_hide_cart_line = shop.metafields['bss-login-configs']['hide-cart'] %}
+{% if enable_hide_cart_line %}
+    {% assign removed_cart_lines = '' %}
+    {% for item in cart.items %}
+        {% capture bss_lock_check_product %} {% render 'bss-lock-condition', product: item.product ,scope: 'subject', subject: item.product, subject_parent: item.product, variable: 'cart' %} {% endcapture %}
+        {% capture bss_lock_check_variant %} {% render 'bss-lock-condition', product: item.product ,scope: 'subject', subject: item.variant, subject_parent: item.product, variable: 'cart', bss_lock_action: 'handle-variant-default' %} {% endcapture %}
+        {% if bss_lock_check_product contains 'true' or bss_lock_check_variant contains 'true' %}
+            {% assign removed_cart_lines = removed_cart_lines | append: item.id | append: ',' %}
+        {% endif %}
+    {% endfor %}
+
+    {% capture spinner %}<div id="bss-lock-cart-spinner" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: white; display: flex; justify-content: center; align-items: center; z-index: 9999;"><div style="width: 50px; height: 50px; border: 5px solid rgba(0, 0, 0, 0.1); border-top: 5px solid black; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite;"><div></div></div><style>@keyframes spin { 0% { transform: rotate(0deg); }100% { transform: rotate(360deg); } }</style></div>{% endcapture %}
+    {% capture hide_cart_script %}
+  <script id="bss-lock-hide-product-cart-script" style="display:none!important;"> 
+      const bss_spinner = '{{spinner}}';
+      const removedLines = JSON.parse(` {{removed_cart_lines | split: ',' | json}} `)
+      if (removedLines.length > 0) {
+        const updates = removedLines.reduce((acc, line) => {
+          acc[line] = 0;
+          return acc;
+        } , {})
+        const spinnerWrapper = document.createElement('div');
+        spinnerWrapper.innerHTML = bss_spinner;
+        document.body.appendChild(spinnerWrapper);
+        setTimeout(() => {
+            fetch(window.Shopify.routes.root + 'cart/update.js', {
+                method: 'POST',
+                headers: {
+                'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ updates })
+            }).then((response) => response.json()).then(() => window.location.reload())
+            .catch(err => document.removeChild(spinnerWrapper))
+        }, 1000)
+      }
+  </script>
+  {% endcapture %}
+    {% assign content_for_layout = content_for_layout | append: hide_cart_script %}
+{% endif %}

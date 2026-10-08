@@ -1,0 +1,941 @@
+{% doc %}
+  @prompt
+    Add a complete wishlist feature to the store theme. This should include: a heart/bookmark icon on product cards and product pages that lets customers save products to their wishlist, a dedicated wishlist page where customers can view all saved products, the ability to add wishlist items directly to the cart, and wishlist count indicator. The wishlist should persist using localStorage so it works without requiring customer login.
+{% enddoc %}
+{% assign ai_gen_id = block.id | replace: '_', '' | downcase %}
+
+{% style %}
+  .ai-wishlist-button-{{ ai_gen_id }} {
+    display: block;
+    width: 100%;
+  }
+
+  .ai-wishlist-btn-{{ ai_gen_id }} {
+    position: relative;
+    background: {{ block.settings.button_background }};
+    border: {{ block.settings.button_border_thickness }}px solid {{ block.settings.button_border_color }};
+    border-radius: {{ block.settings.button_border_radius }}px;
+    padding: {{ block.settings.button_padding }}px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .ai-wishlist-btn-{{ ai_gen_id }}:hover {
+    background: {{ block.settings.button_hover_background }};
+    border-color: {{ block.settings.button_hover_border_color }};
+  }
+
+  .ai-wishlist-btn-{{ ai_gen_id }}:focus-visible {
+    outline: 2px solid {{ block.settings.button_border_color }};
+    outline-offset: 2px;
+  }
+
+  .ai-wishlist-icon-{{ ai_gen_id }} {
+    width: {{ block.settings.icon_size }}px;
+    height: {{ block.settings.icon_size }}px;
+    stroke: {{ block.settings.icon_color }};
+    fill: none;
+    transition: all 0.3s ease;
+  }
+
+  .ai-wishlist-btn-{{ ai_gen_id }}:hover .ai-wishlist-icon-{{ ai_gen_id }} {
+    stroke: {{ block.settings.icon_hover_color }};
+  }
+
+  .ai-wishlist-btn-{{ ai_gen_id }}.active .ai-wishlist-icon-{{ ai_gen_id }} {
+    fill: {{ block.settings.icon_active_color }};
+    stroke: {{ block.settings.icon_active_color }};
+  }
+
+  .ai-wishlist-text-{{ ai_gen_id }} {
+    font-size: {{ block.settings.text_size }}px;
+    color: {{ block.settings.text_color }};
+    font-weight: {{ block.settings.text_weight }};
+  }
+
+  .ai-wishlist-btn-{{ ai_gen_id }}:hover .ai-wishlist-text-{{ ai_gen_id }} {
+    color: {{ block.settings.text_hover_color }};
+  }
+
+  .ai-wishlist-btn-{{ ai_gen_id }}.active .ai-wishlist-text-{{ ai_gen_id }} {
+    color: {{ block.settings.text_active_color }};
+  }
+
+  .ai-wishlist-count-{{ ai_gen_id }} {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: {{ block.settings.count_background }};
+    color: {{ block.settings.count_text_color }};
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    opacity: 0;
+    transform: scale(0);
+    transition: all 0.3s ease;
+  }
+
+  .ai-wishlist-count-{{ ai_gen_id }}.visible {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .ai-wishlist-page-{{ ai_gen_id }} {
+    width: {{ block.settings.desktop_width_percent }}%;
+    max-width: 100%;
+    margin: 0 auto;
+    padding: {{ block.settings.page_padding }}px;
+  }
+
+  .ai-wishlist-header-{{ ai_gen_id }} {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+
+  .ai-wishlist-title-{{ ai_gen_id }} {
+    font-size: {{ block.settings.title_size }}px;
+    color: {{ block.settings.title_color }};
+    margin: 0 0 10px;
+  }
+
+  .ai-wishlist-subtitle-{{ ai_gen_id }} {
+    font-size: {{ block.settings.subtitle_size }}px;
+    color: {{ block.settings.subtitle_color }};
+    margin: 0;
+  }
+
+  .ai-wishlist-grid-{{ ai_gen_id }} {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: {{ block.settings.grid_gap }}px;
+    margin-bottom: 40px;
+  }
+
+  .ai-wishlist-item-{{ ai_gen_id }} {
+    background: {{ block.settings.card_background }};
+    border: 1px solid {{ block.settings.card_border_color }};
+    border-radius: {{ block.settings.card_border_radius }}px;
+    padding: {{ block.settings.card_padding }}px;
+    position: relative;
+  }
+
+  .ai-wishlist-item-image-{{ ai_gen_id }} {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    border-radius: {{ block.settings.image_border_radius }}px;
+    margin-bottom: 12px;
+  }
+
+  .ai-wishlist-item-title-{{ ai_gen_id }} {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0 0 8px;
+    color: {{ block.settings.product_title_color }};
+  }
+
+  .ai-wishlist-item-price-{{ ai_gen_id }} {
+    font-size: 14px;
+    color: {{ block.settings.product_price_color }};
+    margin-bottom: 12px;
+  }
+
+  .ai-wishlist-item-actions-{{ ai_gen_id }} {
+    display: flex;
+    gap: 8px;
+  }
+
+  .ai-wishlist-add-cart-{{ ai_gen_id }} {
+    flex: 1;
+    padding: 10px;
+    background: {{ block.settings.add_cart_background }};
+    color: {{ block.settings.add_cart_text_color }};
+    border: none;
+    border-radius: {{ block.settings.button_border_radius }}px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+  }
+
+  .ai-wishlist-add-cart-{{ ai_gen_id }}:hover {
+    background: {{ block.settings.add_cart_hover_background }};
+  }
+
+  .ai-wishlist-remove-{{ ai_gen_id }} {
+    padding: 10px;
+    background: {{ block.settings.remove_background }};
+    color: {{ block.settings.remove_text_color }};
+    border: none;
+    border-radius: {{ block.settings.button_border_radius }}px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+  }
+
+  .ai-wishlist-remove-{{ ai_gen_id }}:hover {
+    background: {{ block.settings.remove_hover_background }};
+  }
+
+  .ai-wishlist-empty-{{ ai_gen_id }} {
+    text-align: center;
+    padding: 60px 20px;
+  }
+
+  .ai-wishlist-empty-icon-{{ ai_gen_id }} {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 20px;
+    opacity: 0.3;
+  }
+
+  .ai-wishlist-empty-text-{{ ai_gen_id }} {
+    font-size: 18px;
+    color: {{ block.settings.empty_text_color }};
+    margin-bottom: 20px;
+  }
+
+  .ai-wishlist-shop-link-{{ ai_gen_id }} {
+    display: inline-block;
+    padding: 12px 24px;
+    background: {{ block.settings.button_background }};
+    color: {{ block.settings.text_color }};
+    text-decoration: none;
+    border-radius: {{ block.settings.button_border_radius }}px;
+    transition: all 0.3s ease;
+  }
+
+  .ai-wishlist-shop-link-{{ ai_gen_id }}:hover {
+    background: {{ block.settings.button_hover_background }};
+  }
+
+  @media screen and (max-width: 749px) {
+    .ai-wishlist-grid-{{ ai_gen_id }} {
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: {{ block.settings.grid_gap | times: 0.5 }}px;
+    }
+  }
+{% endstyle %}
+
+<wishlist-manager-{{ ai_gen_id }} class="ai-wishlist-button-{{ ai_gen_id }}" {{ block.shopify_attributes }}>
+  {% if block.settings.display_type == 'button' %}
+    <button
+      class="ai-wishlist-btn-{{ ai_gen_id }}"
+      data-product-id="{{ product.id }}"
+      data-product-handle="{{ product.handle }}"
+      aria-label="Add to wishlist"
+    >
+      <svg class="ai-wishlist-icon-{{ ai_gen_id }}" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      {% if block.settings.show_text %}
+        <span class="ai-wishlist-text-{{ ai_gen_id }}">
+          <span class="ai-wishlist-add-text-{{ ai_gen_id }}">{{ block.settings.add_text }}</span>
+          <span class="ai-wishlist-remove-text-{{ ai_gen_id }}" style="display: none;">{{ block.settings.remove_text }}</span>
+        </span>
+      {% endif %}
+      {% if block.settings.show_count %}
+        <span class="ai-wishlist-count-{{ ai_gen_id }}">0</span>
+      {% endif %}
+    </button>
+  {% elsif block.settings.display_type == 'page' %}
+    <div class="ai-wishlist-page-{{ ai_gen_id }}">
+      <div class="ai-wishlist-header-{{ ai_gen_id }}">
+        <h1 class="ai-wishlist-title-{{ ai_gen_id }}">{{ block.settings.page_title }}</h1>
+        <p class="ai-wishlist-subtitle-{{ ai_gen_id }}">
+          <span class="ai-wishlist-item-count-{{ ai_gen_id }}">0</span> {{ block.settings.items_text }}
+        </p>
+      </div>
+      <div class="ai-wishlist-grid-{{ ai_gen_id }}" data-wishlist-grid></div>
+      <div class="ai-wishlist-empty-{{ ai_gen_id }}" style="display: none;">
+        <svg class="ai-wishlist-empty-icon-{{ ai_gen_id }}" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <p class="ai-wishlist-empty-text-{{ ai_gen_id }}">{{ block.settings.empty_message }}</p>
+        <a href="/collections/all" class="ai-wishlist-shop-link-{{ ai_gen_id }}">{{ block.settings.shop_button_text }}</a>
+      </div>
+    </div>
+  {% endif %}
+</wishlist-manager-{{ ai_gen_id }}>
+
+<script>
+(function() {
+  const WISHLIST_KEY = 'shopify_wishlist_{{ ai_gen_id }}';
+
+  class WishlistManager{{ ai_gen_id }} extends HTMLElement {
+    constructor() {
+      super();
+      this.displayType = '{{ block.settings.display_type }}';
+    }
+
+    connectedCallback() {
+      if (this.displayType === 'button') {
+        this.initButton();
+      } else if (this.displayType === 'page') {
+        this.initPage();
+      }
+      this.updateAllCounts();
+    }
+
+    initButton() {
+      this.button = this.querySelector('.ai-wishlist-btn-{{ ai_gen_id }}');
+      if (!this.button) return;
+
+      this.productId = this.button.dataset.productId;
+      this.productHandle = this.button.dataset.productHandle;
+      
+      this.updateButtonState();
+      
+      this.button.addEventListener('click', () => {
+        this.toggleWishlist();
+      });
+    }
+
+    initPage() {
+      this.grid = this.querySelector('[data-wishlist-grid]');
+      this.emptyState = this.querySelector('.ai-wishlist-empty-{{ ai_gen_id }}');
+      this.renderWishlist();
+    }
+
+    getWishlist() {
+      try {
+        const wishlist = localStorage.getItem(WISHLIST_KEY);
+        return wishlist ? JSON.parse(wishlist) : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    saveWishlist(wishlist) {
+      try {
+        localStorage.setItem(WISHLIST_KEY, JSON.stringify(wishlist));
+        this.updateAllCounts();
+        this.dispatchWishlistEvent();
+      } catch (e) {
+        console.error('Failed to save wishlist:', e);
+      }
+    }
+
+    toggleWishlist() {
+      const wishlist = this.getWishlist();
+      const index = wishlist.findIndex(item => item.id === this.productId);
+      
+      if (index > -1) {
+        wishlist.splice(index, 1);
+      } else {
+        wishlist.push({
+          id: this.productId,
+          handle: this.productHandle,
+          addedAt: new Date().toISOString()
+        });
+      }
+      
+      this.saveWishlist(wishlist);
+      this.updateButtonState();
+    }
+
+    updateButtonState() {
+      if (!this.button) return;
+      
+      const wishlist = this.getWishlist();
+      const isInWishlist = wishlist.some(item => item.id === this.productId);
+      
+      if (isInWishlist) {
+        this.button.classList.add('active');
+        this.button.setAttribute('aria-label', 'Remove from wishlist');
+        const addText = this.button.querySelector('.ai-wishlist-add-text-{{ ai_gen_id }}');
+        const removeText = this.button.querySelector('.ai-wishlist-remove-text-{{ ai_gen_id }}');
+        if (addText) addText.style.display = 'none';
+        if (removeText) removeText.style.display = 'inline';
+      } else {
+        this.button.classList.remove('active');
+        this.button.setAttribute('aria-label', 'Add to wishlist');
+        const addText = this.button.querySelector('.ai-wishlist-add-text-{{ ai_gen_id }}');
+        const removeText = this.button.querySelector('.ai-wishlist-remove-text-{{ ai_gen_id }}');
+        if (addText) addText.style.display = 'inline';
+        if (removeText) removeText.style.display = 'none';
+      }
+    }
+
+    updateAllCounts() {
+      const wishlist = this.getWishlist();
+      const count = wishlist.length;
+      
+      document.querySelectorAll('.ai-wishlist-count-{{ ai_gen_id }}').forEach(counter => {
+        counter.textContent = count;
+        if (count > 0) {
+          counter.classList.add('visible');
+        } else {
+          counter.classList.remove('visible');
+        }
+      });
+
+      document.querySelectorAll('.ai-wishlist-item-count-{{ ai_gen_id }}').forEach(counter => {
+        counter.textContent = count;
+      });
+    }
+
+    async renderWishlist() {
+      if (!this.grid) return;
+      
+      const wishlist = this.getWishlist();
+      
+      if (wishlist.length === 0) {
+        this.grid.style.display = 'none';
+        if (this.emptyState) this.emptyState.style.display = 'block';
+        return;
+      }
+      
+      this.grid.style.display = 'grid';
+      if (this.emptyState) this.emptyState.style.display = 'none';
+      
+      this.grid.innerHTML = '';
+      
+      for (const item of wishlist) {
+        try {
+          const response = await fetch(`/products/${item.handle}.js`);
+          const product = await response.json();
+          
+          const card = this.createProductCard(product);
+          this.grid.appendChild(card);
+        } catch (e) {
+          console.error('Failed to load product:', e);
+        }
+      }
+    }
+
+    createProductCard(product) {
+      const card = document.createElement('div');
+      card.className = 'ai-wishlist-item-{{ ai_gen_id }}';
+      
+      const imageUrl = product.featured_image || '';
+      const price = this.formatMoney(product.price);
+      
+      card.innerHTML = `
+        <img 
+          src="${imageUrl}" 
+          alt="${product.title}" 
+          class="ai-wishlist-item-image-{{ ai_gen_id }}"
+          loading="lazy"
+        >
+        <h3 class="ai-wishlist-item-title-{{ ai_gen_id }}">${product.title}</h3>
+        <p class="ai-wishlist-item-price-{{ ai_gen_id }}">${price}</p>
+        <div class="ai-wishlist-item-actions-{{ ai_gen_id }}">
+          <button class="ai-wishlist-add-cart-{{ ai_gen_id }}" data-variant-id="${product.variants[0].id}">
+            {{ block.settings.add_to_cart_text }}
+          </button>
+          <button class="ai-wishlist-remove-{{ ai_gen_id }}" data-product-id="${product.id}" aria-label="Remove from wishlist">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+      `;
+      
+      const addToCartBtn = card.querySelector('.ai-wishlist-add-cart-{{ ai_gen_id }}');
+      addToCartBtn.addEventListener('click', () => {
+        this.addToCart(product.variants[0].id);
+      });
+      
+      const removeBtn = card.querySelector('.ai-wishlist-remove-{{ ai_gen_id }}');
+      removeBtn.addEventListener('click', () => {
+        this.removeFromWishlist(product.id.toString());
+      });
+      
+      return card;
+    }
+
+    removeFromWishlist(productId) {
+      const wishlist = this.getWishlist();
+      const filtered = wishlist.filter(item => item.id !== productId);
+      this.saveWishlist(filtered);
+      this.renderWishlist();
+    }
+
+    async addToCart(variantId) {
+      try {
+        const response = await fetch('/cart/add.js', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            id: variantId,
+            quantity: 1
+          })
+        });
+        
+        if (response.ok) {
+          window.location.href = '/cart';
+        }
+      } catch (e) {
+        console.error('Failed to add to cart:', e);
+      }
+    }
+
+    formatMoney(cents) {
+      const amount = cents / 100;
+      return new Intl.NumberFormat('{{ block.settings.currency_locale }}', {
+        style: 'currency',
+        currency: '{{ block.settings.currency_code }}'
+      }).format(amount);
+    }
+
+    dispatchWishlistEvent() {
+      const event = new CustomEvent('wishlist-updated', {
+        detail: { count: this.getWishlist().length }
+      });
+      document.dispatchEvent(event);
+    }
+  }
+
+  customElements.define('wishlist-manager-{{ ai_gen_id }}', WishlistManager{{ ai_gen_id }});
+
+  document.addEventListener('wishlist-updated', function() {
+    document.querySelectorAll('wishlist-manager-{{ ai_gen_id }}').forEach(manager => {
+      if (manager.displayType === 'button') {
+        manager.updateButtonState();
+      } else if (manager.displayType === 'page') {
+        manager.renderWishlist();
+      }
+      manager.updateAllCounts();
+    });
+  });
+})();
+</script>
+
+{% schema %}
+{
+  "name": "Wishlist",
+  "settings": [
+    {
+      "type": "select",
+      "id": "display_type",
+      "label": "Display type",
+      "options": [
+        {
+          "value": "button",
+          "label": "Wishlist button"
+        },
+        {
+          "value": "page",
+          "label": "Wishlist page"
+        }
+      ],
+      "default": "button"
+    },
+    {
+      "type": "header",
+      "content": "Button settings"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_text",
+      "label": "Show text",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "add_text",
+      "label": "Add to wishlist text",
+      "default": "Add to Wishlist"
+    },
+    {
+      "type": "text",
+      "id": "remove_text",
+      "label": "Remove from wishlist text",
+      "default": "Remove from Wishlist"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_count",
+      "label": "Show wishlist count",
+      "default": true
+    },
+    {
+      "type": "range",
+      "id": "button_padding",
+      "min": 8,
+      "max": 24,
+      "step": 2,
+      "unit": "px",
+      "label": "Button padding",
+      "default": 12
+    },
+    {
+      "type": "range",
+      "id": "button_border_thickness",
+      "min": 0,
+      "max": 4,
+      "step": 1,
+      "unit": "px",
+      "label": "Border thickness",
+      "default": 1
+    },
+    {
+      "type": "range",
+      "id": "button_border_radius",
+      "min": 0,
+      "max": 40,
+      "step": 2,
+      "unit": "px",
+      "label": "Border radius",
+      "default": 4
+    },
+    {
+      "type": "range",
+      "id": "icon_size",
+      "min": 16,
+      "max": 32,
+      "step": 2,
+      "unit": "px",
+      "label": "Icon size",
+      "default": 20
+    },
+    {
+      "type": "range",
+      "id": "text_size",
+      "min": 12,
+      "max": 20,
+      "step": 1,
+      "unit": "px",
+      "label": "Text size",
+      "default": 14
+    },
+    {
+      "type": "select",
+      "id": "text_weight",
+      "label": "Text weight",
+      "options": [
+        {
+          "value": "400",
+          "label": "Normal"
+        },
+        {
+          "value": "500",
+          "label": "Medium"
+        },
+        {
+          "value": "600",
+          "label": "Semi-bold"
+        },
+        {
+          "value": "700",
+          "label": "Bold"
+        }
+      ],
+      "default": "500"
+    },
+    {
+      "type": "header",
+      "content": "Button colors"
+    },
+    {
+      "type": "color",
+      "id": "button_background",
+      "label": "Background",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "button_hover_background",
+      "label": "Hover background",
+      "default": "#f3f3f3"
+    },
+    {
+      "type": "color",
+      "id": "button_border_color",
+      "label": "Border",
+      "default": "#000000"
+    },
+    {
+      "type": "color",
+      "id": "button_hover_border_color",
+      "label": "Hover border",
+      "default": "#000000"
+    },
+    {
+      "type": "color",
+      "id": "icon_color",
+      "label": "Icon",
+      "default": "#000000"
+    },
+    {
+      "type": "color",
+      "id": "icon_hover_color",
+      "label": "Icon hover",
+      "default": "#000000"
+    },
+    {
+      "type": "color",
+      "id": "icon_active_color",
+      "label": "Icon active",
+      "default": "#ff0000"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Text",
+      "default": "#000000"
+    },
+    {
+      "type": "color",
+      "id": "text_hover_color",
+      "label": "Text hover",
+      "default": "#000000"
+    },
+    {
+      "type": "color",
+      "id": "text_active_color",
+      "label": "Text active",
+      "default": "#ff0000"
+    },
+    {
+      "type": "color",
+      "id": "count_background",
+      "label": "Count background",
+      "default": "#ff0000"
+    },
+    {
+      "type": "color",
+      "id": "count_text_color",
+      "label": "Count text",
+      "default": "#ffffff"
+    },
+    {
+      "type": "header",
+      "content": "Page settings"
+    },
+    {
+      "type": "text",
+      "id": "page_title",
+      "label": "Page title",
+      "default": "My Wishlist"
+    },
+    {
+      "type": "text",
+      "id": "items_text",
+      "label": "Items text",
+      "default": "items saved"
+    },
+    {
+      "type": "text",
+      "id": "empty_message",
+      "label": "Empty message",
+      "default": "Your wishlist is empty"
+    },
+    {
+      "type": "text",
+      "id": "shop_button_text",
+      "label": "Shop button text",
+      "default": "Continue Shopping"
+    },
+    {
+      "type": "text",
+      "id": "add_to_cart_text",
+      "label": "Add to cart text",
+      "default": "Add to Cart"
+    },
+    {
+      "type": "range",
+      "id": "desktop_width_percent",
+      "label": "Desktop width",
+      "min": 50,
+      "max": 100,
+      "step": 5,
+      "unit": "%",
+      "default": 100
+    },
+    {
+      "type": "range",
+      "id": "page_padding",
+      "min": 0,
+      "max": 60,
+      "step": 4,
+      "unit": "px",
+      "label": "Page padding",
+      "default": 20
+    },
+    {
+      "type": "range",
+      "id": "grid_gap",
+      "min": 8,
+      "max": 40,
+      "step": 4,
+      "unit": "px",
+      "label": "Grid gap",
+      "default": 20
+    },
+    {
+      "type": "range",
+      "id": "title_size",
+      "min": 24,
+      "max": 48,
+      "step": 2,
+      "unit": "px",
+      "label": "Title size",
+      "default": 32
+    },
+    {
+      "type": "range",
+      "id": "subtitle_size",
+      "min": 12,
+      "max": 20,
+      "step": 1,
+      "unit": "px",
+      "label": "Subtitle size",
+      "default": 14
+    },
+    {
+      "type": "header",
+      "content": "Page colors"
+    },
+    {
+      "type": "color",
+      "id": "title_color",
+      "label": "Title",
+      "default": "#000000"
+    },
+    {
+      "type": "color",
+      "id": "subtitle_color",
+      "label": "Subtitle",
+      "default": "#666666"
+    },
+    {
+      "type": "color",
+      "id": "empty_text_color",
+      "label": "Empty text",
+      "default": "#666666"
+    },
+    {
+      "type": "header",
+      "content": "Product card"
+    },
+    {
+      "type": "color",
+      "id": "card_background",
+      "label": "Background",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "card_border_color",
+      "label": "Border",
+      "default": "#e5e5e5"
+    },
+    {
+      "type": "range",
+      "id": "card_border_radius",
+      "min": 0,
+      "max": 20,
+      "step": 2,
+      "unit": "px",
+      "label": "Border radius",
+      "default": 8
+    },
+    {
+      "type": "range",
+      "id": "card_padding",
+      "min": 8,
+      "max": 24,
+      "step": 2,
+      "unit": "px",
+      "label": "Padding",
+      "default": 16
+    },
+    {
+      "type": "range",
+      "id": "image_border_radius",
+      "min": 0,
+      "max": 20,
+      "step": 2,
+      "unit": "px",
+      "label": "Image border radius",
+      "default": 4
+    },
+    {
+      "type": "color",
+      "id": "product_title_color",
+      "label": "Title",
+      "default": "#000000"
+    },
+    {
+      "type": "color",
+      "id": "product_price_color",
+      "label": "Price",
+      "default": "#666666"
+    },
+    {
+      "type": "color",
+      "id": "add_cart_background",
+      "label": "Add to cart background",
+      "default": "#000000"
+    },
+    {
+      "type": "color",
+      "id": "add_cart_hover_background",
+      "label": "Add to cart hover",
+      "default": "#333333"
+    },
+    {
+      "type": "color",
+      "id": "add_cart_text_color",
+      "label": "Add to cart text",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "remove_background",
+      "label": "Remove background",
+      "default": "#f3f3f3"
+    },
+    {
+      "type": "color",
+      "id": "remove_hover_background",
+      "label": "Remove hover",
+      "default": "#e5e5e5"
+    },
+    {
+      "type": "color",
+      "id": "remove_text_color",
+      "label": "Remove icon",
+      "default": "#000000"
+    },
+    {
+      "type": "header",
+      "content": "Currency"
+    },
+    {
+      "type": "text",
+      "id": "currency_code",
+      "label": "Currency code",
+      "default": "CAD"
+    },
+    {
+      "type": "text",
+      "id": "currency_locale",
+      "label": "Currency locale",
+      "default": "en-CA"
+    }
+  ],
+  "presets": [
+    {
+      "name": "Wishlist"
+    }
+  ]
+}
+{% endschema %}

@@ -1,0 +1,2126 @@
+{% comment %}
+  ============================================================
+  BECOME A RESELLER
+  Dynamic Shopify Section
+  UI preserved from original design
+  ============================================================
+{% endcomment %}
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+<link
+  href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap"
+  rel="stylesheet"
+>
+
+
+<style>
+
+  /* ==========================================================
+     ROOT
+  ========================================================== */
+
+  #reseller-section-{{ section.id }} {
+
+    --reseller-teal-dark: #00404c;
+    --reseller-teal: #0d6e7a;
+    --reseller-green: #00d68f;
+    --reseller-navy: #1a2c5b;
+
+    --reseller-paper: #f6f4ee;
+    --reseller-card: #ffffff;
+
+    --reseller-line: #dcd8cc;
+    --reseller-ink: #17242c;
+    --reseller-muted: #5c6b70;
+    --reseller-danger: #a13c3c;
+
+   
+    color: var(--reseller-ink);
+
+    background: var(--reseller-paper);
+
+    -webkit-font-smoothing: antialiased;
+
+    overflow: hidden;
+  }
+
+
+  #reseller-section-{{ section.id }} *,
+  #reseller-section-{{ section.id }} *::before,
+  #reseller-section-{{ section.id }} *::after {
+    box-sizing: border-box;
+  }
+
+
+  #reseller-section-{{ section.id }} a {
+    color: var(--reseller-teal-dark);
+  }
+
+
+  /* ==========================================================
+     HERO
+  ========================================================== */
+
+  #reseller-section-{{ section.id }} .reseller-hero {
+
+    background:
+      linear-gradient(
+        135deg,
+        var(--reseller-navy) 0%,
+        var(--reseller-teal-dark) 100%
+      );
+
+    color: #fff;
+
+    padding:
+      {{ section.settings.hero_padding_top }}px
+      24px
+      {{ section.settings.hero_padding_bottom }}px;
+
+    position: relative;
+
+    overflow: hidden;
+  }
+
+
+  #reseller-section-{{ section.id }} .reseller-hero::after {
+
+    content: "";
+
+    position: absolute;
+
+    right: -80px;
+    top: -80px;
+
+    width: 320px;
+    height: 320px;
+
+    border-radius: 50%;
+
+    background:
+      radial-gradient(
+        circle,
+        rgba(0,214,143,0.18) 0%,
+        transparent 70%
+      );
+
+    pointer-events: none;
+  }
+
+
+  #reseller-section-{{ section.id }} .reseller-hero-inner {
+
+    max-width:
+      {{ section.settings.hero_width }}%;
+
+    margin:
+      0 auto;
+
+    position: relative;
+
+    z-index: 1;
+  }
+
+
+  #reseller-section-{{ section.id }} .reseller-eyebrow {
+
+    font-size: 12px;
+
+    line-height: 1.4;
+
+    text-transform: uppercase;
+
+    letter-spacing: 0.18em;
+
+    color:
+      var(--reseller-green);
+
+    margin-bottom: 14px;
+  }
+
+
+  #reseller-section-{{ section.id }} .reseller-hero h1 {
+
+    color: #fff;
+
+    font-size:
+      clamp(
+        34px,
+        5vw,
+        44px
+      );
+
+    line-height: 1.15;
+
+    font-weight: 700;
+
+    margin:
+      0 0 16px;
+
+    max-width: 640px;
+  }
+
+
+  #reseller-section-{{ section.id }} .reseller-hero-description {
+
+    font-size: 16px;
+
+    line-height: 1.6;
+
+    color: #cfe3e1;
+
+    max-width: 560px;
+
+    margin:
+      0 0 30px;
+  }
+
+
+  /* ==========================================================
+     HERO CTA
+  ========================================================== */
+
+  #reseller-section-{{ section.id }} .reseller-hero-ctas {
+
+    display: flex;
+
+    gap: 14px;
+
+    flex-wrap: wrap;
+  }
+
+
+  #reseller-section-{{ section.id }} .reseller-btn {
+
+
+    font-weight: 700;
+
+    font-size: 14px;
+
+    line-height: 1.3;
+
+    padding:
+      13px 24px;
+
+    border-radius: 6px;
+
+    border: none;
+
+    cursor: pointer;
+
+    text-decoration: none;
+
+    display: inline-block;
+
+    transition:
+      filter .18s ease,
+      background .18s ease;
+  }
+
+
+  #reseller-section-{{ section.id }} .reseller-btn-primary {
+
+    background:
+      var(--reseller-green);
+
+    color:
+      var(--reseller-navy);
+  }
+
+
+  #reseller-section-{{ section.id }} .reseller-btn-primary:hover {
+
+    filter:
+      brightness(.95);
+  }
+
+
+  #reseller-section-{{ section.id }} .reseller-btn-ghost {
+
+    background:
+      transparent;
+
+    color:
+      #fff;
+
+    border:
+      1px solid
+      rgba(255,255,255,.4);
+  }
+
+
+  #reseller-section-{{ section.id }} .reseller-btn-ghost:hover {
+
+    background:
+      rgba(255,255,255,.08);
+  }
+
+
+  /* ==========================================================
+     BADGES
+  ========================================================== */
+
+  #reseller-section-{{ section.id }} .reseller-badge-row {
+
+    display: flex;
+
+    gap: 22px;
+
+    flex-wrap: wrap;
+
+    margin-top: 40px;
+
+    padding-top: 28px;
+
+    border-top:
+      1px solid
+      rgba(255,255,255,.15);
+  }
+
+
+  #reseller-section-{{ section.id }} .reseller-badge-item {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 8px;
+
+
+
+    font-size: 12px;
+
+    line-height: 1.4;
+
+    text-transform: uppercase;
+
+    letter-spacing: .05em;
+
+    color:
+      #b9d4d2;
+  }
+
+
+  #reseller-section-{{ section.id }} .reseller-badge-item svg {
+
+    color:
+      var(--reseller-green);
+
+    flex-shrink: 0;
+  }
+
+
+  /* ==========================================================
+     GENERAL SECTION
+  ========================================================== */
+
+  #reseller-section-{{ section.id }} .reseller-section {
+
+    padding:
+      56px 24px;
+  }
+
+
+  #reseller-section-{{ section.id }} .reseller-section-head {
+
+    max-width: 620px;
+
+    margin:
+      0 auto 34px;
+
+    text-align: center;
+  }
+
+
+  #reseller-section-{{ section.id }} .reseller-section-eyebrow {
+
+    display: flex;
+
+    justify-content: center;
+
+
+
+    font-size: 12px;
+
+    line-height: 1.4;
+
+    text-transform: uppercase;
+
+    letter-spacing: .18em;
+
+    color:
+      var(--reseller-teal);
+
+    margin-bottom: 10px;
+  }
+
+
+  #reseller-section-{{ section.id }} .reseller-section-head h2 {
+
+    font-size: 30px;
+
+    line-height: 1.2;
+
+    font-weight: 600;
+
+    color:
+      var(--reseller-navy);
+
+    margin:
+      0 0 8px;
+  }
+
+
+  #reseller-section-{{ section.id }} .reseller-section-head p {
+
+    color:
+      var(--reseller-muted);
+
+    font-size: 14px;
+
+    line-height: 1.6;
+
+    margin: 0;
+  }
+
+
+  /* ==========================================================
+     BENEFITS
+  ========================================================== */
+
+  #reseller-section-{{ section.id }} .reseller-benefits-grid {
+
+    max-width: 75%;
+
+    margin:
+      0 auto;
+
+    display: grid;
+
+    grid-template-columns:
+      repeat(
+        4,
+        minmax(0,1fr)
+      );
+
+    gap: 16px;
+  }
+
+
+  #reseller-section-{{ section.id }} .reseller-benefit-card {
+
+    background:
+      var(--reseller-card);
+
+    border:
+      1px solid
+      var(--reseller-line);
+
+    border-radius: 10px;
+
+    padding:
+      22px 20px;
+
+    transition:
+      transform .2s ease,
+      box-shadow .2s ease;
+  }
+
+
+  #reseller-section-{{ section.id }} .reseller-benefit-card:hover {
+
+    transform:
+      translateY(-3px);
+
+    box-shadow:
+      0 12px 28px
+      rgba(15,42,61,.08);
+  }
+
+
+  #reseller-section-{{ section.id }} .reseller-benefit-icon {
+
+    width: 38px;
+    height: 38px;
+
+    border-radius: 8px;
+
+    background:
+      rgba(0,214,143,.12);
+
+    color:
+      var(--reseller-teal-dark);
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    margin-bottom: 14px;
+  }
+
+
+  #reseller-section-{{ section.id }} .reseller-benefit-card h3 {
+
+
+    font-size: 15px;
+
+    line-height: 1.3;
+
+    font-weight: 600;
+
+    margin:
+      0 0 6px;
+
+    color:
+      var(--reseller-navy);
+  }
+
+
+  #reseller-section-{{ section.id }} .reseller-benefit-card p {
+
+    font-size: 13px;
+
+    color:
+      var(--reseller-muted);
+
+    line-height: 1.55;
+
+    margin: 0;
+  }
+
+
+  /* ==========================================================
+     PROCESS
+  ========================================================== */
+
+  #reseller-section-{{ section.id }} .reseller-process-wrap {
+
+    background:
+      var(--reseller-card);
+
+    border-top:
+      1px solid
+      var(--reseller-line);
+
+    border-bottom:
+      1px solid
+      var(--reseller-line);
+  }
+
+
+  #reseller-section-{{ section.id }} .reseller-process-grid {
+
+    max-width: 75%;
+
+    margin:
+      0 auto;
+
+    display: grid;
+{% comment %} 
+    grid-template-columns:
+      repeat(2,minmax(0,1fr)); {% endcomment %}
+
+    gap: 18px;
+  }
+
+
+  #reseller-section-{{ section.id }} .reseller-process-card {
+
+    border:
+      1px solid
+      var(--reseller-line);
+
+    border-radius: 10px;
+
+    padding:
+      24px 22px;
+
+    position: relative;
+
+    background:
+      var(--reseller-paper);
+
+    overflow: hidden;
+  }
+
+
+  #reseller-section-{{ section.id }} .reseller-process-card::before {
+
+    content: "";
+
+    position: absolute;
+
+    left: 0;
+    top: 0;
+    bottom: 0;
+
+    width: 5px;
+
+    border-radius:
+      10px 0 0 10px;
+
+    background:
+      var(--reseller-teal-dark);
+  }
+
+
+  #reseller-section-{{ section.id }} .reseller-process-card.online::before {
+
+    background:
+      var(--reseller-green);
+  }
+
+
+  #reseller-section-{{ section.id }} .reseller-process-tag {
+
+
+    font-size: 11px;
+
+    line-height: 1.4;
+
+    text-transform: uppercase;
+
+    letter-spacing: .08em;
+
+    color:
+      var(--reseller-teal);
+
+    margin-bottom: 8px;
+  }
+
+
+  #reseller-section-{{ section.id }} .reseller-process-card h3 {
+
+
+
+    font-size: 20px;
+
+    line-height: 1.25;
+
+    font-weight: 600;
+
+    color:
+      var(--reseller-navy);
+
+    margin:
+      0 0 10px;
+  }
+
+
+  #reseller-section-{{ section.id }} .reseller-process-card-description {
+
+    font-size: 13.5px;
+
+    color:
+      var(--reseller-muted);
+
+    line-height: 1.6;
+
+    margin:
+      0 0 14px;
+  }
+
+
+  /* ==========================================================
+     DOWNLOAD LINKS
+  ========================================================== */
+
+  #reseller-section-{{ section.id }} .reseller-dl-links {
+
+    display: flex;
+
+    gap: 10px;
+
+    flex-wrap: wrap;
+
+    margin-bottom: 14px;
+  }
+
+
+  #reseller-section-{{ section.id }} .reseller-dl-link {
+
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 6px;
+
+    font-size: 13px;
+
+    font-weight: 700;
+
+    color:
+      var(--reseller-teal-dark);
+
+    border:
+      1px solid
+      var(--reseller-line);
+
+    background:
+      var(--reseller-card);
+
+    padding:
+      8px 14px;
+
+    border-radius: 6px;
+
+    text-decoration: none;
+
+    transition:
+      border-color .15s ease;
+  }
+
+
+  #reseller-section-{{ section.id }} .reseller-dl-link:hover {
+
+    border-color:
+      var(--reseller-teal);
+  }
+
+
+  #reseller-section-{{ section.id }} .reseller-contact-line {
+
+    font-size: 13px;
+
+    color:
+      var(--reseller-ink);
+
+    line-height: 1.7;
+  }
+
+
+  #reseller-section-{{ section.id }} .reseller-contact-line a {
+
+    font-weight: 700;
+  }
+
+
+  /* ==========================================================
+     STEP LIST
+  ========================================================== */
+
+  #reseller-section-{{ section.id }} .reseller-step-list {
+
+    list-style: none;
+
+    margin: 0;
+
+    padding: 0;
+
+    counter-reset: reseller-step;
+  }
+
+
+  #reseller-section-{{ section.id }} .reseller-step-list li {
+
+    counter-increment:
+      reseller-step;
+
+    font-size: 13.5px;
+
+    color:
+      var(--reseller-ink);
+
+    padding-left: 30px;
+
+    position: relative;
+
+    margin-bottom: 10px;
+
+    line-height: 1.5;
+  }
+
+
+  #reseller-section-{{ section.id }} .reseller-step-list li::before {
+
+    content:
+      counter(reseller-step);
+
+    position: absolute;
+
+    left: 0;
+    top: 0;
+
+    width: 20px;
+    height: 20px;
+
+    border-radius: 50%;
+
+    background:
+      var(--reseller-green);
+
+    color:
+      var(--reseller-navy);
+
+    font-weight: 700;
+
+    font-size: 11px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+  }
+
+
+  /* ==========================================================
+     APPLICATION
+  ========================================================== */
+
+  #reseller-section-{{ section.id }} .reseller-form-section {
+
+    padding:
+      60px 24px 0;
+  }
+
+
+  #reseller-section-{{ section.id }} .reseller-form-shell {
+
+    max-width: 800px;
+
+    margin:
+      0 auto;
+  }
+
+
+  #reseller-section-{{ section.id }} .reseller-form-intro {
+
+    text-align: center;
+
+    margin-bottom: 40px;
+  }
+
+
+  #reseller-section-{{ section.id }} .reseller-form-intro .reseller-section-eyebrow {
+
+    margin-bottom: 10px;
+  }
+
+
+  #reseller-section-{{ section.id }} .reseller-form-intro h2 {
+
+
+    font-size: 30px;
+
+    line-height: 1.2;
+
+    font-weight: 600;
+
+    color:
+      var(--reseller-navy);
+
+    margin:
+      0 0 8px;
+  }
+
+
+  #what-we-sell-{{ section.id }} .reseller-form-intro p,
+  #reseller-section-{{ section.id }} .reseller-form-intro p {
+
+    color:
+      var(--reseller-muted);
+
+    font-size: 14px;
+
+    margin: 0;
+  }
+
+
+  /* ==========================================================
+     HELPER
+  ========================================================== */
+
+  #reseller-section-{{ section.id }} .reseller-helper-strip {
+
+    max-width: 800px;
+
+    margin:
+      0 auto 28px;
+
+    background:
+      #eef8f4;
+
+    border:
+      1px solid
+      #cfe9de;
+
+    border-radius: 8px;
+
+    padding:
+      14px 18px;
+
+    font-size: 13px;
+
+    color:
+      var(--reseller-teal-dark);
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 10px;
+  }
+
+
+  #reseller-section-{{ section.id }} .reseller-helper-strip svg {
+
+    flex-shrink: 0;
+  }
+
+
+  #reseller-section-{{ section.id }} .reseller-helper-strip a {
+
+    color:
+      var(--reseller-teal-dark);
+
+    font-weight: 700;
+
+    margin-left: 4px;
+  }
+
+
+  /* ==========================================================
+     DESKTOP / TABLET
+  ========================================================== */
+
+  @media screen and (max-width: 1100px) {
+
+    #reseller-section-{{ section.id }} .reseller-benefits-grid {
+
+      max-width: 90%;
+
+      grid-template-columns:
+        repeat(2,minmax(0,1fr));
+    }
+
+
+    #reseller-section-{{ section.id }} .reseller-process-grid {
+
+      max-width: 90%;
+    }
+
+
+    #reseller-section-{{ section.id }} .reseller-hero-inner {
+
+      max-width: 90%;
+    }
+
+  }
+
+
+  @media screen and (max-width: 720px) {
+
+    #reseller-section-{{ section.id }} .reseller-process-grid {
+
+      grid-template-columns: 1fr;
+
+      max-width: 100%;
+    }
+
+
+    #reseller-section-{{ section.id }} .reseller-benefits-grid {
+
+      max-width: 100%;
+
+      grid-template-columns:
+        repeat(2,minmax(0,1fr));
+    }
+
+  }
+
+
+  /* ==========================================================
+     MOBILE
+  ========================================================== */
+
+  @media screen and (max-width: 600px) {
+
+    #reseller-section-{{ section.id }} .reseller-hero {
+
+      padding:
+        {{ section.settings.hero_padding_top_mobile }}px
+        20px
+        {{ section.settings.hero_padding_bottom_mobile }}px;
+    }
+
+
+    #reseller-section-{{ section.id }} .reseller-hero-inner {
+
+      max-width: 100%;
+    }
+
+
+    #reseller-section-{{ section.id }} .reseller-hero h1 {
+
+      font-size:
+        clamp(32px,9vw,42px);
+    }
+
+
+    #reseller-section-{{ section.id }} .reseller-hero-description {
+
+      font-size: 14px;
+    }
+
+
+    #reseller-section-{{ section.id }} .reseller-hero-ctas {
+
+      flex-direction: column;
+
+      align-items: stretch;
+    }
+
+
+    #reseller-section-{{ section.id }} .reseller-btn {
+
+      width: 100%;
+
+      text-align: center;
+    }
+
+
+    #reseller-section-{{ section.id }} .reseller-badge-row {
+
+      gap: 14px;
+
+      margin-top: 28px;
+
+      padding-top: 22px;
+    }
+
+
+    #reseller-section-{{ section.id }} .reseller-badge-item {
+
+      font-size: 10px;
+    }
+
+
+    #reseller-section-{{ section.id }} .reseller-section {
+
+      padding:
+        44px 18px;
+    }
+
+
+    #reseller-section-{{ section.id }} .reseller-section-head h2 {
+
+      font-size: 26px;
+    }
+
+
+    #reseller-section-{{ section.id }} .reseller-benefits-grid {
+
+      grid-template-columns: 1fr;
+
+      gap: 12px;
+    }
+
+
+    #reseller-section-{{ section.id }} .reseller-process-grid {
+
+      gap: 14px;
+    }
+
+
+    #reseller-section-{{ section.id }} .reseller-process-card {
+
+      padding:
+        22px 20px;
+    }
+
+
+    #reseller-section-{{ section.id }} .reseller-form-section {
+
+      padding:
+        45px 18px 0;
+    }
+
+
+    #reseller-section-{{ section.id }} .reseller-form-intro h2 {
+
+      font-size: 26px;
+    }
+
+
+    #reseller-section-{{ section.id }} .reseller-helper-strip {
+
+      align-items: flex-start;
+
+      font-size: 12.5px;
+    }
+
+  }
+
+</style>
+
+
+<div id="reseller-section-{{ section.id }}">
+
+
+  <!-- ========================================================
+       HERO
+  ========================================================= -->
+
+  <section class="reseller-hero">
+
+    <div class="reseller-hero-inner">
+
+
+      {% if section.settings.hero_eyebrow != blank %}
+
+        <div class="reseller-eyebrow">
+          {{ section.settings.hero_eyebrow }}
+        </div>
+
+      {% endif %}
+
+
+      {% if section.settings.hero_heading != blank %}
+
+        <h1>
+          {{ section.settings.hero_heading }}
+        </h1>
+
+      {% endif %}
+
+
+      {% if section.settings.hero_description != blank %}
+
+        <div class="reseller-hero-description">
+          {{ section.settings.hero_description }}
+        </div>
+
+      {% endif %}
+
+
+      <div class="reseller-hero-ctas">
+
+
+        {% if section.settings.primary_button_text != blank %}
+
+          <a
+            href="{{ section.settings.primary_button_link | default: '#apply' }}"
+            class="reseller-btn reseller-btn-primary"
+          >
+            {{ section.settings.primary_button_text }}
+          </a>
+
+        {% endif %}
+
+
+        {% if section.settings.secondary_button_text != blank %}
+
+          <a
+            href="{{ section.settings.secondary_button_link | default: '#process' }}"
+            class="reseller-btn reseller-btn-ghost"
+          >
+            {{ section.settings.secondary_button_text }}
+          </a>
+
+        {% endif %}
+
+
+      </div>
+
+
+      {% if section.blocks.size > 0 %}
+
+        <div class="reseller-badge-row">
+
+          {% for block in section.blocks %}
+
+            {% if block.type == 'badge' %}
+
+              <span
+                class="reseller-badge-item"
+                {{ block.shopify_attributes }}
+              >
+
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                  aria-hidden="true"
+                >
+                  <path d="M20 6L9 17l-5-5"/>
+                </svg>
+
+                {{ block.settings.text }}
+
+              </span>
+
+            {% endif %}
+
+          {% endfor %}
+
+        </div>
+
+      {% endif %}
+
+    </div>
+
+  </section>
+
+
+
+  <!-- ========================================================
+       BENEFITS
+  ========================================================= -->
+
+  <section class="reseller-section" id="resellersection">
+
+    <div class="reseller-section-head">
+
+      {% if section.settings.benefits_eyebrow != blank %}
+
+        <div class="reseller-section-eyebrow">
+          {{ section.settings.benefits_eyebrow }}
+        </div>
+
+      {% endif %}
+
+
+      {% if section.settings.benefits_heading != blank %}
+
+        <h2>
+          {{ section.settings.benefits_heading }}
+        </h2>
+
+      {% endif %}
+
+
+      {% if section.settings.benefits_description != blank %}
+
+        <p>
+          {{ section.settings.benefits_description }}
+        </p>
+
+      {% endif %}
+
+    </div>
+
+
+    <div class="reseller-benefits-grid">
+
+      {% for block in section.blocks %}
+
+        {% if block.type == 'benefit' %}
+
+          <div
+            class="reseller-benefit-card"
+            {{ block.shopify_attributes }}
+          >
+
+            <div class="reseller-benefit-icon">
+
+              {% case block.settings.icon %}
+
+                {% when 'pricing' %}
+
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
+                  >
+                    <path d="M12 2v20"/>
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                  </svg>
+
+
+                {% when 'warehouse' %}
+
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
+                  >
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                  </svg>
+
+
+                {% when 'tracking' %}
+
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
+                  >
+                    <circle cx="12" cy="12" r="9"/>
+                    <path d="M12 7v5l3 3"/>
+                  </svg>
+
+
+                {% when 'support' %}
+
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
+                  >
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/>
+                    <circle cx="9" cy="7" r="4"/>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                  </svg>
+
+
+                {% else %}
+
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
+                  >
+                    <circle cx="12" cy="12" r="9"/>
+                  </svg>
+
+              {% endcase %}
+
+            </div>
+
+
+            {% if block.settings.title != blank %}
+
+              <h3>
+                {{ block.settings.title }}
+              </h3>
+
+            {% endif %}
+
+
+            {% if block.settings.description != blank %}
+
+              <p>
+                {{ block.settings.description }}
+              </p>
+
+            {% endif %}
+
+          </div>
+
+        {% endif %}
+
+      {% endfor %}
+
+    </div>
+
+  </section>
+
+
+
+  <!-- ========================================================
+       PROCESS
+  ========================================================= -->
+
+  <div
+    class="reseller-process-wrap"
+    id="process-{{ section.id }}"
+  >
+
+    <section class="reseller-section">
+
+      <div class="reseller-section-head">
+
+        {% if section.settings.process_eyebrow != blank %}
+
+          <div class="reseller-section-eyebrow">
+            {{ section.settings.process_eyebrow }}
+          </div>
+
+        {% endif %}
+
+
+        {% if section.settings.process_heading != blank %}
+
+          <h2>
+            {{ section.settings.process_heading }}
+          </h2>
+
+        {% endif %}
+
+
+        {% if section.settings.process_description != blank %}
+
+          <p>
+            {{ section.settings.process_description }}
+          </p>
+
+        {% endif %}
+
+      </div>
+
+
+      <div class="reseller-process-grid">
+
+        {% for block in section.blocks %}
+
+          {% if block.type == 'process' %}
+
+            <div
+              class="reseller-process-card{% if block.settings.type == 'online' %} online{% endif %}"
+              {{ block.shopify_attributes }}
+            >
+
+              {% if block.settings.tag != blank %}
+
+                <div class="reseller-process-tag">
+                  {{ block.settings.tag }}
+                </div>
+
+              {% endif %}
+
+
+              {% if block.settings.title != blank %}
+
+                <h3>
+                  {{ block.settings.title }}
+                </h3>
+
+              {% endif %}
+
+
+              {% if block.settings.description != blank %}
+
+                <div class="reseller-process-card-description">
+                  {{ block.settings.description }}
+                </div>
+
+              {% endif %}
+
+
+              {% if block.settings.type == 'offline' %}
+
+                <div class="reseller-dl-links">
+
+                  {% if block.settings.english_pdf != blank %}
+
+                    <a
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      href="{{ block.settings.english_pdf }}"
+                      class="reseller-dl-link"
+                    >
+
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.2"
+                        aria-hidden="true"
+                      >
+                        <path d="M12 3v12"/>
+                        <path d="m12 15-4-4"/>
+                        <path d="m12 15 4-4"/>
+                        <path d="M4 21h16"/>
+                      </svg>
+
+                      {{ block.settings.english_button }}
+
+                    </a>
+
+                  {% endif %}
+
+
+                  {% if block.settings.french_pdf != blank %}
+
+                    <a
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      href="{{ block.settings.french_pdf }}"
+                      class="reseller-dl-link"
+                    >
+
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.2"
+                        aria-hidden="true"
+                      >
+                        <path d="M12 3v12"/>
+                        <path d="m12 15-4-4"/>
+                        <path d="m12 15 4-4"/>
+                        <path d="M4 21h16"/>
+                      </svg>
+
+                      {{ block.settings.french_button }}
+
+                    </a>
+
+                  {% endif %}
+
+                </div>
+
+
+                {% if block.settings.contact_text != blank %}
+
+                  <div class="reseller-contact-line">
+                    {{ block.settings.contact_text }}
+                  </div>
+
+                {% endif %}
+
+
+              {% else %}
+
+                {% assign steps = block.settings.steps | newline_to_br | split: '<br />' %}
+
+                {% if block.settings.steps != blank %}
+
+                  <ul class="reseller-step-list">
+
+                    {% for step in steps %}
+
+                      {% assign clean_step = step | strip %}
+
+                      {% if clean_step != blank %}
+
+                        <li>
+                          {{ clean_step }}
+                        </li>
+
+                      {% endif %}
+
+                    {% endfor %}
+
+                  </ul>
+
+                {% endif %}
+
+              {% endif %}
+
+            </div>
+
+          {% endif %}
+
+        {% endfor %}
+
+      </div>
+
+    </section>
+
+  </div>
+
+
+
+  <!-- ========================================================
+       APPLICATION INTRO
+  ========================================================= -->
+
+  <section
+    class="reseller-form-section"
+    id="apply-{{ section.id }}"
+  >
+
+    <div class="reseller-form-shell">
+
+      <div class="reseller-form-intro">
+
+        {% if section.settings.application_eyebrow != blank %}
+
+          <div class="reseller-section-eyebrow">
+            {{ section.settings.application_eyebrow }}
+          </div>
+
+        {% endif %}
+
+
+        {% if section.settings.application_heading != blank %}
+
+          <h2>
+            {{ section.settings.application_heading }}
+          </h2>
+
+        {% endif %}
+
+
+        {% if section.settings.application_description != blank %}
+
+          <p>
+            {{ section.settings.application_description }}
+          </p>
+
+        {% endif %}
+
+      </div>
+
+
+      {% if section.settings.helper_text != blank %}
+
+        <div class="reseller-helper-strip">
+
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.2"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 16v-4"/>
+            <path d="M12 8h.01"/>
+          </svg>
+
+          <span>
+            {{ section.settings.helper_text }}
+
+            {% if section.settings.login_text != blank %}
+
+              <a
+                href="{{ section.settings.login_link | default: '/pages/my-account' }}"
+              >
+                {{ section.settings.login_text }} →
+              </a>
+
+            {% endif %}
+          </span>
+
+        </div>
+
+      {% endif %}
+
+    </div>
+
+  </section>
+
+</div>
+
+
+
+{% schema %}
+
+{
+  "name": "Become a Reseller",
+
+  "tag": "section",
+
+  "class": "become-reseller-section",
+
+  "settings": [
+
+    {
+      "type": "header",
+      "content": "Hero"
+    },
+
+    {
+      "type": "text",
+      "id": "hero_eyebrow",
+      "label": "Eyebrow",
+      "default": "Reseller Program"
+    },
+
+    {
+      "type": "text",
+      "id": "hero_heading",
+      "label": "Heading",
+      "default": "Become an Ink Quest Reseller"
+    },
+
+    {
+      "type": "textarea",
+      "id": "hero_description",
+      "label": "Description",
+      "default": "Get tiered wholesale pricing, live inventory across three Canadian warehouses, and authorized Brother & Lexmark supply — built for resellers who need reliable stock, not backorders."
+    },
+
+    {
+      "type": "text",
+      "id": "primary_button_text",
+      "label": "Primary button",
+      "default": "Start your application"
+    },
+
+    {
+      "type": "url",
+      "id": "primary_button_link",
+      "label": "Primary button link"
+    },
+
+    {
+      "type": "text",
+      "id": "secondary_button_text",
+      "label": "Secondary button",
+      "default": "How it works"
+    },
+
+    {
+      "type": "url",
+      "id": "secondary_button_link",
+      "label": "Secondary button link"
+    },
+
+
+    {
+      "type": "header",
+      "content": "Hero spacing"
+    },
+
+    {
+      "type": "range",
+      "id": "hero_padding_top",
+      "label": "Desktop top padding",
+      "min": 30,
+      "max": 120,
+      "step": 2,
+      "unit": "px",
+      "default": 64
+    },
+
+    {
+      "type": "range",
+      "id": "hero_padding_bottom",
+      "label": "Desktop bottom padding",
+      "min": 30,
+      "max": 120,
+      "step": 2,
+      "unit": "px",
+      "default": 56
+    },
+
+    {
+      "type": "range",
+      "id": "hero_padding_top_mobile",
+      "label": "Mobile top padding",
+      "min": 25,
+      "max": 90,
+      "step": 5,
+      "unit": "px",
+      "default": 50
+    },
+
+    {
+      "type": "range",
+      "id": "hero_padding_bottom_mobile",
+      "label": "Mobile bottom padding",
+      "min": 25,
+      "max": 90,
+      "step": 5,
+      "unit": "px",
+      "default": 45
+    },
+
+    {
+      "type": "range",
+      "id": "hero_width",
+      "label": "Hero content width",
+      "min": 60,
+      "max": 100,
+      "step": 5,
+      "unit": "%",
+      "default": 75
+    },
+
+
+    {
+      "type": "header",
+      "content": "Benefits"
+    },
+
+    {
+      "type": "text",
+      "id": "benefits_eyebrow",
+      "label": "Eyebrow",
+      "default": "Why partner with us"
+    },
+
+    {
+      "type": "text",
+      "id": "benefits_heading",
+      "label": "Heading",
+      "default": "Built for resellers, not one-off orders"
+    },
+
+    {
+      "type": "textarea",
+      "id": "benefits_description",
+      "label": "Description",
+      "default": "Everything about the account is set up to support ongoing reseller business — not a single retail transaction."
+    },
+
+
+    {
+      "type": "header",
+      "content": "Process"
+    },
+
+    {
+      "type": "text",
+      "id": "process_eyebrow",
+      "label": "Eyebrow",
+      "default": "Application"
+    },
+
+    {
+      "type": "text",
+      "id": "process_heading",
+      "label": "Heading",
+      "default": "Two ways to apply"
+    },
+
+    {
+      "type": "textarea",
+      "id": "process_description",
+      "label": "Description",
+      "default": "Choose whichever is easier — both go to the same review process."
+    },
+
+
+    {
+      "type": "header",
+      "content": "Application"
+    },
+
+    {
+      "type": "text",
+      "id": "application_eyebrow",
+      "label": "Eyebrow",
+      "default": "Online Application"
+    },
+
+    {
+      "type": "text",
+      "id": "application_heading",
+      "label": "Heading",
+      "default": "Apply for a reseller account"
+    },
+
+    {
+      "type": "textarea",
+      "id": "application_description",
+      "label": "Description",
+      "default": "All fields marked * are required for credit review."
+    },
+
+    {
+      "type": "textarea",
+      "id": "helper_text",
+      "label": "Helper text",
+      "default": "Already a reseller?"
+    },
+
+    {
+      "type": "text",
+      "id": "login_text",
+      "label": "Login link text",
+      "default": "Sign in to your account"
+    },
+
+    {
+      "type": "url",
+      "id": "login_link",
+      "label": "Login link"
+    }
+
+  ],
+
+
+  "blocks": [
+
+    {
+      "type": "badge",
+
+      "name": "Hero badge",
+
+      "settings": [
+
+        {
+          "type": "text",
+          "id": "text",
+          "label": "Badge text",
+          "default": "Authorized Brother Canada distributor"
+        }
+
+      ]
+    },
+
+
+    {
+      "type": "benefit",
+
+      "name": "Benefit",
+
+      "settings": [
+
+        {
+          "type": "select",
+          "id": "icon",
+          "label": "Icon",
+
+          "options": [
+
+            {
+              "value": "pricing",
+              "label": "Pricing"
+            },
+
+            {
+              "value": "warehouse",
+              "label": "Warehouse"
+            },
+
+            {
+              "value": "tracking",
+              "label": "Tracking"
+            },
+
+            {
+              "value": "support",
+              "label": "Support"
+            }
+
+          ],
+
+          "default": "pricing"
+        },
+
+        {
+          "type": "text",
+          "id": "title",
+          "label": "Title",
+          "default": "Tiered reseller pricing"
+        },
+
+        {
+          "type": "textarea",
+          "id": "description",
+          "label": "Description",
+          "default": "Volume-based pricing tiers on compatible, remanufactured, and OEM toner, cartridges, drums, and wide-format ink."
+        }
+
+      ]
+    },
+
+
+    {
+      "type": "process",
+
+      "name": "Application method",
+
+      "settings": [
+
+        {
+          "type": "select",
+          "id": "type",
+          "label": "Application type",
+
+          "options": [
+
+            {
+              "value": "offline",
+              "label": "Offline application"
+            },
+
+            {
+              "value": "online",
+              "label": "Online application"
+            }
+
+          ],
+
+          "default": "offline"
+        },
+
+        {
+          "type": "text",
+          "id": "tag",
+          "label": "Tag",
+          "default": "Offline application"
+        },
+
+        {
+          "type": "text",
+          "id": "title",
+          "label": "Title",
+          "default": "Download & email it in"
+        },
+
+        {
+          "type": "textarea",
+          "id": "description",
+          "label": "Description",
+          "default": "Download the application, fill it out, and send it back to our accounting team directly."
+        },
+
+        {
+          "type": "url",
+          "id": "english_pdf",
+          "label": "English PDF"
+        },
+
+        {
+          "type": "text",
+          "id": "english_button",
+          "label": "English button text",
+          "default": "Download English"
+        },
+
+        {
+          "type": "url",
+          "id": "french_pdf",
+          "label": "French PDF"
+        },
+
+        {
+          "type": "text",
+          "id": "french_button",
+          "label": "French button text",
+          "default": "Download French"
+        },
+
+        {
+          "type": "richtext",
+          "id": "contact_text",
+          "label": "Contact text",
+          "default": "<p>Email the completed form to <a href=\"mailto:accounting@inkquest.com\">accounting@inkquest.com</a> or call <a href=\"tel:+17804544321\">1 (780) 454-4321</a> to discuss your application. We'll guide you through setup so you can start ordering right away.</p>"
+        },
+
+        {
+          "type": "textarea",
+          "id": "steps",
+          "label": "Online application steps",
+          "info": "Put each step on a separate line.",
+          "default": "Enter your contact and business information\nProvide banking and three business credit references\nUpload your business registration certificate\nSubmit — our team reviews and follows up within 1–2 business days"
+        }
+
+      ]
+    }
+
+  ],
+
+
+  "max_blocks": 20,
+
+
+  "presets": [
+
+    {
+      "name": "Become a Reseller",
+
+      "blocks": [
+
+        {
+          "type": "badge",
+          "settings": {
+            "text": "Authorized Brother Canada distributor"
+          }
+        },
+
+        {
+          "type": "badge",
+          "settings": {
+            "text": "Authorized Lexmark distributor"
+          }
+        },
+
+        {
+          "type": "badge",
+          "settings": {
+            "text": "Serving resellers since 1983"
+          }
+        },
+
+
+        {
+          "type": "benefit",
+          "settings": {
+            "icon": "pricing",
+            "title": "Tiered reseller pricing",
+            "description": "Volume-based pricing tiers on compatible, remanufactured, and OEM toner, cartridges, drums, and wide-format ink."
+          }
+        },
+
+        {
+          "type": "benefit",
+          "settings": {
+            "icon": "warehouse",
+            "title": "Three warehouses, fast fulfillment",
+            "description": "Stock ships from Edmonton AB, Richmond BC, and St-Eustache QC — shorter transit times across Canada."
+          }
+        },
+
+        {
+          "type": "benefit",
+          "settings": {
+            "icon": "tracking",
+            "title": "Live stock & order tracking",
+            "description": "Reseller portal access with live stock lookup, tier pricing, and request tracking once your account is approved."
+          }
+        },
+
+        {
+          "type": "benefit",
+          "settings": {
+            "icon": "support",
+            "title": "Dedicated account support",
+            "description": "A direct line to your CSR team for order questions, RMAs, and special order requests."
+          }
+        },
+
+
+        {
+          "type": "process",
+          "settings": {
+            "type": "offline",
+            "tag": "Offline application",
+            "title": "Download & email it in",
+            "description": "Download the application, fill it out, and send it back to our accounting team directly.",
+            "english_pdf": "https://cdn.shopify.com/s/files/1/0981/0844/0757/files/Become_a_reseller_1.pdf?v=1763055475",
+            "english_button": "Download English",
+            "french_pdf": "https://cdn.shopify.com/s/files/1/0981/0844/0757/files/InkQuest_DEMANDE_D_CREDIT_French_Account_Form.pdf?v=1782292050",
+            "french_button": "Download French",
+            "contact_text": "<p>Email the completed form to <a href=\"mailto:accounting@inkquest.com\">accounting@inkquest.com</a> or call <a href=\"tel:+17804544321\">1 (780) 454-4321</a> to discuss your application. We'll guide you through setup so you can start ordering right away.</p>"
+          }
+        },
+
+        {
+          "type": "process",
+          "settings": {
+            "type": "online",
+            "tag": "Online application",
+            "title": "Fill out the form below",
+            "description": "Faster if you have your business and banking details on hand.",
+            "steps": "Enter your contact and business information\nProvide banking and three business credit references\nUpload your business registration certificate\nSubmit — our team reviews and follows up within 1–2 business days"
+          }
+        }
+
+      ]
+    }
+
+  ]
+
+}
+
+{% endschema %}

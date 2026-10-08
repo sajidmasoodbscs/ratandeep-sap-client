@@ -1,0 +1,641 @@
+{% doc %}
+  @prompt
+    product search, make width smaller
+{% enddoc %}
+{% assign ai_gen_id = block.id | replace: '_', '' | downcase %}
+
+{% style %}
+  .ai-product-search-{{ ai_gen_id }} {
+    display: block;
+    width: {{ block.settings.desktop_width_percent }}%;
+    max-width: 100%;
+    margin: 10px auto 0 auto;
+       position: fixed;
+    z-index: 1000;
+  }
+
+  .ai-product-search-container-{{ ai_gen_id }} {
+    position: relative;
+    width: 100%;
+  }
+
+  .ai-product-search-wrapper-{{ ai_gen_id }} {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .ai-product-search-input-wrapper-{{ ai_gen_id }} {
+    position: relative;
+    flex-grow: 1;
+  }
+
+  .ai-product-search-input-{{ ai_gen_id }} {
+    width: 100%;
+    padding: {{ block.settings.input_padding }}px;
+    padding-left: {{ block.settings.input_padding | plus: 32 }}px;
+    border: {{ block.settings.input_border_thickness }}px solid {{ block.settings.input_border_color }};
+    border-radius: {{ block.settings.input_border_radius }}px;
+    font-size: {{ block.settings.input_font_size }}px;
+    background-color: {{ block.settings.input_background_color }};
+    color: {{ block.settings.input_text_color }};
+  }
+
+  .ai-product-search-input-{{ ai_gen_id }}::placeholder {
+    color: {{ block.settings.placeholder_color }};
+  }
+
+  .ai-product-search-input-{{ ai_gen_id }}:focus {
+    outline: 2px solid {{ block.settings.input_focus_color }};
+    outline-offset: 2px;
+  }
+
+  .ai-product-search-icon-{{ ai_gen_id }} {
+    position: absolute;
+    left: {{ block.settings.input_padding }}px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    color: {{ block.settings.icon_color }};
+    pointer-events: none;
+  }
+
+  .ai-product-search-button-{{ ai_gen_id }} {
+    padding: {{ block.settings.input_padding }}px {{ block.settings.input_padding | times: 1.5 }}px;
+    background-color: {{ block.settings.button_background_color }};
+    color: {{ block.settings.button_text_color }};
+    border: none;
+    border-radius: {{ block.settings.button_border_radius }}px;
+    font-size: {{ block.settings.input_font_size }}px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color 0.3s ease;
+  }
+
+  .ai-product-search-button-{{ ai_gen_id }}:hover {
+    background-color: {{ block.settings.button_hover_color }};
+  }
+
+  .ai-product-search-results-{{ ai_gen_id }} {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    background-color: {{ block.settings.results_background_color }};
+    border: 1px solid {{ block.settings.results_border_color }};
+    border-radius: {{ block.settings.results_border_radius }}px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    max-height: 400px;
+    overflow-y: auto;
+    z-index: 100;
+    display: none;
+  }
+
+  .ai-product-search-results-{{ ai_gen_id }}.active {
+    display: block;
+  }
+
+  .ai-product-search-result-item-{{ ai_gen_id }} {
+    display: flex;
+    gap: 12px;
+    padding: 12px;
+    border-bottom: 1px solid {{ block.settings.results_border_color }};
+    cursor: pointer;
+    text-decoration: none;
+    color: {{ block.settings.results_text_color }};
+    transition: background-color 0.2s ease;
+  }
+
+  .ai-product-search-result-item-{{ ai_gen_id }}:hover {
+    background-color: {{ block.settings.results_hover_color }};
+  }
+
+  .ai-product-search-result-item-{{ ai_gen_id }}:last-child {
+    border-bottom: none;
+  }
+
+  .ai-product-search-result-image-{{ ai_gen_id }} {
+    width: 60px;
+    height: 60px;
+    flex-shrink: 0;
+    border-radius: 4px;
+    object-fit: cover;
+  }
+
+  .ai-product-search-result-info-{{ ai_gen_id }} {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+  }
+
+  .ai-product-search-result-title-{{ ai_gen_id }} {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0;
+    color: {{ block.settings.results_text_color }};
+  }
+
+  .ai-product-search-result-price-{{ ai_gen_id }} {
+    font-size: 14px;
+    color: {{ block.settings.results_price_color }};
+  }
+
+  .ai-product-search-result-vendor-{{ ai_gen_id }} {
+    font-size: 12px;
+    color: {{ block.settings.results_vendor_color }};
+  }
+
+  .ai-product-search-no-results-{{ ai_gen_id }} {
+    padding: 20px;
+    text-align: center;
+    color: {{ block.settings.results_text_color }};
+    font-size: 14px;
+  }
+
+  .ai-product-search-loading-{{ ai_gen_id }} {
+    padding: 20px;
+    text-align: center;
+    color: {{ block.settings.results_text_color }};
+    font-size: 14px;
+  }
+
+  .ai-product-search-view-all-{{ ai_gen_id }} {
+    display: block;
+    padding: 12px;
+    text-align: center;
+    background-color: {{ block.settings.view_all_background_color }};
+    color: {{ block.settings.view_all_text_color }};
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+    border-top: 1px solid {{ block.settings.results_border_color }};
+  }
+
+  .ai-product-search-view-all-{{ ai_gen_id }}:hover {
+    background-color: {{ block.settings.view_all_hover_color }};
+  }
+
+  @media screen and (max-width: 749px) {
+    .ai-product-search-{{ ai_gen_id }} {
+      width: 100%;
+    }
+  }
+{% endstyle %}
+
+<product-search-{{ ai_gen_id }} class="ai-product-search-{{ ai_gen_id }}" {{ block.shopify_attributes }}>
+  <div class="ai-product-search-container-{{ ai_gen_id }}">
+    <div class="ai-product-search-wrapper-{{ ai_gen_id }}">
+      <div class="ai-product-search-input-wrapper-{{ ai_gen_id }}">
+        <svg class="ai-product-search-icon-{{ ai_gen_id }}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"></circle>
+          <path d="m21 21-4.35-4.35"></path>
+        </svg>
+        <input
+          type="text"
+          class="ai-product-search-input-{{ ai_gen_id }}"
+          placeholder="{{ block.settings.placeholder_text }}"
+          aria-label="Search products"
+          autocomplete="off"
+        >
+      </div>
+      {% if block.settings.show_search_button %}
+        <button type="button" class="ai-product-search-button-{{ ai_gen_id }}">
+          {{ block.settings.button_text }}
+        </button>
+      {% endif %}
+    </div>
+
+    <div class="ai-product-search-results-{{ ai_gen_id }}" role="listbox"></div>
+  </div>
+</product-search-{{ ai_gen_id }}>
+
+<script>
+  (function() {
+    class ProductSearch{{ ai_gen_id }} extends HTMLElement {
+      constructor() {
+        super();
+        this.input = this.querySelector('.ai-product-search-input-{{ ai_gen_id }}');
+        this.button = this.querySelector('.ai-product-search-button-{{ ai_gen_id }}');
+        this.resultsContainer = this.querySelector('.ai-product-search-results-{{ ai_gen_id }}');
+        this.searchTimeout = null;
+        this.currentQuery = '';
+      }
+
+      connectedCallback() {
+        this.input.addEventListener('input', this.handleInput.bind(this));
+        this.input.addEventListener('focus', this.handleFocus.bind(this));
+        
+        if (this.button) {
+          this.button.addEventListener('click', this.handleSearch.bind(this));
+        }
+
+        document.addEventListener('click', this.handleClickOutside.bind(this));
+      }
+
+      disconnectedCallback() {
+        document.removeEventListener('click', this.handleClickOutside.bind(this));
+      }
+
+      handleInput(event) {
+        const query = event.target.value.trim();
+        
+        clearTimeout(this.searchTimeout);
+        
+        if (query.length < {{ block.settings.min_characters }}) {
+          this.hideResults();
+          return;
+        }
+
+        this.searchTimeout = setTimeout(() => {
+          this.performSearch(query);
+        }, 300);
+      }
+
+      handleFocus() {
+        if (this.currentQuery && this.resultsContainer.children.length > 0) {
+          this.showResults();
+        }
+      }
+
+      handleSearch() {
+        const query = this.input.value.trim();
+        if (query) {
+          window.location.href = `/search?q=${encodeURIComponent(query)}`;
+        }
+      }
+
+      handleClickOutside(event) {
+        if (!this.contains(event.target)) {
+          this.hideResults();
+        }
+      }
+
+      async performSearch(query) {
+        this.currentQuery = query;
+        this.showLoading();
+
+        try {
+          const response = await fetch(`/search/suggest.json?q=${encodeURIComponent(query)}&resources[type]=product&resources[limit]={{ block.settings.max_results }}`);
+          const data = await response.json();
+
+          this.displayResults(data.resources.results.products || [], query);
+        } catch (error) {
+          this.displayError();
+        }
+      }
+
+      showLoading() {
+        this.resultsContainer.innerHTML = '<div class="ai-product-search-loading-{{ ai_gen_id }}">Searching...</div>';
+        this.showResults();
+      }
+
+      displayResults(products, query) {
+        if (products.length === 0) {
+          this.resultsContainer.innerHTML = '<div class="ai-product-search-no-results-{{ ai_gen_id }}">No products found</div>';
+          this.showResults();
+          return;
+        }
+
+        let html = '';
+        
+        products.forEach(product => {
+          const imageUrl = product.featured_image ? product.featured_image : '';
+          const price = this.formatMoney(product.price);
+          
+          html += `
+            <a href="${product.url}" class="ai-product-search-result-item-{{ ai_gen_id }}">
+              ${imageUrl ? `<img src="${imageUrl}" alt="${this.escapeHtml(product.title)}" class="ai-product-search-result-image-{{ ai_gen_id }}" loading="lazy">` : ''}
+              <div class="ai-product-search-result-info-{{ ai_gen_id }}">
+                <h3 class="ai-product-search-result-title-{{ ai_gen_id }}">${this.escapeHtml(product.title)}</h3>
+                {% if block.settings.show_price %}
+                  <div class="ai-product-search-result-price-{{ ai_gen_id }}">${price}</div>
+                {% endif %}
+                {% if block.settings.show_vendor %}
+                  ${product.vendor ? `<div class="ai-product-search-result-vendor-{{ ai_gen_id }}">${this.escapeHtml(product.vendor)}</div>` : ''}
+                {% endif %}
+              </div>
+            </a>
+          `;
+        });
+
+        {% if block.settings.show_view_all %}
+          html += `<a href="/search?q=${encodeURIComponent(query)}" class="ai-product-search-view-all-{{ ai_gen_id }}">{{ block.settings.view_all_text }}</a>`;
+        {% endif %}
+
+        this.resultsContainer.innerHTML = html;
+        this.showResults();
+      }
+
+      displayError() {
+        this.resultsContainer.innerHTML = '<div class="ai-product-search-no-results-{{ ai_gen_id }}">An error occurred. Please try again.</div>';
+        this.showResults();
+      }
+
+      showResults() {
+        this.resultsContainer.classList.add('active');
+      }
+
+      hideResults() {
+        this.resultsContainer.classList.remove('active');
+      }
+
+      formatMoney(cents) {
+        const amount = cents / 100;
+        return new Intl.NumberFormat('{{ localization.language.iso_code }}', {
+          style: 'currency',
+          currency: '{{ cart.currency.iso_code }}'
+        }).format(amount);
+      }
+
+      escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+      }
+    }
+
+    customElements.define('product-search-{{ ai_gen_id }}', ProductSearch{{ ai_gen_id }});
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Product search",
+  "settings": [
+    {
+      "type": "header",
+      "content": "Search settings"
+    },
+    {
+      "type": "text",
+      "id": "placeholder_text",
+      "label": "Placeholder text",
+      "default": "Search products..."
+    },
+    {
+      "type": "range",
+      "id": "min_characters",
+      "label": "Minimum characters",
+      "min": 1,
+      "max": 5,
+      "step": 1,
+      "default": 2
+    },
+    {
+      "type": "range",
+      "id": "max_results",
+      "label": "Maximum results",
+      "min": 3,
+      "max": 10,
+      "step": 1,
+      "default": 5
+    },
+    {
+      "type": "checkbox",
+      "id": "show_price",
+      "label": "Show price",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_vendor",
+      "label": "Show vendor",
+      "default": false
+    },
+    {
+      "type": "header",
+      "content": "Search button"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_search_button",
+      "label": "Show search button",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "button_text",
+      "label": "Button text",
+      "default": "Search"
+    },
+    {
+      "type": "header",
+      "content": "View all link"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_view_all",
+      "label": "Show view all link",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "view_all_text",
+      "label": "View all text",
+      "default": "View all results"
+    },
+    {
+      "type": "header",
+      "content": "Layout"
+    },
+    {
+      "type": "range",
+      "id": "desktop_width_percent",
+      "label": "Desktop width",
+      "min": 20,
+      "max": 100,
+      "step": 5,
+      "unit": "%",
+      "default": 60
+    },
+    {
+      "type": "header",
+      "content": "Input style"
+    },
+    {
+      "type": "range",
+      "id": "input_padding",
+      "label": "Input padding",
+      "min": 8,
+      "max": 24,
+      "step": 2,
+      "unit": "px",
+      "default": 12
+    },
+    {
+      "type": "range",
+      "id": "input_font_size",
+      "label": "Font size",
+      "min": 12,
+      "max": 20,
+      "step": 1,
+      "unit": "px",
+      "default": 14
+    },
+    {
+      "type": "range",
+      "id": "input_border_thickness",
+      "label": "Border thickness",
+      "min": 0,
+      "max": 4,
+      "step": 1,
+      "unit": "px",
+      "default": 1
+    },
+    {
+      "type": "range",
+      "id": "input_border_radius",
+      "label": "Input border radius",
+      "min": 0,
+      "max": 40,
+      "step": 2,
+      "unit": "px",
+      "default": 4
+    },
+    {
+      "type": "color",
+      "id": "input_background_color",
+      "label": "Background",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "input_text_color",
+      "label": "Text",
+      "default": "#000000"
+    },
+    {
+      "type": "color",
+      "id": "input_border_color",
+      "label": "Border",
+      "default": "#cccccc"
+    },
+    {
+      "type": "color",
+      "id": "input_focus_color",
+      "label": "Focus outline",
+      "default": "#00404c"
+    },
+    {
+      "type": "color",
+      "id": "placeholder_color",
+      "label": "Placeholder",
+      "default": "#999999"
+    },
+    {
+      "type": "color",
+      "id": "icon_color",
+      "label": "Icon",
+      "default": "#666666"
+    },
+    {
+      "type": "header",
+      "content": "Button style"
+    },
+    {
+      "type": "range",
+      "id": "button_border_radius",
+      "label": "Border radius",
+      "min": 0,
+      "max": 40,
+      "step": 2,
+      "unit": "px",
+      "default": 4
+    },
+    {
+      "type": "color",
+      "id": "button_background_color",
+      "label": "Background",
+      "default": "#00404c"
+    },
+    {
+      "type": "color",
+      "id": "button_text_color",
+      "label": "Text",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "button_hover_color",
+      "label": "Hover background",
+      "default": "#121212"
+    },
+    {
+      "type": "header",
+      "content": "Results style"
+    },
+    {
+      "type": "range",
+      "id": "results_border_radius",
+      "label": "Border radius",
+      "min": 0,
+      "max": 20,
+      "step": 2,
+      "unit": "px",
+      "default": 8
+    },
+    {
+      "type": "color",
+      "id": "results_background_color",
+      "label": "Background",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "results_border_color",
+      "label": "Border",
+      "default": "#e0e0e0"
+    },
+    {
+      "type": "color",
+      "id": "results_text_color",
+      "label": "Text",
+      "default": "#000000"
+    },
+    {
+      "type": "color",
+      "id": "results_price_color",
+      "label": "Price",
+      "default": "#666666"
+    },
+    {
+      "type": "color",
+      "id": "results_vendor_color",
+      "label": "Vendor",
+      "default": "#999999"
+    },
+    {
+      "type": "color",
+      "id": "results_hover_color",
+      "label": "Hover background",
+      "default": "#f5f5f5"
+    },
+    {
+      "type": "color",
+      "id": "view_all_background_color",
+      "label": "View all background",
+      "default": "#f9f9f9"
+    },
+    {
+      "type": "color",
+      "id": "view_all_text_color",
+      "label": "View all text",
+      "default": "#00404c"
+    },
+    {
+      "type": "color",
+      "id": "view_all_hover_color",
+      "label": "View all hover",
+      "default": "#eeeeee"
+    }
+  ],
+  "presets": [
+    {
+      "name": "Product search"
+    }
+  ]
+}
+{% endschema %}

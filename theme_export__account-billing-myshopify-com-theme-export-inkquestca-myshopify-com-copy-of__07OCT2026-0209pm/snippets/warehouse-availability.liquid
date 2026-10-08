@@ -1,0 +1,2326 @@
+{% comment %} 
+{% if product.metafields.custom.firmware_info != blank %}
+  <div class="firmware-pill">
+    <svg
+      class="fw-icon"
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2.3"
+    >
+      <path d="M20 6L9 17l-5-5"/>
+    </svg>
+
+    <div class="fw-text">
+      <strong>Compatible with the latest firmware</strong><br>
+      {{ product.metafields.custom.firmware_info | newline_to_br }}
+    </div>
+  </div>
+{% endif %}
+
+
+{% assign customer_warehouse = '' %}
+
+{% if customer and customer.default_address %}
+  {% assign customer_province = customer.default_address.province_code | upcase %}
+
+  {% case customer_province %}
+
+    {% when 'BC' %}
+      {% assign customer_warehouse = 'Ink Quest, Richmond, BC' %}
+
+    {% when 'AB', 'SK', 'MB' %}
+      {% assign customer_warehouse = 'Ink Quest, Edmonton, AB' %}
+
+    {% when 'NB', 'NL', 'NT', 'NS', 'NU', 'ON', 'PE', 'QC', 'YT' %}
+      {% assign customer_warehouse = 'Ink Quest / JCMD, St-Eustache, QC' %}
+
+  {% endcase %}
+{% endif %}
+
+
+{% assign stores = variant.store_availabilities | where: 'pick_up_enabled', true %}
+
+
+{% if stores.size > 0 %}
+
+  <div
+    class="warehouse-card"
+    id="warehouseCard"
+    data-variant-id="{{ variant.id }}"
+  >
+
+    <div class="warehouse-title">
+      Warehouse Availability
+    </div>
+
+
+    <div class="warehouse-list">
+
+      {% for store in stores %}
+
+        <div
+          class="warehouse-row"
+          data-location-name="{{ store.location.name | strip | escape }}"
+        >
+
+          <div class="warehouse-left">
+
+            <strong>
+              {{ store.location.name }}
+            </strong>
+
+            {% if customer_warehouse != blank and store.location.name contains customer_warehouse %}
+              <span class="warehouse-badge">
+                YOUR WAREHOUSE
+              </span>
+            {% endif %}
+
+          </div>
+
+
+          <div class="warehouse-right">
+
+            <!-- Loading state -->
+            <span class="warehouse-stock warehouse-loading">
+              Checking...
+            </span>
+
+          </div>
+
+        </div>
+
+      {% endfor %}
+
+    </div>
+
+  </div>
+
+{% endif %}
+
+
+<style>
+
+/* =========================================
+   WAREHOUSE STOCK - PREMIUM UI
+   ========================================= */
+
+.warehouse-card {
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.warehouse-title {
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  line-height: 1.3 !important;
+  color: #00404C !important;
+  margin: 0 0 10px !important;
+}
+
+.warehouse-list {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 12px !important;
+}
+
+.warehouse-row {
+  min-width: 0 !important;
+
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  justify-content: flex-start !important;
+
+  gap: 4px !important;
+
+  padding: 12px 14px !important;
+
+  border: 1px solid #ddd9cf !important;
+  border-radius: 10px !important;
+
+  background: #fff !important;
+
+  box-sizing: border-box !important;
+}
+
+.warehouse-row:last-child {
+  border-bottom: 1px solid #ddd9cf !important;
+}
+
+
+/* =========================================
+   LOCATION NAME
+   ========================================= */
+
+.warehouse-left {
+  width: 100% !important;
+
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+
+  gap: 4px !important;
+
+  min-width: 0 !important;
+}
+
+.warehouse-left strong {
+    font-size: 12px;
+    font-weight: 700;
+    color: #00404C;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    line-height: normal;
+}
+
+
+/* =========================================
+   YOUR WAREHOUSE BADGE
+   ========================================= */
+
+.warehouse-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+
+  width: fit-content !important;
+
+  padding: 3px 8px !important;
+
+  border-radius: 3px !important;
+  background: #172c62 !important;
+  color: #fff !important;
+
+  font-size: 9px !important;
+  line-height: 1.2 !important;
+  font-weight: 700 !important;
+
+  letter-spacing: .2px !important;
+  text-transform: uppercase !important;
+
+  white-space: nowrap !important;
+}
+
+
+/* =========================================
+   STOCK AREA
+   ========================================= */
+
+.warehouse-right {
+  width: 100% !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+
+  flex-shrink: 0 !important;
+}
+
+.warehouse-stock {
+  display: inline-flex !important;
+  align-items: center !important;
+
+  padding: 0 !important;
+
+  border-radius: 0 !important;
+
+  background: transparent !important;
+
+  font-size: 13px !important;
+  line-height: 1.3 !important;
+  font-weight: 500 !important;
+
+  white-space: nowrap !important;
+}
+
+
+/* IN STOCK */
+.warehouse-stock.in-stock {
+  background: transparent !important;
+  color: #087b52 !important;
+}
+
+
+/* INCOMING */
+.warehouse-stock.incoming {
+  background: transparent !important;
+  color: #a66a00 !important;
+}
+
+
+/* BACKORDER */
+.warehouse-stock.backorder {
+  color: #c82333 !important;
+  border-radius: 20px !important;
+  white-space: normal !important;
+}
+
+
+/* LOADING */
+.warehouse-stock.warehouse-loading {
+  min-width: 0 !important;
+
+  padding: 0 !important;
+
+  background: transparent !important;
+  color: #777 !important;
+
+  text-align: left !important;
+}
+
+
+/* ERROR */
+.warehouse-stock.warehouse-error {
+  background: transparent !important;
+  color: #c82333 !important;
+}
+
+
+/* QUANTITY */
+.stock-qty-num {
+  margin-left: 2px !important;
+  font-weight: 600 !important;
+}
+
+
+/* =========================================
+   MOBILE
+   ========================================= */
+
+@media screen and (max-width: 767px) {
+
+  .warehouse-title {
+    font-size: 15px !important;
+    margin-bottom: 9px !important;
+  }
+
+  .warehouse-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  .warehouse-row {
+    padding: 10px !important;
+    border-radius: 9px !important;
+    gap: 4px !important;
+  }
+
+  .warehouse-left strong {
+    font-size: 12px !important;
+    line-height: normal;
+  }
+
+  .warehouse-badge {
+    font-size: 8px !important;
+    padding: 3px 6px !important;
+  }
+
+  .warehouse-stock {
+    font-size: 11px !important;
+  }
+
+}
+
+
+/* =========================================
+   VERY SMALL MOBILE
+   ========================================= */
+
+@media screen and (max-width: 480px) {
+
+  .warehouse-list {
+    gap: 6px !important;
+  }
+
+  .warehouse-row {
+    padding: 9px 8px !important;
+  }
+
+  .warehouse-left strong {
+    font-size: 11px !important;
+  }
+
+  .warehouse-stock {
+    font-size: 10px !important;
+  }
+
+  .warehouse-badge {
+    font-size: 7px !important;
+    padding: 2px 5px !important;
+  }
+
+}
+
+{% comment %} version css {% endcomment %}
+ /* =========================================
+   FIRMWARE INFO - PREMIUM UI
+   ========================================= */
+
+.firmware-pill {
+  width: 100%;
+  box-sizing: border-box;
+
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+
+  padding: 16px 20px;
+
+  background: #e9f9f3;
+
+  border: 1px solid #b8ead8;
+  border-radius: 9px;
+
+  color: #075d4c;
+}
+
+
+/* CHECK ICON */
+.firmware-pill .fw-icon {
+  flex: 0 0 18px;
+
+  width: 18px;
+  height: 18px;
+
+  margin-top: 2px;
+
+  color: #07815f;
+}
+
+
+/* TEXT AREA */
+.firmware-pill .fw-text {
+  flex: 1;
+
+  font-size: 15px;
+  line-height: 1.45;
+
+  color: #111;
+}
+
+
+/* HEADING */
+.firmware-pill .fw-text strong {
+  display: inline-block;
+
+  margin-bottom: 1px;
+
+  color: #071d18;
+
+  font-size: 16px;
+  line-height: 1.3;
+  font-weight: 700;
+}
+
+
+/* FIRMWARE DETAILS */
+.firmware-pill .fw-text {
+  white-space: normal;
+}
+
+
+/* LINK - What does this mean? */
+.firmware-pill .fw-text a {
+  color: #075d6b;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+
+/* =========================================
+   MOBILE
+   ========================================= */
+
+@media screen and (max-width: 749px) {
+
+  .firmware-pill {
+    gap: 11px;
+
+    padding: 13px 14px;
+
+    border-radius: 8px;
+  }
+
+  .firmware-pill .fw-icon {
+    width: 17px;
+    height: 17px;
+    flex-basis: 17px;
+  }
+
+  .firmware-pill .fw-text {
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .firmware-pill .fw-text strong {
+    font-size: 14px;
+  }
+
+}
+</style>
+
+
+<script>
+
+(function () {
+
+  /*
+   * Prevent duplicate initialization.
+   */
+  if (window.inkQuestWarehouseLoaded) {
+    return;
+  }
+
+  window.inkQuestWarehouseLoaded = true;
+
+
+  /* =======================================================
+     CONFIG
+  ======================================================= */
+
+  const PROXY_URL =
+    '/apps/warehouse-inventory/inventory';
+
+
+  /* =======================================================
+     GET CURRENT VARIANT ID
+  ======================================================= */
+
+  function getCurrentVariantId() {
+
+    /*
+     * 1. Product form variant input
+     */
+    const variantInput =
+      document.querySelector(
+        'form[action*="/cart/add"] input[name="id"]'
+      );
+
+    if (variantInput && variantInput.value) {
+      return variantInput.value;
+    }
+
+
+    /*
+     * 2. URL ?variant=
+     */
+    const params =
+      new URLSearchParams(window.location.search);
+
+    const urlVariant =
+      params.get('variant');
+
+    if (urlVariant) {
+      return urlVariant;
+    }
+
+
+    /*
+     * 3. Warehouse card data attribute
+     */
+    const card =
+      document.getElementById('warehouseCard');
+
+    if (card && card.dataset.variantId) {
+      return card.dataset.variantId;
+    }
+
+
+    return null;
+  }
+
+
+  /* =======================================================
+     SHOW LOADING
+  ======================================================= */
+
+  function showLoading(card) {
+
+    if (!card) return;
+
+    const badges =
+      card.querySelectorAll('.warehouse-right');
+
+    badges.forEach(function (container) {
+
+      container.innerHTML = `
+        <span class="warehouse-stock warehouse-loading">
+          Checking...
+        </span>
+      `;
+
+    });
+
+  }
+
+
+  /* =======================================================
+     SHOW ERROR
+  ======================================================= */
+
+  function showError(card) {
+
+    if (!card) return;
+
+    const rows =
+      card.querySelectorAll('.warehouse-row');
+
+    rows.forEach(function (row) {
+
+      const right =
+        row.querySelector('.warehouse-right');
+
+      if (!right) return;
+
+      right.innerHTML = `
+        <span class="warehouse-stock warehouse-error">
+          Inventory unavailable
+        </span>
+      `;
+
+    });
+
+  }
+
+
+  /* =======================================================
+     UPDATE WAREHOUSE UI
+  ======================================================= */
+
+  function updateWarehouseUI(card, locations) {
+
+    if (!card) return;
+
+
+    const locationMap = {};
+
+
+    /*
+     * Create easy lookup:
+     *
+     * location name → inventory data
+     */
+    locations.forEach(function (location) {
+
+      const key =
+        String(location.name || '')
+          .trim()
+          .toLowerCase();
+
+      locationMap[key] = location;
+
+    });
+
+
+    /*
+     * Update each existing Liquid row.
+     */
+    const rows =
+      card.querySelectorAll('.warehouse-row');
+
+
+    rows.forEach(function (row) {
+
+      const rowLocation =
+        String(
+          row.dataset.locationName || ''
+        )
+        .trim()
+        .toLowerCase();
+
+
+      const inventory =
+        locationMap[rowLocation];
+
+
+      const right =
+        row.querySelector('.warehouse-right');
+
+
+      if (!right) return;
+
+
+      /*
+       * Location not returned by API.
+       */
+      if (!inventory) {
+
+        right.innerHTML = `
+          <span class="warehouse-stock warehouse-error">
+            Inventory unavailable
+          </span>
+        `;
+
+        return;
+      }
+
+
+  const available =
+  Number(inventory.available);
+
+const incoming =
+  Number(inventory.incoming);
+
+
+      /*
+       * IMPORTANT:
+       *
+       * available > 0
+       * = In Stock
+       *
+       * available <= 0
+       * = Backorder
+       *
+       * This completely ignores
+       * Shopify's Continue Selling setting.
+       */
+
+      if (available > 0) {
+
+  right.innerHTML = `
+    <span class="warehouse-stock in-stock">
+      ● In Stock
+      <span class="stock-qty-num">
+        (${available})
+      </span>
+    </span>
+  `;
+
+} else if (incoming > 0) {
+
+  right.innerHTML = `
+    <span class="warehouse-stock incoming">
+      ● Incoming
+      <span class="stock-qty-num">
+        (${incoming})
+      </span>
+    </span>
+  `;
+
+} else {
+
+  right.innerHTML = `
+    <span class="warehouse-stock backorder">
+      ● B/O-Avail. To Purchase (0)
+      {% comment %} <span class="stock-qty-num">
+        (0)
+      </span> {% endcomment %}
+    </span>
+  `;
+
+}
+    });
+
+  }
+
+
+  /* =======================================================
+     FETCH INVENTORY
+  ======================================================= */
+
+  async function loadWarehouseInventory(variantId) {
+
+    const card =
+      document.getElementById('warehouseCard');
+
+
+    if (!card || !variantId) {
+      return;
+    }
+
+
+    /*
+     * Update card variant ID.
+     */
+    card.dataset.variantId = variantId;
+
+
+    /*
+     * Loading state
+     */
+    showLoading(card);
+
+
+    try {
+
+      const response =
+        await fetch(
+          `${PROXY_URL}?variant_id=${encodeURIComponent(variantId)}`,
+          {
+            method: 'GET',
+
+            headers: {
+              'Accept': 'application/json'
+            },
+
+            cache: 'no-store'
+          }
+        );
+
+
+      if (!response.ok) {
+
+        throw new Error(
+          `Inventory API HTTP ${response.status}`
+        );
+
+      }
+
+
+      const data =
+        await response.json();
+
+
+      console.log(
+        'InkQuest Warehouse Inventory:',
+        data
+      );
+
+
+      if (!data.success) {
+
+        throw new Error(
+          data.error || 'Inventory API failed'
+        );
+
+      }
+
+
+      updateWarehouseUI(
+        card,
+        data.locations || []
+      );
+
+
+    } catch (error) {
+
+      console.error(
+        'InkQuest Warehouse Error:',
+        error
+      );
+
+
+      showError(card);
+
+    }
+
+  }
+
+
+  /* =======================================================
+     INITIAL LOAD
+  ======================================================= */
+
+  function initWarehouseInventory() {
+
+    const card =
+      document.getElementById('warehouseCard');
+
+
+    if (!card) {
+      return;
+    }
+
+
+    const variantId =
+      getCurrentVariantId();
+
+
+    if (variantId) {
+
+      loadWarehouseInventory(
+        variantId
+      );
+
+    }
+
+  }
+
+
+  /* =======================================================
+     VARIANT INPUT CHANGE
+  ======================================================= */
+
+  function listenForVariantInput() {
+
+    document.addEventListener(
+      'change',
+      function (event) {
+
+        const target =
+          event.target;
+
+
+        if (
+          target &&
+          target.matches(
+            'form[action*="/cart/add"] input[name="id"]'
+          )
+        ) {
+
+          const variantId =
+            target.value;
+
+
+          if (variantId) {
+
+            loadWarehouseInventory(
+              variantId
+            );
+
+          }
+
+        }
+
+      }
+    );
+
+  }
+
+
+  /* =======================================================
+     SHOPIFY THEME EVENTS
+  ======================================================= */
+
+  function listenForShopifyVariantEvents() {
+
+    /*
+     * Dawn / Shopify product variant events
+     */
+    document.addEventListener(
+      'variant:change',
+      function (event) {
+
+        const variant =
+          event.detail?.variant;
+
+
+        if (
+          variant &&
+          variant.id
+        ) {
+
+          loadWarehouseInventory(
+            variant.id
+          );
+
+        }
+
+      }
+    );
+
+
+    /*
+     * Some themes dispatch this event.
+     */
+    document.addEventListener(
+      'product:variant-change',
+      function (event) {
+
+        const variant =
+          event.detail?.variant ||
+          event.detail;
+
+
+        if (
+          variant &&
+          variant.id
+        ) {
+
+          loadWarehouseInventory(
+            variant.id
+          );
+
+        }
+
+      }
+    );
+
+  }
+
+
+  /* =======================================================
+     URL VARIANT CHANGE
+  ======================================================= */
+
+  function listenForUrlChanges() {
+
+    let lastVariant =
+      getCurrentVariantId();
+
+
+    setInterval(
+      function () {
+
+        const currentVariant =
+          getCurrentVariantId();
+
+
+        if (
+          currentVariant &&
+          currentVariant !== lastVariant
+        ) {
+
+          lastVariant =
+            currentVariant;
+
+
+          loadWarehouseInventory(
+            currentVariant
+          );
+
+        }
+
+      },
+      500
+    );
+
+  }
+
+
+  /* =======================================================
+     INITIALIZE
+  ======================================================= */
+
+  function start() {
+
+    initWarehouseInventory();
+
+    listenForVariantInput();
+
+    listenForShopifyVariantEvents();
+
+    listenForUrlChanges();
+
+  }
+
+
+  /*
+   * DOM ready
+   */
+  if (
+    document.readyState === 'loading'
+  ) {
+
+    document.addEventListener(
+      'DOMContentLoaded',
+      start
+    );
+
+  } else {
+
+    start();
+
+  }
+
+})();
+app.get("/inventory", async (req, res) => {
+
+  try {
+    const variantId = req.query.variant_id;
+
+    if (!variantId) {
+      return res.status(400).json({
+        success: false,
+        error: "variant_id is required"
+      });
+    }
+
+    const response = await fetch(
+      `https://${process.env.SHOPIFY_SHOP}/admin/api/2026-07/graphql.json`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Shopify-Access-Token": process.env.SHOPIFY_ACCESS_TOKEN
+        },
+        body: JSON.stringify({
+          query: `
+            query getVariantInventory($id: ID!) {
+              productVariant(id: $id) {
+                id
+                title
+                sku
+                inventoryItem {
+                  id
+                  tracked
+                  inventoryLevels(first: 20) {
+                    nodes {
+                      location {
+                        id
+                        name
+                      }
+                      quantities(names: ["available", "incoming", "on_hand", "committed"]) {
+                        name
+                        quantity
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          `,
+          variables: {
+            id: `gid://shopify/ProductVariant/${variantId}`
+          }
+        })
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok || data.errors) {
+      console.error("Shopify GraphQL Error:", data);
+
+      return res.status(500).json({
+        success: false,
+        error: data.errors || "Shopify API error"
+      });
+    }
+
+    const variant = data.data.productVariant;
+
+    if (!variant) {
+      return res.status(404).json({
+        success: false,
+        error: "Variant not found"
+      });
+    }
+
+    const locations =
+      variant.inventoryItem?.inventoryLevels?.nodes || [];
+
+    const formattedLocations = locations.map(level => {
+
+      const quantities = {};
+
+      (level.quantities || []).forEach(q => {
+        quantities[q.name] = q.quantity;
+      });
+
+   const available = quantities.available || 0;
+const incoming = quantities.incoming || 0;
+const onHand = quantities.on_hand || 0;
+const committed = quantities.committed || 0;
+
+return {
+  location_id: level.location.id,
+  name: level.location.name,
+  available,
+  incoming,
+  on_hand: onHand,
+  committed,
+  status:
+    available > 0
+      ? "in_stock"
+      : incoming > 0
+        ? "incoming"
+        : "backorder"
+};
+    });
+
+    res.json({
+      success: true,
+      variant: {
+        id: variant.id,
+        title: variant.title,
+        sku: variant.sku
+      },
+      locations: formattedLocations
+    });
+
+  } catch (error) {
+
+    console.error("Inventory Error:", error);
+
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+
+  }
+});
+</script> {% endcomment %}
+
+
+{% if product.metafields.custom.firmware_info != blank %}
+  <div class="firmware-pill">
+    <svg
+      class="fw-icon"
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2.3"
+    >
+      <path d="M20 6L9 17l-5-5"/>
+    </svg>
+
+    <div class="fw-text">
+      <strong>{% if request.locale.iso_code == 'fr' %}Compatible avec le dernier micrologiciel{% else %}Compatible with the latest firmware{% endif %}</strong><br>
+      {{ product.metafields.custom.firmware_info | newline_to_br }}
+    </div>
+  </div>
+{% endif %}
+
+
+{% assign customer_warehouse = '' %}
+
+{% if customer and customer.default_address %}
+  {% assign customer_province = customer.default_address.province_code | upcase %}
+
+  {% case customer_province %}
+
+    {% when 'BC' %}
+      {% assign customer_warehouse = 'Ink Quest, Richmond, BC' %}
+
+    {% when 'AB', 'SK', 'MB' %}
+      {% assign customer_warehouse = 'Ink Quest, Edmonton, AB' %}
+
+    {% when 'NB', 'NL', 'NT', 'NS', 'NU', 'ON', 'PE', 'QC', 'YT' %}
+      {% assign customer_warehouse = 'Ink Quest / JCMD, St-Eustache, QC' %}
+
+  {% endcase %}
+{% endif %}
+
+
+{% assign stores = variant.store_availabilities | where: 'pick_up_enabled', true %}
+
+
+{% if stores.size > 0 %}
+
+  <div
+    class="warehouse-card"
+    id="warehouseCard"
+    data-variant-id="{{ variant.id }}"
+  >
+
+    <div class="warehouse-title">
+      {% if request.locale.iso_code == 'fr' %}Disponibilité des entrepôts{% else %}Warehouse Availability{% endif %}
+    </div>
+
+
+    <div class="warehouse-list">
+
+      {% for store in stores %}
+
+        <div
+          class="warehouse-row"
+          data-location-name="{{ store.location.name | strip | escape }}"
+        >
+
+          <div class="warehouse-left">
+
+            <strong>
+              {{ store.location.name }}
+            </strong>
+
+            {% if customer_warehouse != blank and store.location.name contains customer_warehouse %}
+              <span class="warehouse-badge">
+                {% if request.locale.iso_code == 'fr' %}VOTRE ENTREPÔT{% else %}YOUR WAREHOUSE{% endif %}
+              </span>
+            {% endif %}
+
+          </div>
+
+
+          <div class="warehouse-right">
+
+            <!-- Loading state -->
+            <span class="warehouse-stock warehouse-loading">
+              {% if request.locale.iso_code == 'fr' %}Vérification...{% else %}Checking...{% endif %}
+            </span>
+
+          </div>
+
+        </div>
+
+      {% endfor %}
+
+    </div>
+
+  </div>
+
+{% endif %}
+
+
+<style>
+
+/* =========================================
+   WAREHOUSE STOCK - PREMIUM UI
+   ========================================= */
+
+.warehouse-card {
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.warehouse-title {
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  line-height: 1.3 !important;
+  color: #00404C !important;
+  margin: 0 0 10px !important;
+}
+
+.warehouse-list {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 12px !important;
+}
+
+.warehouse-row {
+  min-width: 0 !important;
+
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  justify-content: flex-start !important;
+
+  gap: 4px !important;
+
+  padding: 12px 14px !important;
+
+  border: 1px solid #ddd9cf !important;
+  border-radius: 10px !important;
+
+  background: #fff !important;
+
+  box-sizing: border-box !important;
+}
+
+.warehouse-row:last-child {
+  border-bottom: 1px solid #ddd9cf !important;
+}
+
+
+/* =========================================
+   LOCATION NAME
+   ========================================= */
+
+.warehouse-left {
+  width: 100% !important;
+
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+
+  gap: 4px !important;
+
+  min-width: 0 !important;
+}
+
+.warehouse-left strong {
+    font-size: 12px;
+    font-weight: 700;
+    color: #00404C;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    line-height: normal;
+}
+
+
+/* =========================================
+   {% if request.locale.iso_code == 'fr' %}VOTRE ENTREPÔT{% else %}YOUR WAREHOUSE{% endif %} BADGE
+   ========================================= */
+
+.warehouse-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+
+  width: fit-content !important;
+
+  padding: 3px 8px !important;
+
+  border-radius: 3px !important;
+  background: #172c62 !important;
+  color: #fff !important;
+
+  font-size: 9px !important;
+  line-height: 1.2 !important;
+  font-weight: 700 !important;
+
+  letter-spacing: .2px !important;
+  text-transform: uppercase !important;
+
+  white-space: nowrap !important;
+}
+
+
+/* =========================================
+   STOCK AREA
+   ========================================= */
+
+.warehouse-right {
+  width: 100% !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+
+  flex-shrink: 0 !important;
+}
+
+.warehouse-stock {
+  display: inline-flex !important;
+  align-items: center !important;
+
+  padding: 0 !important;
+
+  border-radius: 0 !important;
+
+  background: transparent !important;
+
+  font-size: 13px !important;
+  line-height: 1.3 !important;
+  font-weight: 500 !important;
+
+  white-space: nowrap !important;
+}
+
+
+/* IN STOCK */
+.warehouse-stock.in-stock {
+  background: transparent !important;
+  color: #087b52 !important;
+}
+
+
+/* INCOMING */
+.warehouse-stock.incoming {
+  background: transparent !important;
+  color: #a66a00 !important;
+}
+
+
+/* BACKORDER */
+.warehouse-stock.backorder {
+  color: #c82333 !important;
+  border-radius: 20px !important;
+  white-space: normal !important;
+}
+
+
+/* LOADING */
+.warehouse-stock.warehouse-loading {
+  min-width: 0 !important;
+
+  padding: 0 !important;
+
+  background: transparent !important;
+  color: #777 !important;
+
+  text-align: left !important;
+}
+
+
+/* ERROR */
+.warehouse-stock.warehouse-error {
+  background: transparent !important;
+  color: #c82333 !important;
+}
+
+
+/* QUANTITY */
+.stock-qty-num {
+  margin-left: 2px !important;
+  font-weight: 600 !important;
+}
+
+
+/* =========================================
+   MOBILE
+   ========================================= */
+
+@media screen and (max-width: 767px) {
+
+  .warehouse-title {
+    font-size: 15px !important;
+    margin-bottom: 9px !important;
+  }
+
+  .warehouse-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  .warehouse-row {
+    padding: 10px !important;
+    border-radius: 9px !important;
+    gap: 4px !important;
+  }
+
+  .warehouse-left strong {
+    font-size: 12px !important;
+    line-height: normal;
+  }
+
+  .warehouse-badge {
+    font-size: 8px !important;
+    padding: 3px 6px !important;
+  }
+
+  .warehouse-stock {
+    font-size: 11px !important;
+  }
+
+}
+
+
+/* =========================================
+   VERY SMALL MOBILE
+   ========================================= */
+
+@media screen and (max-width: 480px) {
+
+  .warehouse-list {
+    gap: 6px !important;
+  }
+
+  .warehouse-row {
+    padding: 9px 8px !important;
+  }
+
+  .warehouse-left strong {
+    font-size: 11px !important;
+  }
+
+  .warehouse-stock {
+    font-size: 10px !important;
+  }
+
+  .warehouse-badge {
+    font-size: 7px !important;
+    padding: 2px 5px !important;
+  }
+
+}
+
+{% comment %} version css {% endcomment %}
+ /* =========================================
+   FIRMWARE INFO - PREMIUM UI
+   ========================================= */
+
+.firmware-pill {
+  width: 100%;
+  box-sizing: border-box;
+
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+
+  padding: 16px 20px;
+
+  background: #e9f9f3;
+
+  border: 1px solid #b8ead8;
+  border-radius: 9px;
+
+  color: #075d4c;
+}
+
+
+/* CHECK ICON */
+.firmware-pill .fw-icon {
+  flex: 0 0 18px;
+
+  width: 18px;
+  height: 18px;
+
+  margin-top: 2px;
+
+  color: #07815f;
+}
+
+
+/* TEXT AREA */
+.firmware-pill .fw-text {
+  flex: 1;
+
+  font-size: 15px;
+  line-height: 1.45;
+
+  color: #111;
+}
+
+
+/* HEADING */
+.firmware-pill .fw-text strong {
+  display: inline-block;
+
+  margin-bottom: 1px;
+
+  color: #071d18;
+
+  font-size: 16px;
+  line-height: 1.3;
+  font-weight: 700;
+}
+
+
+/* FIRMWARE DETAILS */
+.firmware-pill .fw-text {
+  white-space: normal;
+}
+
+
+/* LINK - What does this mean? */
+.firmware-pill .fw-text a {
+  color: #075d6b;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+
+/* =========================================
+   MOBILE
+   ========================================= */
+
+@media screen and (max-width: 749px) {
+
+  .firmware-pill {
+    gap: 11px;
+
+    padding: 13px 14px;
+
+    border-radius: 8px;
+  }
+
+  .firmware-pill .fw-icon {
+    width: 17px;
+    height: 17px;
+    flex-basis: 17px;
+  }
+
+  .firmware-pill .fw-text {
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .firmware-pill .fw-text strong {
+    font-size: 14px;
+  }
+
+}
+</style>
+
+
+<script>
+
+(function () {
+
+  /* =======================================================
+     LANGUAGE SUPPORT
+     UI/functional logic remains unchanged.
+     ======================================================= */
+  const INKQUEST_LANG = "{{ request.locale.iso_code }}";
+  const INKQUEST_TEXT = {
+    en: {
+      checking: "Checking...",
+      unavailable: "Inventory unavailable",
+      inStock: "● In Stock",
+      incoming: "● Incoming",
+      backorder: "● B/O-Avail. To Purchase (0)"
+    },
+    fr: {
+      checking: "Vérification...",
+      unavailable: "Inventaire indisponible",
+      inStock: "● En stock",
+      incoming: "● À venir",
+      backorder: "● B/O - Disponible à l'achat (0)"
+    }
+  };
+
+  const T = INKQUEST_TEXT[INKQUEST_LANG] || INKQUEST_TEXT.en;
+
+
+  /*
+   * Prevent duplicate initialization.
+   */
+  if (window.inkQuestWarehouseLoaded) {
+    return;
+  }
+
+  window.inkQuestWarehouseLoaded = true;
+
+
+  /* =======================================================
+     CONFIG
+  ======================================================= */
+
+  const PROXY_URL =
+    '/apps/warehouse-inventory/inventory';
+
+
+  /* =======================================================
+     GET CURRENT VARIANT ID
+  ======================================================= */
+
+  function getCurrentVariantId() {
+
+    /*
+     * 1. Product form variant input
+     */
+    const variantInput =
+      document.querySelector(
+        'form[action*="/cart/add"] input[name="id"]'
+      );
+
+    if (variantInput && variantInput.value) {
+      return variantInput.value;
+    }
+
+
+    /*
+     * 2. URL ?variant=
+     */
+    const params =
+      new URLSearchParams(window.location.search);
+
+    const urlVariant =
+      params.get('variant');
+
+    if (urlVariant) {
+      return urlVariant;
+    }
+
+
+    /*
+     * 3. Warehouse card data attribute
+     */
+    const card =
+      document.getElementById('warehouseCard');
+
+    if (card && card.dataset.variantId) {
+      return card.dataset.variantId;
+    }
+
+
+    return null;
+  }
+
+
+  /* =======================================================
+     SHOW LOADING
+  ======================================================= */
+
+  function showLoading(card) {
+
+    if (!card) return;
+
+    const badges =
+      card.querySelectorAll('.warehouse-right');
+
+    badges.forEach(function (container) {
+
+      container.innerHTML = `
+        <span class="warehouse-stock warehouse-loading">
+          {% if request.locale.iso_code == 'fr' %}Vérification...{% else %}Checking...{% endif %}
+        </span>
+      `;
+
+    });
+
+  }
+
+
+  /* =======================================================
+     SHOW ERROR
+  ======================================================= */
+
+  function showError(card) {
+
+    if (!card) return;
+
+    const rows =
+      card.querySelectorAll('.warehouse-row');
+
+    rows.forEach(function (row) {
+
+      const right =
+        row.querySelector('.warehouse-right');
+
+      if (!right) return;
+
+      right.innerHTML = `
+        <span class="warehouse-stock warehouse-error">
+          ${T.unavailable}
+        </span>
+      `;
+
+    });
+
+  }
+
+
+  /* =======================================================
+     UPDATE WAREHOUSE UI
+  ======================================================= */
+
+  function updateWarehouseUI(card, locations) {
+
+    if (!card) return;
+
+
+    const locationMap = {};
+
+
+    /*
+     * Create easy lookup:
+     *
+     * location name → inventory data
+     */
+    locations.forEach(function (location) {
+
+      const key =
+        String(location.name || '')
+          .trim()
+          .toLowerCase();
+
+      locationMap[key] = location;
+
+    });
+
+
+    /*
+     * Update each existing Liquid row.
+     */
+    const rows =
+      card.querySelectorAll('.warehouse-row');
+
+
+    rows.forEach(function (row) {
+
+      const rowLocation =
+        String(
+          row.dataset.locationName || ''
+        )
+        .trim()
+        .toLowerCase();
+
+
+      const inventory =
+        locationMap[rowLocation];
+
+
+      const right =
+        row.querySelector('.warehouse-right');
+
+
+      if (!right) return;
+
+
+      /*
+       * Location not returned by API.
+       */
+      if (!inventory) {
+
+        right.innerHTML = `
+          <span class="warehouse-stock warehouse-error">
+            ${T.unavailable}
+          </span>
+        `;
+
+        return;
+      }
+
+
+  const available =
+  Number(inventory.available);
+
+const incoming =
+  Number(inventory.incoming);
+
+
+      /*
+       * IMPORTANT:
+       *
+       * available > 0
+       * = In Stock
+       *
+       * available <= 0
+       * = Backorder
+       *
+       * This completely ignores
+       * Shopify's Continue Selling setting.
+       */
+
+      if (available > 0) {
+
+  right.innerHTML = `
+    <span class="warehouse-stock in-stock">
+      ${T.inStock}
+      <span class="stock-qty-num">
+        (${available})
+      </span>
+    </span>
+  `;
+
+} else if (incoming > 0) {
+
+  right.innerHTML = `
+    <span class="warehouse-stock incoming">
+      ${T.incoming}
+      <span class="stock-qty-num">
+        (${incoming})
+      </span>
+    </span>
+  `;
+
+} else {
+
+  right.innerHTML = `
+    <span class="warehouse-stock backorder">
+      ${T.backorder}
+      {% comment %} <span class="stock-qty-num">
+        (0)
+      </span> {% endcomment %}
+    </span>
+  `;
+
+}
+    });
+
+  }
+
+
+  /* =======================================================
+     FETCH INVENTORY
+  ======================================================= */
+
+  async function loadWarehouseInventory(variantId) {
+
+    const card =
+      document.getElementById('warehouseCard');
+
+
+    if (!card || !variantId) {
+      return;
+    }
+
+
+    /*
+     * Update card variant ID.
+     */
+    card.dataset.variantId = variantId;
+
+
+    /*
+     * Loading state
+     */
+    showLoading(card);
+
+
+    try {
+
+      const response =
+        await fetch(
+          `${PROXY_URL}?variant_id=${encodeURIComponent(variantId)}`,
+          {
+            method: 'GET',
+
+            headers: {
+              'Accept': 'application/json'
+            },
+
+            cache: 'no-store'
+          }
+        );
+
+
+      if (!response.ok) {
+
+        throw new Error(
+          `Inventory API HTTP ${response.status}`
+        );
+
+      }
+
+
+      const data =
+        await response.json();
+
+
+      console.log(
+        'InkQuest Warehouse Inventory:',
+        data
+      );
+
+
+      if (!data.success) {
+
+        throw new Error(
+          data.error || 'Inventory API failed'
+        );
+
+      }
+
+
+      updateWarehouseUI(
+        card,
+        data.locations || []
+      );
+
+
+    } catch (error) {
+
+      console.error(
+        'InkQuest Warehouse Error:',
+        error
+      );
+
+
+      showError(card);
+
+    }
+
+  }
+
+
+  /* =======================================================
+     INITIAL LOAD
+  ======================================================= */
+
+  function initWarehouseInventory() {
+
+    const card =
+      document.getElementById('warehouseCard');
+
+
+    if (!card) {
+      return;
+    }
+
+
+    const variantId =
+      getCurrentVariantId();
+
+
+    if (variantId) {
+
+      loadWarehouseInventory(
+        variantId
+      );
+
+    }
+
+  }
+
+
+  /* =======================================================
+     VARIANT INPUT CHANGE
+  ======================================================= */
+
+  function listenForVariantInput() {
+
+    document.addEventListener(
+      'change',
+      function (event) {
+
+        const target =
+          event.target;
+
+
+        if (
+          target &&
+          target.matches(
+            'form[action*="/cart/add"] input[name="id"]'
+          )
+        ) {
+
+          const variantId =
+            target.value;
+
+
+          if (variantId) {
+
+            loadWarehouseInventory(
+              variantId
+            );
+
+          }
+
+        }
+
+      }
+    );
+
+  }
+
+
+  /* =======================================================
+     SHOPIFY THEME EVENTS
+  ======================================================= */
+
+  function listenForShopifyVariantEvents() {
+
+    /*
+     * Dawn / Shopify product variant events
+     */
+    document.addEventListener(
+      'variant:change',
+      function (event) {
+
+        const variant =
+          event.detail?.variant;
+
+
+        if (
+          variant &&
+          variant.id
+        ) {
+
+          loadWarehouseInventory(
+            variant.id
+          );
+
+        }
+
+      }
+    );
+
+
+    /*
+     * Some themes dispatch this event.
+     */
+    document.addEventListener(
+      'product:variant-change',
+      function (event) {
+
+        const variant =
+          event.detail?.variant ||
+          event.detail;
+
+
+        if (
+          variant &&
+          variant.id
+        ) {
+
+          loadWarehouseInventory(
+            variant.id
+          );
+
+        }
+
+      }
+    );
+
+  }
+
+
+  /* =======================================================
+     URL VARIANT CHANGE
+  ======================================================= */
+
+  function listenForUrlChanges() {
+
+    let lastVariant =
+      getCurrentVariantId();
+
+
+    setInterval(
+      function () {
+
+        const currentVariant =
+          getCurrentVariantId();
+
+
+        if (
+          currentVariant &&
+          currentVariant !== lastVariant
+        ) {
+
+          lastVariant =
+            currentVariant;
+
+
+          loadWarehouseInventory(
+            currentVariant
+          );
+
+        }
+
+      },
+      500
+    );
+
+  }
+
+
+  /* =======================================================
+     INITIALIZE
+  ======================================================= */
+
+  function start() {
+
+    initWarehouseInventory();
+
+    listenForVariantInput();
+
+    listenForShopifyVariantEvents();
+
+    listenForUrlChanges();
+
+  }
+
+
+  /*
+   * DOM ready
+   */
+  if (
+    document.readyState === 'loading'
+  ) {
+
+    document.addEventListener(
+      'DOMContentLoaded',
+      start
+    );
+
+  } else {
+
+    start();
+
+  }
+
+})();
+app.get("/inventory", async (req, res) => {
+
+  try {
+    const variantId = req.query.variant_id;
+
+    if (!variantId) {
+      return res.status(400).json({
+        success: false,
+        error: "variant_id is required"
+      });
+    }
+
+    const response = await fetch(
+      `https://${process.env.SHOPIFY_SHOP}/admin/api/2026-07/graphql.json`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Shopify-Access-Token": process.env.SHOPIFY_ACCESS_TOKEN
+        },
+        body: JSON.stringify({
+          query: `
+            query getVariantInventory($id: ID!) {
+              productVariant(id: $id) {
+                id
+                title
+                sku
+                inventoryItem {
+                  id
+                  tracked
+                  inventoryLevels(first: 20) {
+                    nodes {
+                      location {
+                        id
+                        name
+                      }
+                      quantities(names: ["available", "incoming", "on_hand", "committed"]) {
+                        name
+                        quantity
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          `,
+          variables: {
+            id: `gid://shopify/ProductVariant/${variantId}`
+          }
+        })
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok || data.errors) {
+      console.error("Shopify GraphQL Error:", data);
+
+      return res.status(500).json({
+        success: false,
+        error: data.errors || "Shopify API error"
+      });
+    }
+
+    const variant = data.data.productVariant;
+
+    if (!variant) {
+      return res.status(404).json({
+        success: false,
+        error: "Variant not found"
+      });
+    }
+
+    const locations =
+      variant.inventoryItem?.inventoryLevels?.nodes || [];
+
+    const formattedLocations = locations.map(level => {
+
+      const quantities = {};
+
+      (level.quantities || []).forEach(q => {
+        quantities[q.name] = q.quantity;
+      });
+
+   const available = quantities.available || 0;
+const incoming = quantities.incoming || 0;
+const onHand = quantities.on_hand || 0;
+const committed = quantities.committed || 0;
+
+return {
+  location_id: level.location.id,
+  name: level.location.name,
+  available,
+  incoming,
+  on_hand: onHand,
+  committed,
+  status:
+    available > 0
+      ? "in_stock"
+      : incoming > 0
+        ? "incoming"
+        : "backorder"
+};
+    });
+
+    res.json({
+      success: true,
+      variant: {
+        id: variant.id,
+        title: variant.title,
+        sku: variant.sku
+      },
+      locations: formattedLocations
+    });
+
+  } catch (error) {
+
+    console.error("Inventory Error:", error);
+
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+
+  }
+});
+</script>

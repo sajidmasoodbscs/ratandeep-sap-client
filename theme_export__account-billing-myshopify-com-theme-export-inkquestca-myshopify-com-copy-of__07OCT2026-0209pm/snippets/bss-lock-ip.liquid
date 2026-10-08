@@ -1,0 +1,79 @@
+{% assign bss_locked_conditions_string = '' %}
+{% assign bss_unlocked_conditions_string = '' %}
+
+
+
+{% comment %}Process{% endcomment %}
+{% assign remain_lock_conditions = ''%}
+{% assign bss_unlocked_conditions_array = bss_unlocked_conditions_string | remove_first: ',' | replace: ',,', ',' | split: ',' %}
+{% assign  bss_locked_conditions_array = bss_locked_conditions_string | remove_first: ',' | replace: ',,', ',' | split: ',' %}
+{% for lock in bss_locked_conditions_array %}
+  {% unless bss_unlocked_conditions_array contains lock %}
+    {% assign remain_lock_conditions = remain_lock_conditions | append: lock | append: ","%}
+  {% endunless %}
+{% endfor %}
+{% assign remaining_lock_size = remain_lock_conditions | size %}
+
+{% capture bss_unlock_script %}
+  <script style="display:none">
+    const lockingIds = '{{ remain_lock_conditions }}';
+    fetch(`/apps/bss-b2b-lock/ping?locking-conditions=${lockingIds}`).then(response => response.json()).then(data => {
+      if (data.ipUnlockedConditions.length + data.regionUnlockedConditions.length > 0) {
+        const cartData = {
+            attributes: {}
+          }
+        for (const id of data.ipUnlockedConditions) {
+          const cartAttrName = `bss-lock-ip-escape-${id}-check`
+          const cartAttrValue = data.currentIp;
+          cartData.attributes[cartAttrName] = cartAttrValue
+        }
+        for (const id of data.regionUnlockedConditions) {
+          const cartAttrName = `bss-lock-region-escape-${id}-check`
+          const cartAttrValue = data.ipGeo;
+          cartData.attributes[cartAttrName] = cartAttrValue
+        }
+        fetch('/cart/update.js', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(cartData)
+        }).then(response => response.json())
+        .then(data => window.location.reload())
+        .catch(err => console.log('Fetch cart error: ', err))
+      } else {
+        const spinnerContainer = document.getElementById('bss-unlock-spinner');
+        if (spinnerContainer) spinnerContainer.style.display = 'none'
+      }
+    }).catch(err => {
+      const spinnerContainer = document.getElementById('bss-unlock-spinner');
+      if (spinnerContainer) spinnerContainer.style.display = 'none'
+      console.log('BSS Lock IP error::', err)
+    })
+  </script>
+{% endcapture %}
+
+{% if remaining_lock_size > 0 %}
+  {% if bss_lock_access_denied %}
+    {% capture new_bss_lock_access_denied_content %}
+      {{ bss_lock_access_denied_content }}
+      <div id="bss-unlock-spinner" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: white; display: flex; justify-content: center; align-items: center; z-index: 9999;">
+          <div style="width: 50px; height: 50px; border: 5px solid rgba(0, 0, 0, 0.1); border-top: 5px solid black; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite;"> </div>
+          <style>
+              @keyframes spin { 
+                  0% { transform: rotate(0deg); } 
+                  100% { transform: rotate(360deg); } 
+              }
+          </style>
+      </div>
+      {{ bss_unlock_script }}
+    {% endcapture %}
+    {% assign bss_lock_access_denied_content = new_bss_lock_access_denied_content %}
+  {% else %}
+    {% capture new_content_for_layout %}
+      {{ content_for_layout }}
+      {{ bss_unlock_script }}
+    {% endcapture %}
+    {% assign content_for_layout = new_content_for_layout %}
+  {% endif %}
+{% endif %}

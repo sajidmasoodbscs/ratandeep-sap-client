@@ -1,7 +1,11 @@
+/** Seconds after a SAP call before the same customer may trigger SAP again. */
+export const SAP_CUSTOMER_COOLDOWN_SECONDS = 180;
+
 export const PriceChangeDB = {
   shopify_session: "shopify_sessions",
   Settings: "settings",
   ProductSKUs: "product_skus",
+  SapCustomerCooldown: "sap_customer_cooldown",
   db: null,
 
   byShop: async function (shopDomain) {
@@ -247,6 +251,117 @@ export const PriceChangeDB = {
       return result;
     } catch (error) {
       return "Error in database clear all SKUs is =>" + error;
+    }
+  },
+
+  createSapCustomerCooldownTable: async function () {
+    if (!this.db?.client) {
+      console.warn("[SAP cooldown] DB client not ready — cannot create table");
+      return null;
+    }
+    const query = `CREATE TABLE IF NOT EXISTS public.${this.SapCustomerCooldown} (
+      shopify_customer_id VARCHAR(64) PRIMARY KEY NOT NULL,
+      last_sap_at TIMESTAMP NULL,
+      created_on TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`;
+    try {
+      const result = await this.db.client.query(query);
+      console.log("[SAP cooldown] Table ready:", this.SapCustomerCooldown);
+      return result;
+    } catch (error) {
+      console.error("[SAP cooldown] create table error:", error.message);
+      return null;
+    }
+  },
+
+  /**
+   * Insert customer row if missing. Does not change last_sap_at.
+   */
+  ensureSapCustomer: async function (shopifyCustomerId) {
+    const id = shopifyCustomerId != null ? String(shopifyCustomerId).trim() : "";
+    if (!id || !this.db?.client) return null;
+    const query = `
+      INSERT INTO public.${this.SapCustomerCooldown} (shopify_customer_id)
+      VALUES ($1)
+      ON CONFLICT (shopify_customer_id) DO NOTHING
+      RETURNING *`;
+    try {
+      const result = await this.db.client.query(query, [id]);
+      return result?.rows?.[0] || null;
+    } catch (error) {
+      console.error("[SAP cooldown] ensureSapCustomer error:", error.message);
+      return null;
+    }
+  },
+
+  /**
+   * @returns {Promise<{ allowed: boolean, reason: string, lastSapAt: Date|null, secondsRemaining: number }>}
+   */
+  getSapCallGate: async function (
+    shopifyCustomerId,
+    cooldownSeconds = SAP_CUSTOMER_COOLDOWN_SECONDS
+  ) {
+    const id = shopifyCustomerId != null ? String(shopifyCustomerId).trim() : "";
+    if (!id) {
+      return { allowed: false, reason: "no_customer", lastSapAt: null, secondsRemaining: 0 };
+    }
+    if (!this.db?.client) {
+      // Fail open if DB unavailable so pricing still works
+      console.warn("[SAP cooldown] DB unavailable — allowing SAP call");
+      return { allowed: true, reason: "db_unavailable", lastSapAt: null, secondsRemaining: 0 };
+    }
+
+    await this.ensureSapCustomer(id);
+
+    try {
+      const result = await this.db.client.query(
+        `SELECT last_sap_at FROM public.${this.SapCustomerCooldown} WHERE shopify_customer_id = $1`,
+        [id]
+      );
+      const row = result?.rows?.[0];
+      const lastSapAt = row?.last_sap_at ? new Date(row.last_sap_at) : null;
+
+      if (!lastSapAt || Number.isNaN(lastSapAt.getTime())) {
+        return { allowed: true, reason: "never_called", lastSapAt: null, secondsRemaining: 0 };
+      }
+
+      const elapsedMs = Date.now() - lastSapAt.getTime();
+      const cooldownMs = cooldownSeconds * 1000;
+      if (elapsedMs >= cooldownMs) {
+        return { allowed: true, reason: "cooldown_expired", lastSapAt, secondsRemaining: 0 };
+      }
+
+      const secondsRemaining = Math.ceil((cooldownMs - elapsedMs) / 1000);
+      return {
+        allowed: false,
+        reason: "sap_cooldown",
+        lastSapAt,
+        secondsRemaining,
+      };
+    } catch (error) {
+      console.error("[SAP cooldown] getSapCallGate error:", error.message);
+      return { allowed: true, reason: "gate_error", lastSapAt: null, secondsRemaining: 0 };
+    }
+  },
+
+  markSapCalled: async function (shopifyCustomerId) {
+    const id = shopifyCustomerId != null ? String(shopifyCustomerId).trim() : "";
+    if (!id || !this.db?.client) return null;
+    const query = `
+      INSERT INTO public.${this.SapCustomerCooldown} (shopify_customer_id, last_sap_at, last_updated)
+      VALUES ($1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      ON CONFLICT (shopify_customer_id) DO UPDATE SET
+        last_sap_at = CURRENT_TIMESTAMP,
+        last_updated = CURRENT_TIMESTAMP
+      RETURNING *`;
+    try {
+      const result = await this.db.client.query(query, [id]);
+      console.log("[SAP cooldown] markSapCalled:", id);
+      return result?.rows?.[0] || null;
+    } catch (error) {
+      console.error("[SAP cooldown] markSapCalled error:", error.message);
+      return null;
     }
   },
 

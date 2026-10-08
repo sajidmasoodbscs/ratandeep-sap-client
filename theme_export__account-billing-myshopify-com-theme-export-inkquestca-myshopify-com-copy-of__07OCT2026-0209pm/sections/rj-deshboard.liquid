@@ -1,0 +1,1008 @@
+{% comment %} {% comment %}
+  Section: Customer Account Dashboard (OS 2.0)
+  File: sections/customer-account-dashboard.liquid
+{% endcomment %}
+
+{% unless customer %}
+  <script>
+    window.location.href = "{{ routes.account_login_url }}";
+  </script>
+{% else %}
+
+<style>
+  :root {
+    --cdash-primary: {{ section.settings.color_primary }};
+    --cdash-bg-main: #f8fafc;
+    --cdash-card-bg: #ffffff;
+    --cdash-text-main: #0f172a;
+    --cdash-text-muted: #64748b;
+    --cdash-border: #e2e8f0;
+    --cdash-radius: {{ section.settings.card_radius }}px;
+    --cdash-sidebar-width: {{ section.settings.sidebar_width }}px;
+    --cdash-transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    --cdash-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  }
+
+  {% if section.settings.enable_dark_mode %}
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --cdash-bg-main: #0f172a;
+      --cdash-card-bg: #1e293b;
+      --cdash-text-main: #f8fafc;
+      --cdash-text-muted: #94a3b8;
+      --cdash-border: #334155;
+      --cdash-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    }
+  }
+  {% endif %}
+
+  /* Base Reset & Styles */
+  .cdash-container {
+    display: flex;
+    min-height: 100vh;
+    background-color: var(--cdash-bg-main);
+    color: var(--cdash-text-main);
+    font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+
+  /* Sidebar */
+  .cdash-sidebar {
+    width: var(--cdash-sidebar-width);
+    background: var(--cdash-card-bg);
+    border-right: 1px solid var(--cdash-border);
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 100;
+    transition: var(--cdash-transition);
+  }
+
+  .cdash-sidebar-header {
+    padding: 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid var(--cdash-border);
+  }
+
+  .cdash-logo-img {
+    max-height: 40px;
+    width: auto;
+  }
+
+  .cdash-menu {
+    list-style: none;
+    padding: 16px 12px;
+    margin: 0;
+    overflow-y: auto;
+    flex-grow: 1;
+  }
+
+  .cdash-menu-item {
+    margin-bottom: 4px;
+  }
+
+  .cdash-menu-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-radius: var(--cdash-radius);
+    background: transparent;
+    border: none;
+    color: var(--cdash-text-muted);
+    font-weight: 500;
+    font-size: 14px;
+    cursor: pointer;
+    transition: var(--cdash-transition);
+    text-align: left;
+    text-decoration: none;
+  }
+
+  .cdash-menu-btn:hover,
+  .cdash-menu-btn.active {
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--cdash-primary);
+  }
+
+  .cdash-menu-btn svg {
+    width: 20px;
+    height: 20px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2;
+  }
+
+  /* Main Area */
+  .cdash-main {
+    margin-left: var(--cdash-sidebar-width);
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  /* Header */
+  .cdash-header {
+    height: 72px;
+    background: var(--cdash-card-bg);
+    border-bottom: 1px solid var(--cdash-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 32px;
+    position: sticky;
+    top: 0;
+    z-index: 90;
+  }
+
+  .cdash-mobile-toggle {
+    display: none;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--cdash-text-main);
+  }
+
+  .cdash-header-user {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .cdash-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--cdash-primary);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+  }
+
+  /* Content Zones */
+  .cdash-content {
+    padding: 32px;
+    flex-grow: 1;
+  }
+
+  .cdash-tab-content {
+    display: none;
+  }
+
+  .cdash-tab-content.active {
+    display: block;
+    {% if section.settings.enable_animations %}
+    animation: cdashFadeIn 0.3s ease-in-out;
+    {% endif %}
+  }
+
+  @keyframes cdashFadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Cards Grid */
+  .cdash-grid-4 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+    margin-bottom: 32px;
+  }
+
+  .cdash-card {
+    background: var(--cdash-card-bg);
+    border: 1px solid var(--cdash-border);
+    border-radius: var(--cdash-radius);
+    padding: 24px;
+    box-shadow: var(--cdash-shadow);
+  }
+
+  .cdash-card-title {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--cdash-text-muted);
+    margin: 0 0 8px 0;
+  }
+
+  .cdash-card-value {
+    font-size: 28px;
+    font-weight: 700;
+    margin: 0;
+  }
+
+  /* Tables */
+  .cdash-table-container {
+    overflow-x: auto;
+  }
+
+  .cdash-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+  }
+
+  .cdash-table th, .cdash-table td {
+    padding: 16px;
+    border-bottom: 1px solid var(--cdash-border);
+    font-size: 14px;
+  }
+
+  .cdash-table th {
+    background: rgba(0,0,0,0.02);
+    color: var(--cdash-text-muted);
+    font-weight: 600;
+  }
+
+  .cdash-status {
+    padding: 4px 10px;
+    border-radius: 99px;
+    font-size: 12px;
+    font-weight: 600;
+    display: inline-block;
+  }
+
+  .cdash-status-paid, .cdash-status-fulfilled {
+    background: #dcfce7;
+    color: #15803d;
+  }
+
+  .cdash-status-unpaid, .cdash-status-unfulfilled {
+    background: #fef3c7;
+    color: #b45309;
+  }
+
+  /* Button Controls */
+  .cdash-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border-radius: var(--cdash-radius);
+    font-weight: 500;
+    font-size: 14px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    text-decoration: none;
+    transition: var(--cdash-transition);
+  }
+
+  .cdash-btn-primary {
+    background: var(--cdash-primary);
+    color: #fff;
+  }
+
+  .cdash-btn-secondary {
+    border-color: var(--cdash-border);
+    background: transparent;
+    color: var(--cdash-text-main);
+  }
+
+  .cdash-btn-secondary:hover {
+    background: rgba(0,0,0,0.03);
+  }
+
+  /* Forms */
+  .cdash-form-group {
+    margin-bottom: 20px;
+  }
+
+  .cdash-form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .cdash-input {
+    width: 100%;
+    padding: 12px;
+    border-radius: var(--cdash-radius);
+    border: 1px solid var(--cdash-border);
+    background: var(--cdash-card-bg);
+    color: var(--cdash-text-main);
+    font-size: 14px;
+    box-sizing: border-box;
+  }
+
+  .cdash-products-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 20px;
+  }
+
+  .cdash-product-card {
+    border: 1px solid var(--cdash-border);
+    border-radius: var(--cdash-radius);
+    padding: 16px;
+    background: var(--cdash-card-bg);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .cdash-product-img {
+    width: 100%;
+    height: 180px;
+    object-fit: cover;
+    border-radius: calc(var(--cdash-radius) - 2px);
+    margin-bottom: 12px;
+  }
+
+  /* Mobile Slide-Out */
+  @media (max-width: 991px) {
+    .cdash-sidebar {
+      transform: translateX(-100%);
+      width: 280px;
+    }
+
+    .cdash-sidebar.open {
+      transform: translateX(0);
+    }
+
+    .cdash-main {
+      margin-left: 0;
+    }
+
+    .cdash-mobile-toggle {
+      display: block;
+    }
+  }
+
+  /* Print Styles */
+  @media print {
+    body * { visibility: hidden; }
+    #cdash-tab-statement, #cdash-tab-statement * { visibility: visible; }
+    #cdash-tab-statement { position: absolute; left: 0; top: 0; width: 100%; }
+    .cdash-sidebar, .cdash-header, .cdash-btn { display: none !important; }
+  }
+</style>
+
+<div class="cdash-container">
+  <!-- Sidebar Menu -->
+  <aside class="cdash-sidebar" id="cdashSidebar">
+    <div class="cdash-sidebar-header">
+      {% if section.settings.logo != blank %}
+        <img src="{{ section.settings.logo | image_url: width: 200 }}" alt="{{ shop.name }}" class="cdash-logo-img">
+      {% else %}
+        <h3 style="margin: 0; font-size: 18px;">{{ section.settings.dashboard_title }}</h3>
+      {% endif %}
+    </div>
+
+    <ul class="cdash-menu">
+      <li class="cdash-menu-item">
+        <button class="cdash-menu-btn active" data-tab="overview">
+          <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg> Overview
+        </button>
+      </li>
+      <li class="cdash-menu-item">
+        <button class="cdash-menu-btn" data-tab="orders">
+          <svg viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line></svg> Orders
+        </button>
+      </li>
+      <li class="cdash-menu-item">
+        <button class="cdash-menu-btn" data-tab="quick-reorder">
+          <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg> Quick Re-Order
+        </button>
+      </li>
+      {% if section.settings.enable_new_arrivals %}
+      <li class="cdash-menu-item">
+        <button class="cdash-menu-btn" data-tab="new-arrivals">
+          <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg> New Arrivals
+        </button>
+      </li>
+      {% endif %}
+      <li class="cdash-menu-item"><button class="cdash-menu-btn" data-tab="rma-en">RMA English</button></li>
+      <li class="cdash-menu-item"><button class="cdash-menu-btn" data-tab="rma-fr">RMA French</button></li>
+      <li class="cdash-menu-item">
+        <button class="cdash-menu-btn" data-tab="spending">
+          <svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg> Total Spending
+        </button>
+      </li>
+      <li class="cdash-menu-item">
+        <button class="cdash-menu-btn" data-tab="invoices">
+          <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg> Invoices
+        </button>
+      </li>
+      <li class="cdash-menu-item">
+        <button class="cdash-menu-btn" data-tab="all-orders">
+          <svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line></svg> All Orders
+        </button>
+      </li>
+      <li class="cdash-menu-item">
+        <button class="cdash-menu-btn" data-tab="statement">
+          <svg viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg> Print Statement
+        </button>
+      </li>
+      <li class="cdash-menu-item">
+        <button class="cdash-menu-btn" data-tab="profile">
+          <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> Profile
+        </button>
+      </li>
+      <li class="cdash-menu-item">
+        <button class="cdash-menu-btn" data-tab="password">
+          <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg> Password
+        </button>
+      </li>
+      <li class="cdash-menu-item">
+        <button class="cdash-menu-btn" data-tab="addresses">
+          <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg> Addresses
+        </button>
+      </li>
+      {% if section.settings.enable_wishlist %}
+      <li class="cdash-menu-item">
+        <button class="cdash-menu-btn" data-tab="wishlist">
+          <svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l8.78-8.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg> Wishlist
+        </button>
+      </li>
+      {% endif %}
+      <li class="cdash-menu-item" style="margin-top: 24px;">
+        <a href="{{ routes.account_logout_url }}" class="cdash-menu-btn" style="color: #ef4444;">
+          <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg> Logout
+        </a>
+      </li>
+    </ul>
+  </aside>
+
+  <!-- Main Portal Section -->
+  <main class="cdash-main">
+    <!-- Top Header -->
+    <header class="cdash-header">
+      <button class="cdash-mobile-toggle" id="cdashMobileToggle" aria-label="Toggle Menu">
+        <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" fill="none" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+      </button>
+      <div style="font-weight: 500; font-size: 14px; color: var(--cdash-text-muted);">
+        Account / <span id="cdashBreadcrumbTitle" style="color: var(--cdash-text-main);">Overview</span>
+      </div>
+      <div class="cdash-header-user">
+        <div class="cdash-avatar">
+          {{ customer.first_name | slice: 0 | default: 'U' }}
+        </div>
+        <div>
+          <div style="font-weight: 600; font-size: 14px;">{{ customer.name }}</div>
+          <div style="font-size: 12px; color: var(--cdash-text-muted);">{{ customer.email }}</div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Dynamic Content Container -->
+    <div class="cdash-content">
+      
+      <!-- 1. OVERVIEW TAB -->
+      <section class="cdash-tab-content active" id="cdash-tab-overview">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+          <div>
+            <h2 style="margin: 0; font-size: 24px;">Welcome, {{ customer.first_name | default: 'Customer' }}!</h2>
+            <p style="margin: 4px 0 0 0; color: var(--cdash-text-muted); font-size: 14px;">Customer since {{ customer.created_at | date: "%B %Y" }}</p>
+          </div>
+          {% if customer.tags.size > 0 %}
+            <div style="display: flex; gap: 8px;">
+              {% for tag in customer.tags %}
+                <span class="cdash-status" style="background: rgba(0,0,0,0.06); color: var(--cdash-text-main);">{{ tag }}</span>
+              {% endfor %}
+            </div>
+          {% endif %}
+        </div>
+
+        <div class="cdash-grid-4">
+          <div class="cdash-card">
+            <p class="cdash-card-title">Total Orders</p>
+            <p class="cdash-card-value">{{ customer.orders_count }}</p>
+          </div>
+          <div class="cdash-card">
+            <p class="cdash-card-title">Total Spending</p>
+            <p class="cdash-card-value">{{ customer.total_spent | money }}</p>
+          </div>
+          <div class="cdash-card">
+            <p class="cdash-card-title">Default Address</p>
+            <p style="font-size: 14px; margin: 0; line-height: 1.4;">
+              {% if customer.default_address %}
+                {{ customer.default_address.city }}, {{ customer.default_address.country }}
+              {% else %}
+                No primary address saved
+              {% endif %}
+            </p>
+          </div>
+          <div class="cdash-card">
+            <p class="cdash-card-title">Membership Status</p>
+            <p class="cdash-card-value" style="font-size: 18px; color: var(--cdash-primary);">
+              {% if customer.total_spent > 100000 %} VIP Member {% else %} Standard Member {% endif %}
+            </p>
+          </div>
+        </div>
+
+        <div class="cdash-card" style="margin-bottom: 24px;">
+          <h3 style="margin-top: 0; font-size: 16px; margin-bottom: 16px;">Recent Order Status</h3>
+          {% if customer.orders.size > 0 %}
+            {% assign last_order = customer.orders.first %}
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+              <div>
+                <strong>Order {{ last_order.name }}</strong>
+                <div style="font-size: 12px; color: var(--cdash-text-muted);">Placed on {{ last_order.created_at | date: "%b %d, %Y" }}</div>
+              </div>
+              <div>
+                <span class="cdash-status cdash-status-{{ last_order.financial_status }}">{{ last_order.financial_status_label }}</span>
+                <span class="cdash-status cdash-status-{{ last_order.fulfillment_status }}">{{ last_order.fulfillment_status_label }}</span>
+              </div>
+              <div>
+                <strong>{{ last_order.total_net_amount | money }}</strong>
+              </div>
+              <a href="{{ last_order.customer_url }}" class="cdash-btn cdash-btn-secondary">View Order</a>
+            </div>
+          {% else %}
+            <p style="color: var(--cdash-text-muted); margin: 0;">You haven't placed any orders yet.</p>
+          {% endif %}
+        </div>
+      </section>
+
+      <!-- 2. ORDERS TAB -->
+      <section class="cdash-tab-content" id="cdash-tab-orders">
+        <h2 style="margin-top: 0;">Order History</h2>
+        <div class="cdash-card">
+          <div class="cdash-table-container">
+            <table class="cdash-table">
+              <thead>
+                <tr>
+                  <th>Order</th>
+                  <th>Date</th>
+                  <th>Financial</th>
+                  <th>Fulfillment</th>
+                  <th>Total</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for order in customer.orders %}
+                  <tr>
+                    <td><strong>{{ order.name }}</strong></td>
+                    <td>{{ order.created_at | date: "%b %d, %Y" }}</td>
+                    <td><span class="cdash-status cdash-status-{{ order.financial_status }}">{{ order.financial_status_label }}</span></td>
+                    <td><span class="cdash-status cdash-status-{{ order.fulfillment_status }}">{{ order.fulfillment_status_label }}</span></td>
+                    <td>{{ order.total_net_amount | money }}</td>
+                    <td>
+                      <a href="{{ order.customer_url }}" class="cdash-btn cdash-btn-secondary" style="padding: 6px 12px; font-size: 12px;">Details</a>
+                    </td>
+                  </tr>
+                {% else %}
+                  <tr><td colspan="6">No orders found.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. QUICK RE-ORDER TAB -->
+      <section class="cdash-tab-content" id="cdash-tab-quick-reorder">
+        <h2 style="margin-top: 0;">Quick Re-Order</h2>
+        <p style="color: var(--cdash-text-muted); margin-bottom: 24px;">Reorder items from your past purchases with a single click.</p>
+        
+        <div class="cdash-products-grid">
+          {% assign reorder_items = "" %}
+          {% for order in customer.orders %}
+            {% for line_item in order.line_items %}
+              {% unless reorder_items contains line_item.product_id %}
+                {% assign reorder_items = reorder_items | append: line_item.product_id | append: "," %}
+                <div class="cdash-product-card">
+                  {% if line_item.image %}
+                    <img src="{{ line_item.image | image_url: width: 300 }}" alt="{{ line_item.title }}" class="cdash-product-img">
+                  {% endif %}
+                  <strong style="font-size: 14px; margin-bottom: 4px;">{{ line_item.product.title }}</strong>
+                  <span style="font-size: 12px; color: var(--cdash-text-muted); margin-bottom: 12px;">{{ line_item.variant.title }}</span>
+                  <div style="margin-top: auto; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 700;">{{ line_item.final_price | money }}</span>
+                    <button class="cdash-btn cdash-btn-primary" style="padding: 6px 12px; font-size: 12px;" onclick="cdashAddToCart('{{ line_item.variant_id }}')">
+                      Reorder
+                    </button>
+                  </div>
+                </div>
+              {% endunless %}
+            {% endfor %}
+          {% endfor %}
+        </div>
+      </section>
+
+      <!-- 4. NEW ARRIVALS TAB -->
+      {% if section.settings.enable_new_arrivals %}
+      <section class="cdash-tab-content" id="cdash-tab-new-arrivals">
+        <h2 style="margin-top: 0;">New Arrivals</h2>
+        <div class="cdash-products-grid">
+          {% assign collection = collections[section.settings.new_arrivals_collection] %}
+          {% for product in collection.products limit: 8 %}
+            <div class="cdash-product-card">
+              <img src="{{ product.featured_image | image_url: width: 300 }}" alt="{{ product.title }}" class="cdash-product-img">
+              <strong style="font-size: 14px; margin-bottom: 4px;">{{ product.title }}</strong>
+              <div style="margin-top: auto; display: flex; justify-content: space-between; align-items: center; margin-top: 12px;">
+                <span style="font-weight: 700;">{{ product.price | money }}</span>
+                <button class="cdash-btn cdash-btn-primary" style="padding: 6px 12px; font-size: 12px;" onclick="cdashAddToCart('{{ product.selected_or_first_available_variant.id }}')">
+                  Add to Cart
+                </button>
+              </div>
+            </div>
+          {% else %}
+            <p style="grid-column: 1/-1;">Select a valid New Arrivals collection in the section settings.</p>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
+      <!-- 5. RMA ENGLISH (BLANK BY REQUEST) -->
+      <section class="cdash-tab-content" id="cdash-tab-rma-en">
+        <div class="cdash-rma-en"></div>
+      </section>
+
+      <!-- 6. RMA FRENCH (BLANK BY REQUEST) -->
+      <section class="cdash-tab-content" id="cdash-tab-rma-fr">
+        <div class="cdash-rma-fr"></div>
+      </section>
+
+      <!-- 7. TOTAL SPENDING TAB -->
+      <section class="cdash-tab-content" id="cdash-tab-spending">
+        <h2 style="margin-top: 0;">Lifetime Spending Insights</h2>
+        <div class="cdash-grid-4">
+          <div class="cdash-card">
+            <p class="cdash-card-title">Lifetime Spending</p>
+            <p class="cdash-card-value">{{ customer.total_spent | money }}</p>
+          </div>
+          <div class="cdash-card">
+            <p class="cdash-card-title">Average Order Value</p>
+            <p class="cdash-card-value">
+              {% if customer.orders_count > 0 %}
+                {{ customer.total_spent | divided_by: customer.orders_count | money }}
+              {% else %}
+                {{ 0 | money }}
+              {% endif %}
+            </p>
+          </div>
+          <div class="cdash-card">
+            <p class="cdash-card-title">Total Orders</p>
+            <p class="cdash-card-value">{{ customer.orders_count }}</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 8. INVOICES TAB -->
+      <section class="cdash-tab-content" id="cdash-tab-invoices">
+        <h2 style="margin-top: 0;">Invoices</h2>
+        <div class="cdash-card">
+          <table class="cdash-table">
+            <thead>
+              <tr>
+                <th>Invoice #</th>
+                <th>Order Ref</th>
+                <th>Date</th>
+                <th>Amount</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for order in customer.orders %}
+                <tr>
+                  <td><strong>INV-{{ order.order_number }}</strong></td>
+                  <td>{{ order.name }}</td>
+                  <td>{{ order.created_at | date: "%b %d, %Y" }}</td>
+                  <td>{{ order.total_net_amount | money }}</td>
+                  <td>
+                    <button class="cdash-btn cdash-btn-secondary" style="padding: 4px 8px; font-size: 12px;" onclick="window.print()">Print Invoice</button>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 9. ALL ORDERS TAB -->
+      <section class="cdash-tab-content" id="cdash-tab-all-orders">
+        <h2 style="margin-top: 0;">All Orders</h2>
+        <div class="cdash-card">
+          <div class="cdash-form-group">
+            <input type="text" id="cdashOrderSearch" class="cdash-input" placeholder="Search by order number..." onkeyup="cdashFilterOrders()">
+          </div>
+          <table class="cdash-table" id="cdashAllOrdersTable">
+            <thead>
+              <tr>
+                <th>Order</th>
+                <th>Date</th>
+                <th>Total</th>
+                <th>View</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for order in customer.orders %}
+                <tr>
+                  <td class="cdash-order-id"><strong>{{ order.name }}</strong></td>
+                  <td>{{ order.created_at | date: "%B %d, %Y" }}</td>
+                  <td>{{ order.total_net_amount | money }}</td>
+                  <td><a href="{{ order.customer_url }}" class="cdash-btn cdash-btn-secondary" style="padding: 4px 8px; font-size: 12px;">View</a></td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 10. PRINT STATEMENT TAB -->
+      <section class="cdash-tab-content" id="cdash-tab-statement">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+          <h2>Account Statement</h2>
+          <button class="cdash-btn cdash-btn-primary" onclick="window.print()">Print Statement</button>
+        </div>
+        <div class="cdash-card" style="padding: 40px;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 32px;">
+            <div>
+              <h3 style="margin: 0;">{{ shop.name }}</h3>
+              <p style="margin: 4px 0; color: var(--cdash-text-muted);">{{ shop.domain }}</p>
+            </div>
+            <div style="text-align: right;">
+              <h4 style="margin: 0;">Statement Of Account</h4>
+              <p style="margin: 4px 0; color: var(--cdash-text-muted);">Date: {{ 'now' | date: "%B %d, %Y" }}</p>
+            </div>
+          </div>
+          <hr style="border: none; border-top: 1px solid var(--cdash-border); margin-bottom: 24px;">
+          <div style="margin-bottom: 24px;">
+            <strong>Customer Details:</strong>
+            <div>{{ customer.name }}</div>
+            <div>{{ customer.email }}</div>
+          </div>
+          <table class="cdash-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Order</th>
+                <th>Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for order in customer.orders %}
+                <tr>
+                  <td>{{ order.created_at | date: "%Y-%m-%d" }}</td>
+                  <td>{{ order.name }}</td>
+                  <td>{{ order.total_net_amount | money }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 11. PROFILE TAB -->
+      <section class="cdash-tab-content" id="cdash-tab-profile">
+        <h2 style="margin-top: 0;">Profile Information</h2>
+        <div class="cdash-card" style="max-width: 600px;">
+          {% form 'customer' %}
+            <div class="cdash-form-group">
+              <label>First Name</label>
+              <input type="text" class="cdash-input" name="customer[first_name]" value="{{ customer.first_name }}">
+            </div>
+            <div class="cdash-form-group">
+              <label>Last Name</label>
+              <input type="text" class="cdash-input" name="customer[last_name]" value="{{ customer.last_name }}">
+            </div>
+            <div class="cdash-form-group">
+              <label>Email Address</label>
+              <input type="email" class="cdash-input" value="{{ customer.email }}" disabled style="opacity: 0.6; cursor: not-allowed;">
+            </div>
+            <div class="cdash-form-group">
+              <label>Phone Number</label>
+              <input type="tel" class="cdash-input" name="customer[phone]" value="{{ customer.phone }}">
+            </div>
+            <button type="submit" class="cdash-btn cdash-btn-primary">Save Profile</button>
+          {% endform %}
+        </div>
+      </section>
+
+      <!-- 12. PASSWORD TAB -->
+      <section class="cdash-tab-content" id="cdash-tab-password">
+        <h2 style="margin-top: 0;">Change Password</h2>
+        <div class="cdash-card" style="max-width: 500px;">
+          <p style="font-size: 14px; color: var(--cdash-text-muted); margin-bottom: 20px;">
+            To change your password, request a secure reset email link below.
+          </p>
+          {% form 'recover_customer_password' %}
+            <input type="hidden" name="email" value="{{ customer.email }}">
+            <button type="submit" class="cdash-btn cdash-btn-primary">Send Password Reset Email</button>
+          {% endform %}
+        </div>
+      </section>
+
+      <!-- 13. ADDRESSES TAB -->
+      <section class="cdash-tab-content" id="cdash-tab-addresses">
+        <h2 style="margin-top: 0;">Your Addresses</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px;">
+          {% for address in customer.addresses %}
+            <div class="cdash-card">
+              {% if address == customer.default_address %}
+                <span class="cdash-status cdash-status-paid" style="margin-bottom: 12px;">Default</span>
+              {% endif %}
+              <p style="margin: 0 0 8px 0; font-weight: 600;">{{ address.first_name }} {{ address.last_name }}</p>
+              <p style="margin: 0; font-size: 14px; color: var(--cdash-text-muted); line-height: 1.5;">
+                {{ address.street }}<br>
+                {{ address.city }}, {{ address.province_code }} {{ address.zip }}<br>
+                {{ address.country }}
+              </p>
+            </div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <!-- 14. WISHLIST TAB -->
+      {% if section.settings.enable_wishlist %}
+      <section class="cdash-tab-content" id="cdash-tab-wishlist">
+        <h2 style="margin-top: 0;">Your Wishlist</h2>
+        <div id="cdashWishlistContainer" class="cdash-products-grid">
+          <!-- Dynamically filled by Wishlist app integration layer -->
+          <p style="color: var(--cdash-text-muted);">Loading wishlist items...</p>
+        </div>
+      </section>
+      {% endif %}
+
+    </div>
+  </main>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Navigation Tabs Switcher
+    const menuButtons = document.querySelectorAll('.cdash-menu-btn[data-tab]');
+    const tabContents = document.querySelectorAll('.cdash-tab-content');
+    const breadcrumb = document.getElementById('cdashBreadcrumbTitle');
+
+    menuButtons.forEach(button => {
+      button.addEventListener('click', function() {
+        const targetTab = this.getAttribute('data-tab');
+
+        menuButtons.forEach(btn => btn.classList.remove('active'));
+        tabContents.forEach(tab => tab.classList.remove('active'));
+
+        this.classList.add('active');
+        const targetElement = document.getElementById(`cdash-tab-${targetTab}`);
+        if(targetElement) targetElement.classList.add('active');
+
+        if(breadcrumb) {
+          breadcrumb.textContent = this.textContent.trim();
+        }
+
+        // Close sidebar on mobile after click
+        document.getElementById('cdashSidebar').classList.remove('open');
+      });
+    });
+
+    // Mobile Drawer Toggle
+    const mobileToggle = document.getElementById('cdashMobileToggle');
+    const sidebar = document.getElementById('cdashSidebar');
+    if (mobileToggle) {
+      mobileToggle.addEventListener('click', function() {
+        sidebar.classList.toggle('open');
+      });
+    }
+
+    // App Integrated Wishlist Fetch Layer Engine
+    {% if section.settings.enable_wishlist %}
+      (function fetchWishlistItems() {
+        const container = document.getElementById('cdashWishlistContainer');
+        // Try locating local storage or app payload arrays fallback
+        const wishlistData = JSON.parse(localStorage.getItem('swym-wishlist') || localStorage.getItem('wishlist') || '[]');
+        
+        if (!wishlistData || wishlistData.length === 0) {
+          container.innerHTML = '<p style="color: var(--cdash-text-muted); grid-column: 1/-1;">Your wishlist is currently empty.</p>';
+          return;
+        }
+      })();
+    {% endif %}
+  });
+
+  // Global Add To Cart Engine API
+  function cdashAddToCart(variantId) {
+    fetch('/cart/add.js', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: [{ id: variantId, quantity: 1 }] })
+    })
+    .then(res => res.json())
+    .then(data => {
+      window.location.href = '/cart';
+    })
+    .catch(err => console.error('Error adding product:', err));
+  }
+
+  // Orders Filter Algorithm
+  function cdashFilterOrders() {
+    const input = document.getElementById('cdashOrderSearch').value.toUpperCase();
+    const rows = document.querySelectorAll('#cdashAllOrdersTable tbody tr');
+
+    rows.forEach(row => {
+      const orderTd = row.querySelector('.cdash-order-id');
+      if (orderTd) {
+        const textVal = orderTd.textContent || orderTd.innerText;
+        row.style.display = textVal.toUpperCase().indexOf(input) > -1 ? '' : 'none';
+      }
+    });
+  }
+</script>
+{% endunless %}
+{% schema %}
+{
+  "name": "Customer Dashboard",
+  "settings": [
+    {
+      "type": "text",
+      "id": "dashboard_title",
+      "label": "Dashboard Title",
+      "default": "Portal Overview"
+    },
+    {
+      "type": "image_picker",
+      "id": "logo",
+      "label": "Sidebar Logo"
+    },
+    {
+      "type": "color",
+      "id": "color_primary",
+      "label": "Primary Theme Color",
+      "default": "#2563eb"
+    },
+    {
+      "type": "range",
+      "id": "sidebar_width",
+      "min": 200,
+      "max": 320,
+      "step": 10,
+      "unit": "px",
+      "label": "Sidebar Width",
+      "default": 260
+    },
+    {
+      "type": "range",
+      "id": "card_radius",
+      "min": 0,
+      "max": 24,
+      "step": 2,
+      "unit": "px",
+      "label": "Card Border Radius",
+      "default": 12
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_wishlist",
+      "label": "Enable Wishlist Tab",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_new_arrivals",
+      "label": "Enable New Arrivals Tab",
+      "default": true
+    },
+    {
+      "type": "collection",
+      "id": "new_arrivals_collection",
+      "label": "New Arrivals Collection"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_animations",
+      "label": "Enable UI Transitions",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_dark_mode",
+      "label": "Enable System Dark Mode Support",
+      "default": true
+    }
+  ],
+  "presets": [
+    {
+      "name": "Customer Dashboard"
+    }
+  ]
+}
+{% endschema %}
+ {% endcomment %}

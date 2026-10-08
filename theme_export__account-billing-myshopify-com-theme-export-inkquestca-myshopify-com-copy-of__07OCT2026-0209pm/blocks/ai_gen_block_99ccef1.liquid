@@ -1,0 +1,1192 @@
+{% comment %} {% doc %}
+  @prompt
+    Create a premium sticky product search bar for my Shopify store with the following requirements.
+    
+    ## Search Bar UI
+    - Create a modern premium search bar.
+    - Transparent background when the page loads.
+    - While scrolling, smoothly change the background to solid white (#ffffff) with a subtle shadow and backdrop blur.
+    - The search bar must always remain sticky at the top of the page.
+    - Add smooth transition animations (0.3s–0.4s).
+    - Fully responsive for Desktop, Tablet, and Mobile.
+    - Use rounded corners, premium spacing, and clean typography.
+    
+    ## Search Functionality
+    - Use Shopify Predictive Search API (NOT a custom search).
+    - Show live product suggestions while typing.
+    - Minimum 2 characters before searching.
+    - Display results instantly without page refresh.
+    - Debounce requests (250ms) to improve performance.
+    
+    ## Product Suggestions
+    Each suggestion should include:
+    - Product image
+    - Product title
+    - Price
+    - Compare-at price (if available)
+    - Vendor (optional)
+    - Product availability
+    - Link to the product page
+    
+    ## Search Dropdown
+    - Premium dropdown with glassmorphism/light shadow.
+    - Maximum height 450px.
+    - Scrollable if more than 6 products.
+    - Hover effect on each product.
+    - Highlight the matching search text.
+    - Show loading animation while fetching results.
+    
+    ## Empty State
+    If no products are found, display:
+    "No matching products found."
+    
+    Also show:
+    - Popular products
+    OR
+    - Best Sellers
+    
+    ## Important Fix
+    Currently the product recommendation/suggestion is NOT working.
+    
+    Fix the predictive search completely.
+    
+    When I search words related to any product (full or partial keyword), relevant products should immediately appear in the suggestion dropdown.
+    
+    Examples:
+    Searching:
+    - hp
+    - toner
+    - canon
+    - ink
+    - brother
+    - samsung
+    - epson
+    
+    should instantly suggest matching products.
+    
+    ## Performance
+    - Do not reload the page.
+    - Use AJAX + Shopify Predictive Search endpoint.
+    - Optimize for speed.
+    - Avoid duplicate requests.
+    - Cache recent searches.
+    
+    ## Accessibility
+    - Keyboard navigation (↑ ↓ Enter Esc)
+    - Proper ARIA labels
+    - Focus states
+    
+    ## Code Requirements
+    - Shopify Liquid
+    - Vanilla JavaScript (no jQuery)
+    - Clean CSS
+    - Separate HTML, CSS, and JS.
+    - Do not modify existing theme functionality.
+    - Create a reusable component/snippet.
+    - Use unique class names to avoid conflicts.
+    - Compatible with Shopify 2.0 themes.
+    
+    The final result should look like a premium Apple/Stripe-style sticky search experience with instant product suggestions and a smooth transparent-to-solid header transition while scrolling.
+{% enddoc %} {% endcomment %}
+{% assign ai_gen_id = block.id | replace: '_', '' | downcase %}
+
+{% style %}
+  .ai-premium-search-{{ ai_gen_id }} {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 9;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    background-color: transparent;
+    backdrop-filter: blur(0px);
+    box-shadow: none;
+    display: block;
+  }
+
+  .ai-premium-search-{{ ai_gen_id }}.scrolled {
+    background-color: {{ block.settings.scrolled_bg_color }};
+    backdrop-filter: blur({{ block.settings.backdrop_blur }}px);
+    
+  }
+
+  .ai-premium-search-container-{{ ai_gen_id }} {
+    max-width: 90%;
+    margin: 0 auto;
+    padding: {{ block.settings.vertical_padding }}px {{ block.settings.horizontal_padding }}px;
+        display: flex;
+            justify-content: space-between;
+                align-items: center;
+  }
+.desktop-tran{
+  display:flex;
+  gap: 5px;
+}
+  .ai-premium-search-wrapper-{{ ai_gen_id }} {
+    position: relative;
+    width: 75%;
+  }
+
+  .ai-premium-search-form-{{ ai_gen_id }} {
+    position: relative;
+    width: 100%;
+  }
+
+  .ai-premium-search-input-wrapper-{{ ai_gen_id }} {
+    position: relative;
+    display: flex;
+    align-items: center;
+    background-color: {{ block.settings.input_bg_color }};
+    border: {{ block.settings.input_border_width }}px solid {{ block.settings.input_border_color }};
+    border-radius: {{ block.settings.input_border_radius }}px;
+    padding: {{ block.settings.input_padding }}px {{ block.settings.input_padding | times: 1.5 }}px;
+    transition: all 0.3s ease;
+  }
+
+  .ai-premium-search-input-wrapper-{{ ai_gen_id }}:focus-within {
+    border-color: {{ block.settings.input_focus_border_color }};
+    box-shadow: 0 0 0 3px {{ block.settings.input_focus_border_color | color_modify: 'alpha', 0.1 }};
+  }
+
+  .ai-premium-search-icon-{{ ai_gen_id }} {
+    width: {{ block.settings.icon_size }}px;
+    height: {{ block.settings.icon_size }}px;
+    color: {{ block.settings.icon_color }};
+    flex-shrink: 0;
+    margin-right: 12px;
+  }
+
+  .ai-premium-search-input-{{ ai_gen_id }} {
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: {{ block.settings.input_font_size }}px;
+    color: {{ block.settings.input_text_color }};
+    font-family: inherit;
+  }
+
+  .ai-premium-search-input-{{ ai_gen_id }}::placeholder {
+    color: {{ block.settings.placeholder_color }};
+  }
+
+  .ai-premium-search-clear-{{ ai_gen_id }} {
+    width: {{ block.settings.icon_size }}px;
+    height: {{ block.settings.icon_size }}px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: {{ block.settings.icon_color }};
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s ease;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 8px;
+  }
+
+  .ai-premium-search-clear-{{ ai_gen_id }}.visible {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .ai-premium-search-clear-{{ ai_gen_id }}:hover {
+    opacity: 0.7;
+  }
+
+  .ai-premium-search-loading-{{ ai_gen_id }} {
+    width: {{ block.settings.icon_size }}px;
+    height: {{ block.settings.icon_size }}px;
+    margin-left: 8px;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s ease;
+  }
+
+  .ai-premium-search-loading-{{ ai_gen_id }}.visible {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .ai-premium-search-spinner-{{ ai_gen_id }} {
+    width: 100%;
+    height: 100%;
+    border: 2px solid {{ block.settings.icon_color | color_modify: 'alpha', 0.2 }};
+    border-top-color: {{ block.settings.icon_color }};
+    border-radius: 50%;
+    animation: ai-premium-search-spin-{{ ai_gen_id }} 0.8s linear infinite;
+  }
+
+  @keyframes ai-premium-search-spin-{{ ai_gen_id }} {
+    to { transform: rotate(360deg); }
+  }
+
+  .ai-premium-search-dropdown-{{ ai_gen_id }} {
+    position: absolute;
+    top: calc(100% + 12px);
+    left: 0;
+    right: 0;
+    background-color: {{ block.settings.dropdown_bg_color }};
+    border-radius: {{ block.settings.dropdown_border_radius }}px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, {{ block.settings.dropdown_shadow_opacity | divided_by: 100.0 }});
+    backdrop-filter: blur({{ block.settings.dropdown_backdrop_blur }}px);
+    max-height: {{ block.settings.dropdown_max_height }}px;
+    overflow-y: auto;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 10;
+  }
+
+  .ai-premium-search-dropdown-{{ ai_gen_id }}.visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+  }
+
+  .ai-premium-search-dropdown-{{ ai_gen_id }}::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .ai-premium-search-dropdown-{{ ai_gen_id }}::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .ai-premium-search-dropdown-{{ ai_gen_id }}::-webkit-scrollbar-thumb {
+    background: {{ block.settings.icon_color | color_modify: 'alpha', 0.3 }};
+    border-radius: 3px;
+  }
+
+  .ai-premium-search-results-{{ ai_gen_id }} {
+    padding: 12px;
+  }
+
+  .ai-premium-search-product-{{ ai_gen_id }} {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px;
+    border-radius: {{ block.settings.product_border_radius }}px;
+    text-decoration: none;
+    color: {{ block.settings.dropdown_text_color }};
+    transition: all 0.2s ease;
+    cursor: pointer;
+  }
+
+  .ai-premium-search-product-{{ ai_gen_id }}:hover,
+  .ai-premium-search-product-{{ ai_gen_id }}.focused {
+    background-color: {{ block.settings.product_hover_bg_color }};
+    transform: translateX(4px);
+  }
+
+  .ai-premium-search-product-image-{{ ai_gen_id }} {
+    width: {{ block.settings.product_image_size }}px;
+    height: {{ block.settings.product_image_size }}px;
+    flex-shrink: 0;
+    border-radius: {{ block.settings.product_image_radius }}px;
+    overflow: hidden;
+    background-color: {{ block.settings.input_bg_color }};
+  }
+
+  .ai-premium-search-product-image-{{ ai_gen_id }} img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .ai-premium-search-product-info-{{ ai_gen_id }} {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .ai-premium-search-product-title-{{ ai_gen_id }} {
+    font-size: {{ block.settings.product_title_size }}px;
+    font-weight: 600;
+    margin: 0 0 4px 0;
+    color: {{ block.settings.dropdown_text_color }};
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ai-premium-search-product-title-{{ ai_gen_id }} mark {
+    background-color: {{ block.settings.highlight_color }};
+    color: {{ block.settings.dropdown_text_color }};
+    padding: 2px 4px;
+    border-radius: 3px;
+  }
+
+  .ai-premium-search-product-meta-{{ ai_gen_id }} {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .ai-premium-search-product-vendor-{{ ai_gen_id }} {
+    font-size: {{ block.settings.product_meta_size }}px;
+    color: {{ block.settings.dropdown_text_color | color_modify: 'alpha', 0.7 }};
+  }
+
+  .ai-premium-search-product-price-{{ ai_gen_id }} {
+    font-size: {{ block.settings.product_meta_size }}px;
+    font-weight: 600;
+    color: {{ block.settings.dropdown_text_color }};
+  }
+
+  .ai-premium-search-product-compare-price-{{ ai_gen_id }} {
+    font-size: {{ block.settings.product_meta_size }}px;
+    color: {{ block.settings.dropdown_text_color | color_modify: 'alpha', 0.5 }};
+    text-decoration: line-through;
+  }
+
+  .ai-premium-search-product-availability-{{ ai_gen_id }} {
+    font-size: {{ block.settings.product_meta_size | minus: 1 }}px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-weight: 500;
+  }
+
+  .ai-premium-search-product-availability-{{ ai_gen_id }}.in-stock {
+    background-color: {{ block.settings.in_stock_bg_color }};
+    color: {{ block.settings.in_stock_text_color }};
+  }
+
+  .ai-premium-search-product-availability-{{ ai_gen_id }}.out-of-stock {
+    background-color: {{ block.settings.out_of_stock_bg_color }};
+    color: {{ block.settings.out_of_stock_text_color }};
+  }
+
+  .ai-premium-search-empty-{{ ai_gen_id }} {
+    padding: 32px 24px;
+    text-align: center;
+  }
+
+  .ai-premium-search-empty-title-{{ ai_gen_id }} {
+    font-size: {{ block.settings.product_title_size }}px;
+    font-weight: 600;
+    color: {{ block.settings.dropdown_text_color }};
+    margin: 0 0 16px 0;
+  }
+
+  .ai-premium-search-empty-subtitle-{{ ai_gen_id }} {
+    font-size: {{ block.settings.product_meta_size }}px;
+    color: {{ block.settings.dropdown_text_color | color_modify: 'alpha', 0.7 }};
+    margin: 0 0 24px 0;
+  }
+
+  .ai-premium-search-suggestions-{{ ai_gen_id }} {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+    margin-top: 16px;
+  }
+
+  @media screen and (max-width: 749px) {
+    .ai-premium-search-container-{{ ai_gen_id }} {
+      padding: {{ block.settings.vertical_padding | times: 0.7 }}px {{ block.settings.horizontal_padding | times: 0.7 }}px;
+    }
+
+    .ai-premium-search-input-{{ ai_gen_id }} {
+      font-size: {{ block.settings.input_font_size | minus: 2 }}px;
+    }
+
+    .ai-premium-search-product-image-{{ ai_gen_id }} {
+      width: {{ block.settings.product_image_size | times: 0.8 }}px;
+      height: {{ block.settings.product_image_size | times: 0.8 }}px;
+    }
+
+    .ai-premium-search-suggestions-{{ ai_gen_id }} {
+      grid-template-columns: 1fr;
+    }
+  }
+  .ai-header-mobile-action-btn-{{ ai_gen_id }}{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  text-decoration:none;
+}
+
+.account-icon{
+  display:none;
+  width:22px;
+  height:22px;
+}
+
+.account-text{
+  display:block;
+}
+
+/* Mobile */
+@media (max-width: 749px){
+  .account-icon{
+    display:block;
+  }
+
+  .account-text{
+    display:none;
+  }
+}
+{% endstyle %}
+
+<premium-search-{{ ai_gen_id }} class="ai-premium-search-{{ ai_gen_id }}" {{ block.shopify_attributes }}>
+  <div class="ai-premium-search-container-{{ ai_gen_id }}">
+<div style="margin-right:10px;">
+     <a href="https://inkquestca.myshopify.com/pages/my-account" class="ai-header-mobile-action-btn-{{ ai_gen_id }}" style="color: #00404c;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 10px 0;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: color 0.3s ease;">
+  <!-- Icon -->
+  <svg class="account-icon" xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+      d="M12 12a4 4 0 100-8 4 4 0 000 8zm0 2c-4.418 0-8 1.79-8 4v2h16v-2c0-2.21-3.582-4-8-4z"/>
+  </svg>
+</div>
+  <!-- Text -->
+  <span class="account-text">Dashboard</span>
+</a>
+    <div class="ai-premium-search-wrapper-{{ ai_gen_id }}">
+      <form class="ai-premium-search-form-{{ ai_gen_id }}" role="search" action="/search" method="get">
+        <div class="ai-premium-search-input-wrapper-{{ ai_gen_id }}">
+          <svg class="ai-premium-search-icon-{{ ai_gen_id }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <path d="m21 21-4.35-4.35"></path>
+          </svg>
+          
+          <input
+            type="search"
+            name="q"
+            class="ai-premium-search-input-{{ ai_gen_id }}"
+            placeholder="{{ block.settings.placeholder_text }}"
+            autocomplete="off"
+            aria-label="Search products"
+            aria-autocomplete="list"
+            aria-controls="ai-premium-search-dropdown-{{ ai_gen_id }}"
+            aria-expanded="false"
+          >
+          
+          <button
+            type="button"
+            class="ai-premium-search-clear-{{ ai_gen_id }}"
+            aria-label="Clear search"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+          
+          <div class="ai-premium-search-loading-{{ ai_gen_id }}">
+            <div class="ai-premium-search-spinner-{{ ai_gen_id }}"></div>
+          </div>
+        </div>
+      </form>
+
+      <div
+        id="ai-premium-search-dropdown-{{ ai_gen_id }}"
+        class="ai-premium-search-dropdown-{{ ai_gen_id }}"
+        role="listbox"
+      >
+        <div class="ai-premium-search-results-{{ ai_gen_id }}"></div>
+      </div>
+    </div>
+    <div id="lang-switcher-header" class="lang-switcher">
+     <div class="desktop-tran">
+      <button id="btn-en" onclick="switchLang('en')" class="lang-btn">EN</button>
+      <button id="btn-fr" onclick="switchLang('fr')" class="lang-btn">FR</button>
+      </div> 
+    </div>
+
+
+  </div>
+       
+</premium-search-{{ ai_gen_id }}>
+
+<script>
+(function() {
+  class PremiumSearch{{ ai_gen_id }} extends HTMLElement {
+    constructor() {
+      super();
+      this.searchInput = this.querySelector('.ai-premium-search-input-{{ ai_gen_id }}');
+      this.clearButton = this.querySelector('.ai-premium-search-clear-{{ ai_gen_id }}');
+      this.loadingIndicator = this.querySelector('.ai-premium-search-loading-{{ ai_gen_id }}');
+      this.dropdown = this.querySelector('.ai-premium-search-dropdown-{{ ai_gen_id }}');
+      this.resultsContainer = this.querySelector('.ai-premium-search-results-{{ ai_gen_id }}');
+      this.form = this.querySelector('.ai-premium-search-form-{{ ai_gen_id }}');
+      
+      this.debounceTimer = null;
+      this.currentRequest = null;
+      this.cache = {};
+      this.focusedIndex = -1;
+      this.products = [];
+      this.minChars = {{ block.settings.min_characters }};
+      this.debounceDelay = {{ block.settings.debounce_delay }};
+    }
+
+    connectedCallback() {
+      this.setupScrollListener();
+      this.setupSearchListeners();
+      this.setupKeyboardNavigation();
+      this.setupClickOutside();
+    }
+
+    setupScrollListener() {
+      let ticking = false;
+      window.addEventListener('scroll', () => {
+        if (!ticking) {
+          window.requestAnimationFrame(() => {
+            if (window.scrollY > 50) {
+              this.classList.add('scrolled');
+            } else {
+              this.classList.remove('scrolled');
+            }
+            ticking = false;
+          });
+          ticking = true;
+        }
+      });
+    }
+
+    setupSearchListeners() {
+      this.searchInput.addEventListener('input', (e) => {
+        const query = e.target.value.trim();
+        
+        if (query.length > 0) {
+          this.clearButton.classList.add('visible');
+        } else {
+          this.clearButton.classList.remove('visible');
+        }
+
+        clearTimeout(this.debounceTimer);
+        
+        if (query.length >= this.minChars) {
+          this.debounceTimer = setTimeout(() => {
+            this.performSearch(query);
+          }, this.debounceDelay);
+        } else {
+          this.hideDropdown();
+        }
+      });
+
+      this.clearButton.addEventListener('click', () => {
+        this.searchInput.value = '';
+        this.clearButton.classList.remove('visible');
+        this.hideDropdown();
+        this.searchInput.focus();
+      });
+
+      this.form.addEventListener('submit', (e) => {
+        if (this.searchInput.value.trim().length === 0) {
+          e.preventDefault();
+        }
+      });
+    }
+
+    setupKeyboardNavigation() {
+      this.searchInput.addEventListener('keydown', (e) => {
+        if (!this.dropdown.classList.contains('visible')) return;
+
+        switch(e.key) {
+          case 'ArrowDown':
+            e.preventDefault();
+            this.focusNext();
+            break;
+          case 'ArrowUp':
+            e.preventDefault();
+            this.focusPrevious();
+            break;
+          case 'Enter':
+            e.preventDefault();
+            if (this.focusedIndex >= 0 && this.products[this.focusedIndex]) {
+              window.location.href = this.products[this.focusedIndex].url;
+            } else if (this.searchInput.value.trim()) {
+              this.form.submit();
+            }
+            break;
+          case 'Escape':
+            e.preventDefault();
+            this.hideDropdown();
+            break;
+        }
+      });
+    }
+
+    setupClickOutside() {
+      document.addEventListener('click', (e) => {
+        if (!this.contains(e.target)) {
+          this.hideDropdown();
+        }
+      });
+    }
+
+    focusNext() {
+      this.focusedIndex = Math.min(this.focusedIndex + 1, this.products.length - 1);
+      this.updateFocus();
+    }
+
+    focusPrevious() {
+      this.focusedIndex = Math.max(this.focusedIndex - 1, -1);
+      this.updateFocus();
+    }
+
+    updateFocus() {
+      const productElements = this.dropdown.querySelectorAll('.ai-premium-search-product-{{ ai_gen_id }}');
+      productElements.forEach((el, index) => {
+        if (index === this.focusedIndex) {
+          el.classList.add('focused');
+          el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        } else {
+          el.classList.remove('focused');
+        }
+      });
+    }
+
+    async performSearch(query) {
+      if (this.cache[query]) {
+        this.displayResults(this.cache[query], query);
+        return;
+      }
+
+      if (this.currentRequest) {
+        this.currentRequest.abort();
+      }
+
+      this.showLoading();
+
+      this.currentRequest = new AbortController();
+      
+      try {
+        const response = await fetch(
+          `/search/suggest.json?q=${encodeURIComponent(query)}&resources[type]=product&resources[limit]=10`,
+          { signal: this.currentRequest.signal }
+        );
+
+        if (!response.ok) throw new Error('Search failed');
+
+        const data = await response.json();
+        const products = data.resources.results.products || [];
+        
+        this.cache[query] = products;
+        this.displayResults(products, query);
+      } catch (error) {
+        if (error.name !== 'AbortError') {
+          console.error('Search error:', error);
+          this.hideLoading();
+        }
+      }
+    }
+
+    displayResults(products, query) {
+      this.hideLoading();
+      this.products = products;
+      this.focusedIndex = -1;
+
+      if (products.length === 0) {
+        this.displayEmptyState(query);
+        return;
+      }
+
+      const html = products.map(product => this.renderProduct(product, query)).join('');
+      this.resultsContainer.innerHTML = html;
+      this.showDropdown();
+    }
+
+    renderProduct(product, query) {
+      const image = product.featured_image || '';
+      const title = this.highlightText(product.title, query);
+      const price = this.formatMoney(product.price);
+      const comparePrice = product.compare_at_price_max > product.price ? this.formatMoney(product.compare_at_price_max) : '';
+      const vendor = product.vendor || '';
+      const available = product.available;
+      const showVendor = {{ block.settings.show_vendor | json }};
+      const showPrice = {{ block.settings.show_price | json }};
+      const showAvailability = {{ block.settings.show_availability | json }};
+
+      return `
+        <a href="${product.url}" class="ai-premium-search-product-{{ ai_gen_id }}">
+          <div class="ai-premium-search-product-image-{{ ai_gen_id }}">
+            ${image ? `<img src="${image}" alt="${product.title}" loading="lazy">` : ''}
+          </div>
+          <div class="ai-premium-search-product-info-{{ ai_gen_id }}">
+            <h3 class="ai-premium-search-product-title-{{ ai_gen_id }}">${title}</h3>
+            <div class="ai-premium-search-product-meta-{{ ai_gen_id }}">
+              ${showVendor && vendor ? `<span class="ai-premium-search-product-vendor-{{ ai_gen_id }}">${vendor}</span>` : ''}
+              ${showPrice ? `
+                <span class="ai-premium-search-product-price-{{ ai_gen_id }}">${price}</span>
+                ${comparePrice ? `<span class="ai-premium-search-product-compare-price-{{ ai_gen_id }}">${comparePrice}</span>` : ''}
+              ` : ''}
+              ${showAvailability ? `
+                <span class="ai-premium-search-product-availability-{{ ai_gen_id }} ${available ? 'in-stock' : 'out-of-stock'}">
+                  ${available ? 'In Stock' : 'Out of Stock'}
+                </span>
+              ` : ''}
+            </div>
+          </div>
+        </a>
+      `;
+    }
+
+    async displayEmptyState(query) {
+      const showSuggestions = {{ block.settings.show_suggestions | json }};
+      let suggestionsHtml = '';
+
+      if (showSuggestions) {
+        try {
+          const response = await fetch(`/search/suggest.json?q=&resources[type]=product&resources[limit]=4`);
+          const data = await response.json();
+          const suggestions = data.resources.results.products || [];
+          
+          if (suggestions.length > 0) {
+            suggestionsHtml = `
+              <div class="ai-premium-search-suggestions-{{ ai_gen_id }}">
+                ${suggestions.map(product => this.renderProduct(product, '')).join('')}
+              </div>
+            `;
+          }
+        } catch (error) {
+          console.error('Failed to load suggestions:', error);
+        }
+      }
+
+      this.resultsContainer.innerHTML = `
+        <div class="ai-premium-search-empty-{{ ai_gen_id }}">
+          <h3 class="ai-premium-search-empty-title-{{ ai_gen_id }}">{{ block.settings.empty_state_title }}</h3>
+          <p class="ai-premium-search-empty-subtitle-{{ ai_gen_id }}">{{ block.settings.empty_state_subtitle }}</p>
+          ${suggestionsHtml}
+        </div>
+      `;
+      this.showDropdown();
+    }
+
+    highlightText(text, query) {
+      if (!query) return text;
+      const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+      return text.replace(regex, '<mark>$1</mark>');
+    }
+
+    formatMoney(cents) {
+      const amount = cents / 100;
+      return new Intl.NumberFormat('{{ shop.locale }}', {
+        style: 'currency',
+        currency: '{{ cart.currency.iso_code }}'
+      }).format(amount);
+    }
+
+    showLoading() {
+      this.loadingIndicator.classList.add('visible');
+    }
+
+    hideLoading() {
+      this.loadingIndicator.classList.remove('visible');
+    }
+
+    showDropdown() {
+      this.dropdown.classList.add('visible');
+      this.searchInput.setAttribute('aria-expanded', 'true');
+    }
+
+    hideDropdown() {
+      this.dropdown.classList.remove('visible');
+      this.searchInput.setAttribute('aria-expanded', 'false');
+      this.focusedIndex = -1;
+    }
+  }
+
+  customElements.define('premium-search-{{ ai_gen_id }}', PremiumSearch{{ ai_gen_id }});
+})();
+</script>
+
+{% schema %}
+{
+  "name": "Premium sticky search",
+  "settings": [
+    {
+      "type": "header",
+      "content": "Search bar"
+    },
+    {
+      "type": "text",
+      "id": "placeholder_text",
+      "label": "Placeholder text",
+      "default": "Search products..."
+    },
+    {
+      "type": "range",
+      "id": "max_width",
+      "label": "Maximum width",
+      "min": 800,
+      "max": 1600,
+      "step": 100,
+      "unit": "px",
+      "default": 1200
+    },
+    {
+      "type": "range",
+      "id": "vertical_padding",
+      "label": "Vertical padding",
+      "min": 0,
+      "max": 40,
+      "step": 2,
+      "unit": "px",
+      "default": 20
+    },
+    {
+      "type": "range",
+      "id": "horizontal_padding",
+      "label": "Horizontal padding",
+      "min": 10,
+      "max": 60,
+      "step": 5,
+      "unit": "px",
+      "default": 20
+    },
+    {
+      "type": "header",
+      "content": "Scroll effect"
+    },
+    {
+      "type": "color",
+      "id": "scrolled_bg_color",
+      "label": "Background color",
+      "default": "#ffffff"
+    },
+    {
+      "type": "range",
+      "id": "backdrop_blur",
+      "label": "Backdrop blur",
+      "min": 0,
+      "max": 20,
+      "step": 2,
+      "unit": "px",
+      "default": 10
+    },
+    {
+      "type": "range",
+      "id": "shadow_opacity",
+      "label": "Shadow opacity",
+      "min": 0,
+      "max": 50,
+      "step": 5,
+      "unit": "%",
+      "default": 10
+    },
+    {
+      "type": "header",
+      "content": "Input field"
+    },
+    {
+      "type": "color",
+      "id": "input_bg_color",
+      "label": "Background color",
+      "default": "#f5f5f5"
+    },
+    {
+      "type": "color",
+      "id": "input_text_color",
+      "label": "Text color",
+      "default": "#000000"
+    },
+    {
+      "type": "color",
+      "id": "placeholder_color",
+      "label": "Placeholder color",
+      "default": "#999999"
+    },
+    {
+      "type": "color",
+      "id": "input_border_color",
+      "label": "Border color",
+      "default": "#e0e0e0"
+    },
+    {
+      "type": "color",
+      "id": "input_focus_border_color",
+      "label": "Focus border color",
+      "default": "#000000"
+    },
+    {
+      "type": "range",
+      "id": "input_border_width",
+      "label": "Border width",
+      "min": 0,
+      "max": 4,
+      "step": 1,
+      "unit": "px",
+      "default": 1
+    },
+    {
+      "type": "range",
+      "id": "input_border_radius",
+      "label": "Border radius",
+      "min": 0,
+      "max": 40,
+      "step": 2,
+      "unit": "px",
+      "default": 12
+    },
+    {
+      "type": "range",
+      "id": "input_padding",
+      "label": "Padding",
+      "min": 8,
+      "max": 24,
+      "step": 2,
+      "unit": "px",
+      "default": 14
+    },
+    {
+      "type": "range",
+      "id": "input_font_size",
+      "label": "Font size",
+      "min": 12,
+      "max": 20,
+      "step": 1,
+      "unit": "px",
+      "default": 16
+    },
+    {
+      "type": "range",
+      "id": "icon_size",
+      "label": "Icon size",
+      "min": 16,
+      "max": 32,
+      "step": 2,
+      "unit": "px",
+      "default": 20
+    },
+    {
+      "type": "color",
+      "id": "icon_color",
+      "label": "Icon color",
+      "default": "#666666"
+    },
+    {
+      "type": "header",
+      "content": "Search functionality"
+    },
+    {
+      "type": "range",
+      "id": "min_characters",
+      "label": "Minimum characters",
+      "min": 1,
+      "max": 5,
+      "step": 1,
+      "default": 2
+    },
+    {
+      "type": "range",
+      "id": "debounce_delay",
+      "label": "Debounce delay",
+      "min": 100,
+      "max": 500,
+      "step": 50,
+      "unit": "ms",
+      "default": 250
+    },
+    {
+      "type": "header",
+      "content": "Dropdown"
+    },
+    {
+      "type": "color",
+      "id": "dropdown_bg_color",
+      "label": "Background color",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "dropdown_text_color",
+      "label": "Text color",
+      "default": "#000000"
+    },
+    {
+      "type": "range",
+      "id": "dropdown_border_radius",
+      "label": "Border radius",
+      "min": 0,
+      "max": 40,
+      "step": 2,
+      "unit": "px",
+      "default": 12
+    },
+    {
+      "type": "range",
+      "id": "dropdown_max_height",
+      "label": "Maximum height",
+      "min": 300,
+      "max": 600,
+      "step": 50,
+      "unit": "px",
+      "default": 450
+    },
+    {
+      "type": "range",
+      "id": "dropdown_shadow_opacity",
+      "label": "Shadow opacity",
+      "min": 0,
+      "max": 50,
+      "step": 5,
+      "unit": "%",
+      "default": 15
+    },
+    {
+      "type": "range",
+      "id": "dropdown_backdrop_blur",
+      "label": "Backdrop blur",
+      "min": 0,
+      "max": 20,
+      "step": 2,
+      "unit": "px",
+      "default": 8
+    },
+    {
+      "type": "header",
+      "content": "Product display"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_vendor",
+      "label": "Show vendor",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_price",
+      "label": "Show price",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_availability",
+      "label": "Show availability",
+      "default": true
+    },
+    {
+      "type": "range",
+      "id": "product_image_size",
+      "label": "Image size",
+      "min": 40,
+      "max": 100,
+      "step": 5,
+      "unit": "px",
+      "default": 60
+    },
+    {
+      "type": "range",
+      "id": "product_image_radius",
+      "label": "Image border radius",
+      "min": 0,
+      "max": 20,
+      "step": 2,
+      "unit": "px",
+      "default": 8
+    },
+    {
+      "type": "range",
+      "id": "product_border_radius",
+      "label": "Product border radius",
+      "min": 0,
+      "max": 20,
+      "step": 2,
+      "unit": "px",
+      "default": 8
+    },
+    {
+      "type": "color",
+      "id": "product_hover_bg_color",
+      "label": "Hover background color",
+      "default": "#f5f5f5"
+    },
+    {
+      "type": "range",
+      "id": "product_title_size",
+      "label": "Title font size",
+      "min": 12,
+      "max": 20,
+      "step": 1,
+      "unit": "px",
+      "default": 14
+    },
+    {
+      "type": "range",
+      "id": "product_meta_size",
+      "label": "Meta font size",
+      "min": 10,
+      "max": 16,
+      "step": 1,
+      "unit": "px",
+      "default": 12
+    },
+    {
+      "type": "color",
+      "id": "highlight_color",
+      "label": "Highlight color",
+      "default": "#fff3cd"
+    },
+    {
+      "type": "header",
+      "content": "Availability badges"
+    },
+    {
+      "type": "color",
+      "id": "in_stock_bg_color",
+      "label": "In stock background",
+      "default": "#d4edda"
+    },
+    {
+      "type": "color",
+      "id": "in_stock_text_color",
+      "label": "In stock text",
+      "default": "#155724"
+    },
+    {
+      "type": "color",
+      "id": "out_of_stock_bg_color",
+      "label": "Out of stock background",
+      "default": "#f8d7da"
+    },
+    {
+      "type": "color",
+      "id": "out_of_stock_text_color",
+      "label": "Out of stock text",
+      "default": "#721c24"
+    },
+    {
+      "type": "header",
+      "content": "Empty state"
+    },
+    {
+      "type": "text",
+      "id": "empty_state_title",
+      "label": "Title",
+      "default": "No matching products found"
+    },
+    {
+      "type": "text",
+      "id": "empty_state_subtitle",
+      "label": "Subtitle",
+      "default": "Try searching with different keywords"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_suggestions",
+      "label": "Show product suggestions",
+      "default": true
+    }
+  ],
+  "presets": [
+    {
+      "name": "Premium sticky search"
+    }
+  ]
+}
+{% endschema %}

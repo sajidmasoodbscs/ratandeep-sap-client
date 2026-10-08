@@ -1,0 +1,219 @@
+<section class="b2b-collabs-section">
+  <div class="container">
+    
+    <h2 class="section-heading">{{ section.settings.main_heading }}</h2>
+    <p class="section-description">{{ section.settings.main_description }}</p>
+
+    <div class="accordion">
+
+      {% for block in section.blocks %}
+        <div class="accordion-item" id="item-{{ block.id }}">
+          <button class="accordion-header" type="button">
+            {{ block.settings.title | default: block.settings.form_title | default: block.settings.page_title }}
+            <span class="arrow">+</span>
+          </button>
+
+          <div class="accordion-body">
+
+            {% case block.type %}
+
+              {% when 'collapsible_item' %}
+                <div class="inner-content">
+                  {{ block.settings.content }}
+                </div>
+
+              {% when 'shopify_form_block' %}
+                <div class="inner-content">
+                  {% render 'shopify:form', shopify: form, form_id: block.settings.form_id %}
+                </div>
+
+              {% when 'page_block' %}
+                {% if block.settings.selected_page %}
+                  <div class="inner-content">
+                    {{ pages[block.settings.selected_page].content }}
+                  </div>
+                {% else %}
+                  <p>No page selected.</p>
+                {% endif %}
+
+            {% endcase %}
+
+          </div>
+        </div>
+      {% endfor %}
+
+    </div>
+  </div>
+</section>
+
+<style>
+.b2b-collabs-section {
+  padding: 40px 20px;
+  background: #fff;
+  font-family: Arial, sans-serif;
+}
+
+.container { max-width: 900px; margin: auto; }
+
+.section-heading { text-align:center; font-size:28px; font-weight:700; margin-bottom:10px; }
+.section-description { text-align:center; max-width:700px; margin:0 auto 30px; color:#555; }
+
+.accordion-item { 
+  border:1px solid #ddd; 
+  border-radius:10px;
+  margin-bottom:12px;
+  overflow:hidden;
+}
+
+.accordion-header {
+  width:100%;
+  background:#f7f7f7;
+  padding:15px 20px;
+  text-align:left;
+  border:none;
+  cursor:pointer;
+  font-size:18px;
+  font-weight:600;
+  position:relative;
+}
+
+.accordion-header .arrow {
+  position:absolute;
+  right:20px;
+  transition:0.3s ease;
+}
+
+.accordion-body {
+  display:none;
+  padding:15px 20px;
+  background:white;
+  border-top:1px solid #eee;
+}
+
+.accordion-item.active .accordion-body { display:block; }
+
+.accordion-item.active .arrow { transform:rotate(45deg); }
+</style>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+
+  const items = document.querySelectorAll(".accordion-item");
+
+  items.forEach(item => {
+    const header = item.querySelector(".accordion-header");
+
+    header.addEventListener("click", (event) => {
+
+      // Ignore clicks on form fields
+      if (
+        event.target.closest("input") || 
+        event.target.closest("textarea") || 
+        event.target.closest("select")
+      ) {
+        return;
+      }
+
+      item.classList.toggle("active");
+    });
+  });
+
+  // Shopify forms load late → protect again
+  setTimeout(() => {
+    document.querySelectorAll(".accordion-body input, .accordion-body select, .accordion-body textarea")
+      .forEach(field => {
+        field.addEventListener("click", e => e.stopPropagation());
+      });
+  }, 1200);
+
+});
+</script>
+{% schema %}
+{
+  "name": "B2B Collabs Dynamic",
+  "settings": [
+    {
+      "type": "text",
+      "id": "main_heading",
+      "label": "Main Heading",
+      "default": "How to Get Started:"
+    },
+    {
+      "type": "textarea",
+      "id": "main_description",
+      "label": "Description",
+      "default": "To open a Business Account, you simply need to be a registered business. It’s easy to apply:"
+    }
+  ],
+  "blocks": [
+    {
+      "type": "collapsible_item",
+      "name": "Collapsible Item",
+      "settings": [
+        {
+          "type": "text",
+          "id": "title",
+          "label": "Title",
+          "default": "Step Title"
+        },
+        {
+          "type": "richtext",
+          "id": "content",
+          "label": "Content"
+        }
+      ]
+    },
+    {
+      "type": "shopify_form_block",
+      "name": "Shopify Form Block",
+      "settings": [
+        {
+          "type": "text",
+          "id": "form_id",
+          "label": "Shopify Form ID",
+          "default": "749556"
+        },
+        {
+          "type": "text",
+          "id": "form_title",
+          "label": "Form Title",
+          "default": "Company Information"
+        }
+      ]
+    },
+    {
+      "type": "page_block",
+      "name": "Page Block",
+      "settings": [
+        {
+          "type": "page",
+          "id": "selected_page",
+          "label": "Select Page"
+        },
+        {
+          "type": "text",
+          "id": "page_title",
+          "label": "Title (optional)",
+          "default": "Page Content"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "B2B Collabs Dynamic",
+      "category": "Custom Sections"
+    }
+  ]
+}
+{% endschema %}
+{% comment %}
+
+This file has been rewritten to preserve the original behavior.
+
+---
+Changes:
+- from: "{% render 'shopify:form', form_id: block.settings.form_id %}"
+  to: "{% render 'shopify:form', shopify: form, form_id: block.settings.form_id %}"
+  position: 954..1029
+{% endcomment %}

@@ -1,0 +1,1473 @@
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+<link
+  href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap"
+  rel="stylesheet"
+>
+
+<style>
+  /* =========================================================
+     WHAT WE SELL - SCOPED STYLES
+  ========================================================= */
+
+  #what-we-sell-{{ section.id }} {
+    --wts-navy: #0f2a3d;
+    --wts-teal: #0d6e7a;
+    --wts-teal-light: #3fa8ac;
+    --wts-green: #00d68f;
+    --wts-amber: #f2a94e;
+    --wts-ink: #101820;
+    --wts-muted: #5b6b71;
+
+
+
+    position: relative;
+    isolation: isolate;
+
+    width: 100%;
+    overflow: hidden;
+
+    background: {{ section.settings.background_color }};
+
+    color: var(--wts-ink);
+
+    font-family: var(--wts-font-body);
+  }
+
+
+  #what-we-sell-{{ section.id }} *,
+  #what-we-sell-{{ section.id }} *::before,
+  #what-we-sell-{{ section.id }} *::after {
+    box-sizing: border-box;
+  }
+
+
+  /* =========================================================
+     MESH BACKGROUND
+  ========================================================= */
+
+  #what-we-sell-{{ section.id }} .wts-mesh {
+    position: absolute;
+    inset: 0;
+
+    z-index: 0;
+
+    overflow: hidden;
+
+    pointer-events: none;
+  }
+
+
+  #what-we-sell-{{ section.id }} .wts-blob {
+    position: absolute;
+
+    border-radius: 50%;
+
+    filter: blur(70px);
+
+    opacity: 0.55;
+  }
+
+
+  #what-we-sell-{{ section.id }} .wts-blob-1 {
+    width: 520px;
+    height: 520px;
+
+    top: -160px;
+    left: -120px;
+
+    background:
+      radial-gradient(
+        circle,
+        #7fe0c4,
+        transparent 70%
+      );
+  }
+
+
+  #what-we-sell-{{ section.id }} .wts-blob-2 {
+    width: 460px;
+    height: 460px;
+
+    top: -80px;
+    right: -140px;
+
+    background:
+      radial-gradient(
+        circle,
+        #9fd8e8,
+        transparent 70%
+      );
+  }
+
+
+  #what-we-sell-{{ section.id }} .wts-blob-3 {
+    width: 420px;
+    height: 420px;
+
+    bottom: -160px;
+    left: 30%;
+
+    opacity: 0.4;
+
+    background:
+      radial-gradient(
+        circle,
+        #f6cf9b,
+        transparent 70%
+      );
+  }
+
+
+  /* =========================================================
+     CONTENT
+  ========================================================= */
+
+  #what-we-sell-{{ section.id }} .wts-content {
+    position: relative;
+
+    z-index: 1;
+  }
+
+
+  /* =========================================================
+     HERO
+  ========================================================= */
+
+  #what-we-sell-{{ section.id }} .wts-hero {
+    text-align: center;
+
+    padding:
+      {{ section.settings.hero_top_spacing }}px
+      24px
+      20px;
+  }
+
+
+  #what-we-sell-{{ section.id }} .wts-pill-eyebrow {
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 8px;
+
+    margin-bottom: 22px;
+
+    padding:
+      7px 16px;
+
+    border:
+      1px solid
+      rgba(13, 110, 122, 0.18);
+
+    border-radius: 30px;
+
+    background:
+      rgba(255,255,255,0.70);
+
+    color:
+      var(--wts-teal);
+
+    font-family:
+      var(--wts-font-mono);
+
+    font-size: 11.5px;
+
+    line-height: 1;
+
+    letter-spacing: .08em;
+
+    text-transform: uppercase;
+
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+
+
+  #what-we-sell-{{ section.id }} .wts-pill-eyebrow .wts-dot {
+    width: 6px;
+    height: 6px;
+
+    flex-shrink: 0;
+
+    border-radius: 50%;
+
+    background:
+      var(--wts-green);
+  }
+
+
+  #what-we-sell-{{ section.id }} .wts-heading {
+    max-width: 900px;
+
+    margin:
+      0 auto 16px;
+
+    color:
+      var(--wts-navy);
+
+    font-family:
+      var(--wts-font-display);
+
+    font-size:
+      clamp(36px, 5.5vw, 58px);
+
+    font-weight: 700;
+
+    line-height: 1.05;
+
+    letter-spacing: -.02em;
+  }
+
+
+  #what-we-sell-{{ section.id }} .wts-hero-description {
+    max-width: 520px;
+
+    margin:
+      0 auto;
+
+    color:
+      var(--wts-muted);
+
+    font-family:
+      var(--wts-font-body);
+
+    font-size: 16px;
+
+    line-height: 1.6;
+  }
+
+
+  /* =========================================================
+     GRID
+  ========================================================= */
+
+  #what-we-sell-{{ section.id }} .wts-cat-grid {
+    width: 85%;
+    max-width: 85%;
+
+    margin:
+      56px auto 100px;
+
+    padding:
+      0 24px;
+
+    display: grid;
+
+    grid-template-columns:
+      repeat(3, minmax(0, 1fr));
+
+    gap: 22px;
+  }
+
+
+  /* First card spans 2 columns */
+
+  #what-we-sell-{{ section.id }} .wts-cat-grid > .wts-card:first-child {
+    grid-column: span 2;
+  }
+
+
+  /* =========================================================
+     GLASS CARD
+  ========================================================= */
+
+  #what-we-sell-{{ section.id }} .wts-card {
+    position: relative;
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 16px;
+
+    min-width: 0;
+
+    padding:
+      30px 30px 28px;
+
+    overflow: hidden;
+
+    border:
+      1px solid
+      rgba(255,255,255,0.90);
+
+    border-radius: 26px;
+
+    background:
+      rgba(255,255,255,0.72);
+
+    box-shadow:
+      0 8px 30px
+      rgba(15,42,61,0.06);
+
+    backdrop-filter:
+      blur(14px);
+
+    -webkit-backdrop-filter:
+      blur(14px);
+
+    transition:
+      transform .22s cubic-bezier(.2,.8,.2,1),
+      box-shadow .22s ease;
+  }
+
+
+  #what-we-sell-{{ section.id }} .wts-card:hover {
+    transform:
+      translateY(-5px);
+
+    box-shadow:
+      0 20px 46px
+      rgba(15,42,61,0.14);
+  }
+
+
+  /* =========================================================
+     ICON BADGE
+  ========================================================= */
+
+  #what-we-sell-{{ section.id }} .wts-icon-badge {
+    width: 56px;
+    height: 56px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    flex-shrink: 0;
+
+    border-radius: 18px;
+  }
+
+
+  #what-we-sell-{{ section.id }} .wts-badge-mint {
+    background:
+      linear-gradient(
+        145deg,
+        #c9f3e4,
+        #9fe4cb
+      );
+  }
+
+
+  #what-we-sell-{{ section.id }} .wts-badge-sky {
+    background:
+      linear-gradient(
+        145deg,
+        #c7e9ee,
+        #9bd6de
+      );
+  }
+
+
+  #what-we-sell-{{ section.id }} .wts-badge-amber {
+    background:
+      linear-gradient(
+        145deg,
+        #fbe3bf,
+        #f4c988
+      );
+  }
+
+
+  #what-we-sell-{{ section.id }} .wts-badge-navy {
+    background:
+      linear-gradient(
+        145deg,
+        #d6dde6,
+        #aebcca
+      );
+  }
+
+
+  #what-we-sell-{{ section.id }} .wts-badge-seafoam {
+    background:
+      linear-gradient(
+        145deg,
+        #c3ede0,
+        #8fd9c2
+      );
+  }
+
+
+  #what-we-sell-{{ section.id }} .wts-icon-badge svg {
+    color:
+      var(--wts-navy);
+  }
+
+
+  /* =========================================================
+     CARD TITLE
+  ========================================================= */
+
+  #what-we-sell-{{ section.id }} .wts-card h2 {
+    margin: 0;
+
+    color:
+      var(--wts-navy);
+
+    font-family:
+      var(--wts-font-display);
+
+    font-size: 21px;
+
+    font-weight: 600;
+
+    line-height: 1.25;
+
+    letter-spacing: -.01em;
+  }
+
+
+  #what-we-sell-{{ section.id }} .wts-card p {
+    flex: 1;
+
+    margin: 0;
+
+    color:
+      var(--wts-muted);
+
+    font-family:
+      var(--wts-font-body);
+
+    font-size: 13.5px;
+
+    line-height: 1.65;
+  }
+
+
+  /* =========================================================
+     BUTTON
+  ========================================================= */
+
+  #what-we-sell-{{ section.id }} .wts-pill-btn {
+    align-self: flex-start;
+
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 8px;
+
+    margin-top: 4px;
+
+    padding:
+      10px 18px;
+
+    border:
+      1px solid
+      rgba(15,42,61,0.12);
+
+    border-radius: 30px;
+
+    background:
+      #fff;
+
+    color:
+      var(--wts-navy);
+
+    font-family:
+      var(--wts-font-body);
+
+    font-size: 13px;
+
+    font-weight: 600;
+
+    line-height: 1;
+
+    text-decoration: none;
+
+    transition:
+      all .18s ease;
+  }
+
+
+  #what-we-sell-{{ section.id }} .wts-pill-btn:hover {
+    border-color:
+      var(--wts-navy);
+
+    background:
+      var(--wts-navy);
+
+    color:
+      #fff;
+  }
+
+
+  #what-we-sell-{{ section.id }} .wts-pill-btn svg {
+    flex-shrink: 0;
+
+    transition:
+      transform .18s ease;
+  }
+
+
+  #what-we-sell-{{ section.id }} .wts-pill-btn:hover svg {
+    transform:
+      translateX(3px);
+  }
+
+
+  /* =========================================================
+     FEATURED CARD
+  ========================================================= */
+
+  #what-we-sell-{{ section.id }} .wts-card.wts-featured {
+    flex-direction: row;
+
+    align-items: center;
+
+    gap: 28px;
+  }
+
+
+  #what-we-sell-{{ section.id }} .wts-featured .wts-icon-badge {
+    width: 96px;
+    height: 96px;
+
+    flex-shrink: 0;
+
+    border-radius: 26px;
+  }
+
+
+  #what-we-sell-{{ section.id }} .wts-featured .wts-icon-badge svg {
+    width: 44px;
+    height: 44px;
+  }
+
+
+  #what-we-sell-{{ section.id }} .wts-featured .wts-fc-text {
+    flex: 1;
+
+    min-width: 0;
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 14px;
+  }
+
+
+  #what-we-sell-{{ section.id }} .wts-featured h2 {
+    font-size: 27px;
+  }
+
+
+  /* =========================================================
+     NUMBER
+  ========================================================= */
+
+  #what-we-sell-{{ section.id }} .wts-card-number {
+    position: absolute;
+
+    top: 22px;
+    right: 24px;
+
+    color:
+      rgba(15,42,61,0.25);
+
+    font-family:
+      var(--wts-font-mono);
+
+    font-size: 10px;
+
+    letter-spacing: .08em;
+  }
+
+
+  /* =========================================================
+     TABLET
+  ========================================================= */
+
+  @media screen and (max-width: 920px) {
+
+    #what-we-sell-{{ section.id }} .wts-cat-grid {
+      width: 90%;
+
+      grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+    }
+
+
+    #what-we-sell-{{ section.id }} .wts-cat-grid > .wts-card:first-child {
+      grid-column: span 2;
+    }
+
+  }
+
+
+  /* =========================================================
+     MOBILE
+  ========================================================= */
+
+  @media screen and (max-width: 600px) {
+
+    #what-we-sell-{{ section.id }} .wts-hero {
+      padding:
+        {{ section.settings.hero_top_spacing_mobile }}px
+        18px
+        10px;
+    }
+
+
+    #what-we-sell-{{ section.id }} .wts-pill-eyebrow {
+      margin-bottom: 18px;
+
+      font-size: 10px;
+
+      padding:
+        7px 13px;
+    }
+
+
+    #what-we-sell-{{ section.id }} .wts-heading {
+      font-size:
+        clamp(34px, 10vw, 46px);
+
+      line-height: 1.07;
+    }
+
+
+    #what-we-sell-{{ section.id }} .wts-hero-description {
+      font-size: 14px;
+
+      line-height: 1.65;
+    }
+
+
+    #what-we-sell-{{ section.id }} .wts-cat-grid {
+      width: 100%;
+
+      grid-template-columns: 1fr;
+
+      gap: 16px;
+
+      margin:
+        42px auto 60px;
+
+      padding:
+        0 16px;
+    }
+
+
+    #what-we-sell-{{ section.id }} .wts-cat-grid > .wts-card:first-child {
+      grid-column: span 1;
+    }
+
+
+    #what-we-sell-{{ section.id }} .wts-card {
+      padding:
+        24px 22px 23px;
+
+      border-radius: 22px;
+    }
+
+
+    #what-we-sell-{{ section.id }} .wts-card.wts-featured {
+      flex-direction: column;
+
+      align-items: flex-start;
+
+      gap: 20px;
+    }
+
+
+    #what-we-sell-{{ section.id }} .wts-featured .wts-icon-badge {
+      width: 72px;
+      height: 72px;
+
+      border-radius: 21px;
+    }
+
+
+    #what-we-sell-{{ section.id }} .wts-featured .wts-icon-badge svg {
+      width: 34px;
+      height: 34px;
+    }
+
+
+    #what-we-sell-{{ section.id }} .wts-featured .wts-fc-text {
+      width: 100%;
+    }
+
+
+    #what-we-sell-{{ section.id }} .wts-featured h2 {
+      font-size: 24px;
+    }
+
+
+    #what-we-sell-{{ section.id }} .wts-card h2 {
+      font-size: 20px;
+    }
+
+
+    #what-we-sell-{{ section.id }} .wts-card p {
+      font-size: 13.5px;
+    }
+
+
+    #what-we-sell-{{ section.id }} .wts-card-number {
+      top: 19px;
+      right: 20px;
+    }
+#what-we-sell-{{ section.id }} .wts-cat-grid {
+    max-width: 100%;
+
+   }
+  }
+
+
+  /* =========================================================
+     SMALL MOBILE
+  ========================================================= */
+
+  @media screen and (max-width: 380px) {
+
+    #what-we-sell-{{ section.id }} .wts-cat-grid {
+      padding-left: 12px;
+      padding-right: 12px;
+    }
+
+
+    #what-we-sell-{{ section.id }} .wts-card {
+      padding:
+        21px 19px 21px;
+    }
+
+
+    #what-we-sell-{{ section.id }} .wts-heading {
+      font-size: 32px;
+    }
+
+  }
+
+</style>
+
+
+<section
+  id="what-we-sell-{{ section.id }}"
+  aria-label="{{ section.settings.heading | escape }}"
+>
+
+  <!-- BACKGROUND -->
+  <div class="wts-mesh" aria-hidden="true">
+
+    <div class="wts-blob wts-blob-1"></div>
+    <div class="wts-blob wts-blob-2"></div>
+    <div class="wts-blob wts-blob-3"></div>
+
+  </div>
+
+
+  <div class="wts-content">
+
+    <!-- HERO -->
+    <div class="wts-hero">
+
+      {% if section.settings.eyebrow != blank %}
+
+        <div class="wts-pill-eyebrow">
+
+          <span class="wts-dot"></span>
+
+          <span>
+            {{ section.settings.eyebrow }}
+          </span>
+
+        </div>
+
+      {% endif %}
+
+
+      {% if section.settings.heading != blank %}
+
+        <h1 class="wts-heading">
+          {{ section.settings.heading }}
+        </h1>
+
+      {% endif %}
+
+
+      {% if section.settings.description != blank %}
+
+        <div class="wts-hero-description">
+          {{ section.settings.description }}
+        </div>
+
+      {% endif %}
+
+    </div>
+
+
+    <!-- CATEGORY GRID -->
+    {% if section.blocks.size > 0 %}
+
+      <div class="wts-cat-grid">
+
+        {% for block in section.blocks %}
+
+          <div
+            class="wts-card{% if block.settings.featured %} wts-featured{% endif %}"
+            {{ block.shopify_attributes }}
+          >
+
+            {% if block.settings.number != blank %}
+
+              <span class="wts-card-number">
+                {{ block.settings.number }}
+              </span>
+
+            {% endif %}
+
+
+            <!-- ICON -->
+            <div
+              class="
+                wts-icon-badge
+                wts-badge-{{ block.settings.icon_background }}
+              "
+            >
+
+              {% case block.settings.icon %}
+
+                {% when 'ink' %}
+
+                  <svg
+                    width="26"
+                    height="26"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M12 2c2 3 5 6.5 5 10a5 5 0 0 1-10 0c0-3.5 3-7 5-10z"/>
+                  </svg>
+
+
+                {% when 'toner' %}
+
+                  <svg
+                    width="34"
+                    height="34"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <rect x="4" y="8" width="16" height="10" rx="1.5"/>
+                    <rect x="8" y="5" width="8" height="3" rx="1"/>
+                  </svg>
+
+
+                {% when 'paper' %}
+
+                  <svg
+                    width="26"
+                    height="26"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <circle cx="12" cy="7" r="4"/>
+                    <path d="M8 7v11a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V7"/>
+                  </svg>
+
+
+                {% when 'printer' %}
+
+                  <svg
+                    width="26"
+                    height="26"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M6 9V4h12v5"/>
+                    <rect x="4" y="9" width="16" height="7" rx="1.5"/>
+                  </svg>
+
+
+                {% when 'ribbon' %}
+
+                  <svg
+                    width="26"
+                    height="26"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <circle cx="7" cy="12" r="4"/>
+                    <circle cx="17" cy="12" r="4"/>
+                  </svg>
+
+
+                {% when 'label' %}
+
+                  <svg
+                    width="26"
+                    height="26"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M4 5h11l5 5-9 9-7-7V5Z"/>
+                    <circle cx="9" cy="9" r="1.5"/>
+                  </svg>
+
+
+                {% when 'box' %}
+
+                  <svg
+                    width="26"
+                    height="26"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="m12 3 9 5-9 5-9-5 9-5Z"/>
+                    <path d="m3 8 9 5 9-5"/>
+                    <path d="M3 8v8l9 5 9-5V8"/>
+                    <path d="M12 13v8"/>
+                  </svg>
+
+
+                {% when 'package' %}
+
+                  <svg
+                    width="26"
+                    height="26"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M4 7h16v13H4z"/>
+                    <path d="m4 7 4-4h8l4 4"/>
+                    <path d="M9 11h6"/>
+                  </svg>
+
+
+                {% when 'star' %}
+
+                  <svg
+                    width="26"
+                    height="26"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z"/>
+                  </svg>
+
+
+                {% else %}
+
+                  <svg
+                    width="26"
+                    height="26"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    aria-hidden="true"
+                  >
+                    <circle cx="12" cy="12" r="8"/>
+                  </svg>
+
+              {% endcase %}
+
+            </div>
+
+
+            {% if block.settings.featured %}
+
+              <!-- FEATURED CARD -->
+              <div class="wts-fc-text">
+
+                {% if block.settings.title != blank %}
+
+                  <h2>
+                    {{ block.settings.title }}
+                  </h2>
+
+                {% endif %}
+
+
+                {% if block.settings.description != blank %}
+
+                  <p>
+                    {{ block.settings.description }}
+                  </p>
+
+                {% endif %}
+
+
+                {% if block.settings.button_text != blank %}
+
+                  {% if block.settings.button_link != blank %}
+
+                    <a
+                      href="{{ block.settings.button_link }}"
+                      class="wts-pill-btn"
+                      {% if block.settings.open_new_tab %}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      {% endif %}
+                    >
+
+                      <span>
+                        {{ block.settings.button_text }}
+                      </span>
+
+                      <svg
+                        width="13"
+                        height="13"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.4"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="M5 12h14"/>
+                        <path d="M13 6l6 6-6 6"/>
+                      </svg>
+
+                    </a>
+
+                  {% endif %}
+
+                {% endif %}
+
+              </div>
+
+
+            {% else %}
+
+              <!-- NORMAL CARD -->
+
+              {% if block.settings.title != blank %}
+
+                <h2>
+                  {{ block.settings.title }}
+                </h2>
+
+              {% endif %}
+
+
+              {% if block.settings.description != blank %}
+
+                <p>
+                  {{ block.settings.description }}
+                </p>
+
+              {% endif %}
+
+
+              {% if block.settings.button_text != blank %}
+
+                {% if block.settings.button_link != blank %}
+
+                  <a
+                    href="{{ block.settings.button_link }}"
+                    class="wts-pill-btn"
+                    {% if block.settings.open_new_tab %}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    {% endif %}
+                  >
+
+                    <span>
+                      {{ block.settings.button_text }}
+                    </span>
+
+                    <svg
+                      width="13"
+                      height="13"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.4"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M5 12h14"/>
+                      <path d="M13 6l6 6-6 6"/>
+                    </svg>
+
+                  </a>
+
+                {% endif %}
+
+              {% endif %}
+
+            {% endif %}
+
+          </div>
+
+        {% endfor %}
+
+      </div>
+
+    {% endif %}
+
+  </div>
+
+</section>
+
+
+{% schema %}
+
+{
+  "name": "What We Sell",
+
+  "tag": "section",
+
+  "class": "what-we-sell-section",
+
+  "settings": [
+
+    {
+      "type": "header",
+      "content": "Hero"
+    },
+
+    {
+      "type": "text",
+      "id": "eyebrow",
+      "label": "Eyebrow",
+      "default": "What We Sell"
+    },
+
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Heading",
+      "default": "A full range of print solutions, all under one roof"
+    },
+
+    {
+      "type": "textarea",
+      "id": "description",
+      "label": "Description",
+      "default": "Browse every category Ink Quest stocks across our Canadian warehouse network — competitive pricing, reliable availability, one reseller account."
+    },
+
+
+    {
+      "type": "header",
+      "content": "Spacing"
+    },
+
+    {
+      "type": "range",
+      "id": "hero_top_spacing",
+      "label": "Desktop hero top spacing",
+      "min": 30,
+      "max": 160,
+      "step": 5,
+      "unit": "px",
+      "default": 80
+    },
+
+    {
+      "type": "range",
+      "id": "hero_top_spacing_mobile",
+      "label": "Mobile hero top spacing",
+      "min": 25,
+      "max": 100,
+      "step": 5,
+      "unit": "px",
+      "default": 55
+    },
+
+
+    {
+      "type": "header",
+      "content": "Background"
+    },
+
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "Background color",
+      "default": "#f7faf9"
+    }
+
+  ],
+
+
+  "blocks": [
+
+    {
+      "type": "category",
+
+      "name": "Category",
+
+      "settings": [
+
+        {
+          "type": "header",
+          "content": "Content"
+        },
+
+        {
+          "type": "text",
+          "id": "number",
+          "label": "Number",
+          "default": "01"
+        },
+
+        {
+          "type": "text",
+          "id": "title",
+          "label": "Title",
+          "default": "Ink Cartridges"
+        },
+
+        {
+          "type": "textarea",
+          "id": "description",
+          "label": "Description",
+          "default": "Expand your product offering with a comprehensive range of ink cartridges from trusted brands. Competitive pricing, reliable availability, and consistent quality help resellers meet customer demand with confidence."
+        },
+
+        {
+          "type": "text",
+          "id": "button_text",
+          "label": "Button text",
+          "default": "Explore category"
+        },
+
+        {
+          "type": "url",
+          "id": "button_link",
+          "label": "Button link"
+        },
+
+        {
+          "type": "checkbox",
+          "id": "open_new_tab",
+          "label": "Open link in new tab",
+          "default": false
+        },
+
+
+        {
+          "type": "header",
+          "content": "Card style"
+        },
+
+        {
+          "type": "checkbox",
+          "id": "featured",
+          "label": "Featured card",
+          "default": false
+        },
+
+        {
+          "type": "select",
+          "id": "icon",
+          "label": "Icon",
+          "options": [
+            {
+              "value": "ink",
+              "label": "Ink"
+            },
+            {
+              "value": "toner",
+              "label": "Toner"
+            },
+            {
+              "value": "paper",
+              "label": "Thermal Paper"
+            },
+            {
+              "value": "printer",
+              "label": "Printer"
+            },
+            {
+              "value": "ribbon",
+              "label": "Ribbon"
+            },
+            {
+              "value": "label",
+              "label": "Label"
+            },
+            {
+              "value": "box",
+              "label": "Box"
+            },
+            {
+              "value": "package",
+              "label": "Package"
+            },
+            {
+              "value": "star",
+              "label": "Star"
+            }
+          ],
+          "default": "ink"
+        },
+
+        {
+          "type": "select",
+          "id": "icon_background",
+          "label": "Icon background",
+          "options": [
+            {
+              "value": "mint",
+              "label": "Mint"
+            },
+            {
+              "value": "sky",
+              "label": "Sky"
+            },
+            {
+              "value": "amber",
+              "label": "Amber"
+            },
+            {
+              "value": "navy",
+              "label": "Navy"
+            },
+            {
+              "value": "seafoam",
+              "label": "Seafoam"
+            }
+          ],
+          "default": "sky"
+        }
+
+      ]
+    }
+
+  ],
+
+  "max_blocks": 9,
+
+  "presets": [
+
+    {
+      "name": "What We Sell",
+
+      "blocks": [
+
+        {
+          "type": "category",
+
+          "settings": {
+            "number": "01",
+            "title": "Ink Cartridges",
+            "description": "Expand your product offering with a comprehensive range of ink cartridges from trusted brands. Competitive pricing, reliable availability, and consistent quality help resellers meet customer demand with confidence.",
+            "button_text": "Explore category",
+            "featured": true,
+            "icon": "toner",
+            "icon_background": "navy"
+          }
+        },
+
+        {
+          "type": "category",
+
+          "settings": {
+            "number": "02",
+            "title": "Toner Cartridges",
+            "description": "Source high-performance toner cartridges designed for business and retail markets. Benefit from dependable supply, attractive margins, and products compatible with leading printer brands.",
+            "button_text": "Explore",
+            "featured": false,
+            "icon": "ink",
+            "icon_background": "sky"
+          }
+        },
+
+        {
+          "type": "category",
+
+          "settings": {
+            "number": "03",
+            "title": "Thermal Paper",
+            "description": "Stock premium thermal paper rolls for POS, retail, hospitality, and banking customers. Available in bulk quantities to support reseller growth and recurring sales opportunities.",
+            "button_text": "Explore",
+            "featured": false,
+            "icon": "paper",
+            "icon_background": "amber"
+          }
+        },
+
+        {
+          "type": "category",
+
+          "settings": {
+            "number": "04",
+            "title": "Printers & Accessories",
+            "description": "Offer your customers a complete printing solution with printers and essential accessories. Access quality products, competitive wholesale pricing, and dependable inventory for your business.",
+            "button_text": "Explore",
+            "featured": false,
+            "icon": "printer",
+            "icon_background": "mint"
+          }
+        },
+
+        {
+          "type": "category",
+
+          "settings": {
+            "number": "05",
+            "title": "Ribbons & Label Tapes",
+            "description": "Supply businesses with reliable ribbons and label tapes for labeling, identification, and operational efficiency. A wide selection of compatible products helps resellers serve diverse market needs.",
+            "button_text": "Explore",
+            "featured": false,
+            "icon": "ribbon",
+            "icon_background": "seafoam"
+          }
+        }
+
+      ]
+    }
+
+  ]
+
+}
+
+{% endschema %}

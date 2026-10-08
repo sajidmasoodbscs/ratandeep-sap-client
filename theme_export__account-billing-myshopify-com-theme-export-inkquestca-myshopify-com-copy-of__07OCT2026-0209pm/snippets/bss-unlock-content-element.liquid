@@ -1,0 +1,36 @@
+{% assign list_unlocked_condition = bss_price_unlocked_conditions | split: ',' %}
+{% assign list_authentication_string = '' %}
+{% assign list_rule_id = '' %}
+{% assign list_condition_type = '' %}
+{% for condition in list_unlocked_condition %}
+  {% assign rule_id = condition | split: ':' | first %}
+  {% assign condition_type = condition | split: ':' | last%}
+  {%- capture authentication -%}{"domain":"{{ shop.permanent_domain }}","ruleId":{{ rule_id }},"condition_type":"{{ condition_type }}"}{%- endcapture -%}
+  {% assign authentication = authentication | hmac_sha256: '19f28bb46fef8fa41bd7180b12628ee7' %}
+  {% assign list_authentication_string = list_authentication_string | append: authentication | append: ',' %}
+  {% assign list_rule_id = list_rule_id | append: rule_id | append: ',' %}
+  {% assign list_condition_type = list_condition_type | append: condition_type | append: ',' %}
+{% endfor %}
+{% assign list_authentication_string = list_authentication_string | split: ',' %}
+{% assign list_rule_id = list_rule_id | split: ',' %}
+{% assign list_condition_type = list_condition_type | split: ',' %}
+<div class='bss-unlocked-element' style="display:none!important;">
+  <script class="bss-unlock-price-tracking" style="display:none!important;">
+  window.BSS_Login_Analytics = window.BSS_Login_Analytics ?? {}
+  window.BSS_Login_Analytics.unlockedConditions = window.BSS_Login_Analytics.unlockedConditions ?? [];
+  {% for authentication in list_authentication_string %}
+  var currentCondition = {
+    ruleId: {{ list_rule_id[forloop.index0] }},
+    condition_type: '{{ list_condition_type[forloop.index0] }}',
+    signature: '{{ authentication }}',
+    products: ['{{ product.id }}'],
+  }
+  var foundElement = window.BSS_Login_Analytics.unlockedConditions.find(e => e.condition_type == currentCondition.condition_type && e.ruleId == currentCondition.ruleId)
+  if (foundElement) {
+    foundElement.products.push('{{ product.id }}')
+  } else {
+    window.BSS_Login_Analytics.unlockedConditions.push(currentCondition);
+  }
+  {% endfor %}
+  </script>
+</div>

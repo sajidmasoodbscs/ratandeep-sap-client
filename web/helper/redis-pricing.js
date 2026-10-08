@@ -4,7 +4,8 @@ import {
   getRedisKeyPrefix,
   logRedisConnectionFromEnv,
   normalizeShopifyCustomerId,
-  postSapWebhook,
+  postSapWebhookForCustomer,
+  touchSapCustomer,
 } from "./sap-api.js";
 
 export function getRedisConfigFromEnv() {
@@ -293,6 +294,8 @@ export async function fetchCartPricesFromRedis(_session, shopifyCustId, skuList,
     };
   }
 
+  await touchSapCustomer(shopifyCustomerId);
+
   const config = getRedisConfigFromEnv();
   if (!config) {
     const priceMap = mergeCartDefaultPrices(lineItems, {});
@@ -321,21 +324,35 @@ export async function fetchCartPricesFromRedis(_session, shopifyCustId, skuList,
     if (!allFound && triggerSapIfMissing && shopifyCustomerId) {
       console.log("[Redis] Missing SKUs:", missing, "— POST SAP webhook (load Redis)");
       const xml = buildSapRootCustomerXml(shopifyCustomerId);
-      const sapResult = await postSapWebhook(xml, "redis-refresh");
-      if (!sapResult.ok) {
-        console.warn("[Redis] SAP webhook non-OK — still polling Redis:", sapResult.status);
-      }
+      const sapResult = await postSapWebhookForCustomer(
+        shopifyCustomerId,
+        xml,
+        "redis-refresh"
+      );
 
       await redis.quit();
 
-      const polled = await pollRedisForPrices(
-        redisKey.prefix,
-        skuList,
-        maxPollRetries,
-        pollIntervalMs
-      );
-      priceMap = { ...priceMap, ...polled.priceMap };
-      allFound = polled.allFound;
+      if (sapResult.skipped) {
+        console.log(
+          "[Redis] SAP skipped —",
+          sapResult.reason,
+          sapResult.secondsRemaining
+            ? `(${sapResult.secondsRemaining}s left)`
+            : ""
+        );
+      } else {
+        if (!sapResult.ok) {
+          console.warn("[Redis] SAP webhook non-OK — still polling Redis:", sapResult.status);
+        }
+        const polled = await pollRedisForPrices(
+          redisKey.prefix,
+          skuList,
+          maxPollRetries,
+          pollIntervalMs
+        );
+        priceMap = { ...priceMap, ...polled.priceMap };
+        allFound = polled.allFound;
+      }
     } else {
       await redis.quit();
     }

@@ -1,0 +1,136 @@
+/* PO Upload section styles — plain CSS, no framework. */
+.po-upload { max-width: 900px; margin: 0 auto; padding: 24px 16px; }
+.po-upload__dropzone {
+  border: 2px dashed #999; border-radius: 8px; padding: 40px 20px;
+  text-align: center; cursor: pointer; margin: 20px 0;
+}
+.po-upload__dropzone--over { border-color: #000; background: #f7f7f7; }
+.po-upload__browse {
+  display: inline-block; margin-top: 8px; padding: 10px 22px;
+  background: #111; color: #fff; border-radius: 4px; cursor: pointer;
+}
+.po-upload__hint { color: #666; font-size: 0.85em; margin-top: 12px; }
+.po-upload__status { padding: 12px 16px; border-radius: 4px; background: #eef; margin: 16px 0; }
+.po-upload__status--error { background: #fde8e8; }
+.po-upload__table { width: 100%; border-collapse: collapse; margin: 12px 0 24px; }
+.po-upload__table th, .po-upload__table td {
+  border: 1px solid #ddd; padding: 8px 10px; text-align: left; vertical-align: top;
+}
+.po-upload__table thead th { background: #f4f4f4; }
+.po-upload__table--unmatched td { color: #555; }
+.po-upload__table input[data-po-qty] { width: 70px; }
+.po-upload__table select[data-po-choice] { max-width: 100%; }
+.po-upload__assumed { font-size: 0.8em; color: #a60; }
+.po-upload__note { color: #555; }
+.po-upload__note--info {
+  background: #fdf8ec;
+  border-left: 3px solid #e6a817;
+  border-radius: 0 4px 4px 0;
+  padding: 10px 14px;
+  color: #444;
+  margin: 0 0 14px;
+}
+.po-upload__add { margin: 8px 0 24px; }
+.po-upload__cart-note { color: #555; }
+
+/* Backorder confirmation dialog */
+.po-upload__bo-overlay {
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.po-upload__bo-overlay[hidden] { display: none; }
+.po-upload__bo-dialog {
+  background: #fff; border-radius: 8px; padding: 24px;
+  max-width: 560px; width: 100%; max-height: 80vh; overflow: auto;
+}
+.po-upload__bo-dialog h3 { margin-top: 0; }
+.po-upload__bo-row {
+  display: block; padding: 8px 0; border-bottom: 1px solid #eee;
+  cursor: pointer;
+}
+.po-upload__bo-row input { margin-right: 8px; }
+.po-upload__bo-actions { margin-top: 16px; display: flex; gap: 12px; }
+.po-upload__bo-actions button {
+  padding: 10px 20px; border-radius: 4px; cursor: pointer;
+}
+.po-upload__bo-actions [data-po-bo-add] {
+  background: #111; color: #fff; border: none;
+}
+.po-upload__bo-actions [data-po-bo-skip] {
+  background: #fff; color: #111; border: 1px solid #999;
+}
+.po-upload__ignored { margin-top: 10px; }
+.po-upload__ignored summary { cursor: pointer; color: #555; font-size: 13px; }
+.po-upload__ignored table { margin-top: 6px; }
+.po-upload__ignored td { color: #888; font-size: 13px; }
+.po-upload__details {
+  background: #f7f7f7;
+  border: 1px solid #e2e2e2;
+  border-radius: 6px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+.po-upload__po-row {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  margin: 4px 0;
+}
+.po-upload__po-row > span:first-child {
+  font-weight: 600;
+  min-width: 90px;
+}
+.po-upload__po-row input[type="text"] {
+  max-width: 260px;
+}
+
+/* Guided layout: horizontal steps, full-width form */
+.po-upload { max-width: 1180px; }
+.po-upload__kicker {
+  text-transform: uppercase; letter-spacing: 0.12em;
+  font-size: 0.78em; font-weight: 700; color: #1a7a6d; margin: 0 0 6px;
+}
+.po-upload__heading { margin: 0 0 8px; }
+.po-upload__intro { color: #555; max-width: 640px; }
+.po-upload__steps-card {
+  background: #0b3d44; color: #fff; border-radius: 10px;
+  padding: 20px 24px; margin: 20px 0;
+}
+.po-upload__steps {
+  list-style: none; margin: 0; padding: 0; counter-reset: po-step;
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px;
+}
+.po-upload__steps li { display: grid; grid-template-columns: 28px 1fr; gap: 8px; }
+.po-upload__steps li::before {
+  counter-increment: po-step; content: "0" counter(po-step);
+  font-weight: 700; color: #2dd4a8; font-size: 0.85em; padding-top: 2px;
+}
+.po-upload__steps strong { display: block; margin-bottom: 2px; font-size: 0.92em; }
+.po-upload__steps span { font-size: 0.82em; opacity: 0.88; line-height: 1.45; }
+.po-upload__form-card {
+  border: 1px solid #e3e3e3; border-radius: 10px;
+  padding: 22px; background: #fff;
+}
+.po-upload__dropzone { padding: 28px 16px; margin: 0 0 16px; }
+.po-upload__sample { margin-top: 10px; font-size: 0.9em; }
+.po-upload__sample a { color: #1a7a6d; text-decoration: underline; }
+.po-upload__info-card {
+  border: 1px solid #e3e3e3; border-radius: 10px; padding: 16px 22px;
+  background: #fff; margin-top: 20px;
+}
+.po-upload__info-card h3 { margin: 0 0 8px; font-size: 1em; }
+.po-upload__info-card ul {
+  margin: 0; padding: 0; list-style: none;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 6px 24px;
+}
+.po-upload__info-card li { font-size: 0.85em; color: #444; line-height: 1.45; padding-left: 14px; position: relative; }
+.po-upload__info-card li::before { content: "•"; position: absolute; left: 0; color: #1a7a6d; }
+@media (max-width: 900px) {
+  .po-upload__steps { grid-template-columns: 1fr 1fr; }
+  .po-upload__info-card ul { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .po-upload__steps { grid-template-columns: 1fr; }
+}

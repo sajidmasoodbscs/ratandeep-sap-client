@@ -1,3 +1,8 @@
+import {
+  PriceChangeDB,
+  SAP_CUSTOMER_COOLDOWN_SECONDS,
+} from "../price-change-db.js";
+
 /** SAP webhook that loads customer prices into Redis (fire-and-forget; body may be empty). */
 export function getSapWebhookUrl() {
   return (
@@ -5,6 +10,64 @@ export function getSapWebhookUrl() {
     process.env.SAP_WEBHOOK_URL?.trim() ||
     ''
   );
+}
+
+/**
+ * Ensure shopify customer id is stored for SAP cooldown tracking.
+ * Safe to call on every pricing request (Redis-hit or miss).
+ */
+export async function touchSapCustomer(shopifyCustomerId) {
+  const id = normalizeShopifyCustomerId(shopifyCustomerId);
+  if (!id) return null;
+  return PriceChangeDB.ensureSapCustomer(id);
+}
+
+/**
+ * Redis may still be read by callers. This only gates the SAP webhook:
+ * - saves customer if missing
+ * - skips SAP for {@link SAP_CUSTOMER_COOLDOWN_SECONDS} after last call
+ * - on fire, updates last_sap_at (keeps the row)
+ */
+export async function postSapWebhookForCustomer(
+  shopifyCustomerId,
+  xmlBody,
+  label = "SAP"
+) {
+  const id = normalizeShopifyCustomerId(shopifyCustomerId);
+  if (!id) {
+    console.warn(`[SAP] postSapWebhookForCustomer — ${label} — no customer id`);
+    return {
+      ok: false,
+      skipped: true,
+      reason: "no_customer",
+      status: 0,
+      text: "no customer id",
+    };
+  }
+
+  await PriceChangeDB.ensureSapCustomer(id);
+  const gate = await PriceChangeDB.getSapCallGate(id, SAP_CUSTOMER_COOLDOWN_SECONDS);
+
+  if (!gate.allowed) {
+    console.log(
+      `[SAP] postSapWebhookForCustomer — ${label} — cooldown active for customer ${id} (${gate.secondsRemaining}s left) — skipping SAP`
+    );
+    return {
+      ok: false,
+      skipped: true,
+      reason: gate.reason,
+      secondsRemaining: gate.secondsRemaining,
+      status: 0,
+      text: "sap_cooldown",
+    };
+  }
+
+  console.log(
+    `[SAP] postSapWebhookForCustomer — ${label} — allowed (${gate.reason}) for customer ${id}`
+  );
+  const result = await postSapWebhook(xmlBody, label);
+  await PriceChangeDB.markSapCalled(id);
+  return { ...result, skipped: false, reason: gate.reason };
 }
 
 /** Keys used elsewhere in this app (legacy; not used for Redis key prefix). */
