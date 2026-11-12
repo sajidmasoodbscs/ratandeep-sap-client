@@ -179,6 +179,7 @@
 
     let checkoutNavigated = false;
     let checkoutFallbackTimer = null;
+    let checkoutPollInterval = null;
     const CHECKOUT_MAX_WAIT_MS = 30000;
 
     function getStandardCheckoutUrl() {
@@ -200,11 +201,22 @@
       window.location.href = target;
     }
 
+    function checkoutFailed(error) {
+      console.error("[SAP Checkout] Could not prepare customer pricing:", error);
+      if (checkoutFallbackTimer) clearTimeout(checkoutFallbackTimer);
+      if (checkoutPollInterval) clearInterval(checkoutPollInterval);
+      checkoutFallbackTimer = null;
+      checkoutPollInterval = null;
+      window.__sapCheckoutInProgress = false;
+      hideCheckoutLoader();
+      window.alert("We couldn't prepare your customer pricing. Please try checkout again. If this continues, contact the store.");
+    }
+
     function armCheckoutFallbackTimer() {
       if (checkoutFallbackTimer) clearTimeout(checkoutFallbackTimer);
       checkoutFallbackTimer = setTimeout(function() {
         console.warn("[SAP Checkout] Discount job timeout — opening checkout (discount may not apply)");
-        goToCheckoutNow();
+        checkoutFailed("Customer pricing timed out");
       }, CHECKOUT_MAX_WAIT_MS);
     }
 
@@ -338,7 +350,7 @@
       console.log("[SAP Checkout] Polling", url, "jobId:", jobId);
       armCheckoutFallbackTimer();
 
-      const interval = setInterval(() => {
+      const interval = checkoutPollInterval = setInterval(() => {
         fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -367,21 +379,16 @@
             } else if (data.status === "failed") {
               clearInterval(interval);
               console.error("[SAP Checkout] Job failed — still opening checkout:", data.reason || data.error);
-              goToCheckoutNow();
+              checkoutFailed(data.diagnostics?.discountError || data.reason || data.error);
             }
           })
           .catch((err) => {
             console.error("[SAP Checkout] Poll error — still opening checkout:", err);
             clearInterval(interval);
-            goToCheckoutNow();
+            checkoutFailed(err);
           });
       }, 1000);
 
-      setTimeout(() => {
-        clearInterval(interval);
-        console.warn("[SAP Checkout] Poll window ended — opening checkout");
-        goToCheckoutNow();
-      }, CHECKOUT_MAX_WAIT_MS);
     }
 
     function startCheckoutJob(cartData) {
@@ -407,7 +414,7 @@
         })
         .catch((err) => {
           console.error("[SAP Checkout] createDraftOrder failed — still opening checkout:", err);
-          goToCheckoutNow();
+          checkoutFailed(err);
         });
     }
 
@@ -428,7 +435,8 @@
 
     async function handleCheckoutClick(event) {
       event.preventDefault();
-      event.stopPropagation();
+      event.stopImmediatePropagation();
+      if (window.__sapCheckoutInProgress) return;
       window.__sapCheckoutInProgress = true;
       console.log("[SAP Checkout] Intercepted checkout click:", event.target);
 
@@ -438,13 +446,15 @@
         await startCheckoutFromCart();
       } catch (err) {
         console.error("[SAP Checkout] cart.js failed — still opening checkout:", err);
-        goToCheckoutNow();
+        checkoutFailed(err);
       }
     }
 
     async function handleBuyNowClick(event) {
       event.preventDefault();
-      event.stopPropagation();
+      event.stopImmediatePropagation();
+      if (window.__sapCheckoutInProgress) return;
+      window.__sapCheckoutInProgress = true;
       console.log("[SAP Checkout] Intercepted Buy Now click:", event.target);
 
       showCheckoutLoader();
@@ -480,7 +490,7 @@
         await startCheckoutFromCart();
       } catch (err) {
         console.error("[SAP Checkout] Buy Now flow failed — opening checkout if possible:", err);
-        goToCheckoutNow();
+        checkoutFailed(err);
       }
     }
 
@@ -505,7 +515,7 @@
       document.addEventListener(
         "click",
         function (event) {
-          if (isCartPage() && isCheckoutElement(event.target)) {
+          if (isCheckoutElement(event.target)) {
             handleCheckoutClick(event);
             return;
           }

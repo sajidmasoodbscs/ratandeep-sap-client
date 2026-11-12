@@ -294,12 +294,11 @@ export const getCheckout = async (shop, cartbody) => {
       });
     } catch (discountError) {
       console.error("[getCheckout] createDiscount failed:", discountError.message);
-      return checkoutSuccess(shop, {
+      return checkoutFailure(shop, "discount_creation_failed", {
         priceMap,
         discountValue,
         cartSubtotal: totals.cartSubtotal,
         redisSubtotal: totals.redisSubtotal,
-        checkoutMode: "standard",
         discountError: discountError.message,
       });
     }
@@ -894,7 +893,7 @@ async function createDiscount(session, customerId, discountValue) {
     const priceRuleData = await priceRuleResponse.json();
 
     if (!priceRuleResponse.ok) {
-      throw new Error(`Failed to create price rule: ${priceRuleData.errors || priceRuleResponse.statusText}`);
+      throw new Error(`Failed to create price rule (HTTP ${priceRuleResponse.status}): ${JSON.stringify(priceRuleData.errors || priceRuleResponse.statusText)}`);
     }
 
     const priceRuleId = priceRuleData.price_rule.id;
@@ -918,7 +917,7 @@ async function createDiscount(session, customerId, discountValue) {
     const discountCodeData = await discountCodeResponse.json();
 
     if (!discountCodeResponse.ok) {
-      throw new Error(`Failed to create discount code: ${discountCodeData.errors || discountCodeResponse.statusText}`);
+      throw new Error(`Failed to create discount code (HTTP ${discountCodeResponse.status}): ${JSON.stringify(discountCodeData.errors || discountCodeResponse.statusText)}`);
     }
     return discountCodeData.discount_code.code;
 
