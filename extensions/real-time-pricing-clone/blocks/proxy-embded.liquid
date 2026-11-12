@@ -240,6 +240,15 @@
       if (!el || !el.closest) return false;
       const node = el.closest('button, a, input[type="submit"]');
       if (!node) return false;
+      // This theme also uses cart__checkout-button on its VIEW CART link.
+      if (node.tagName === "A") {
+        try {
+          const link = new URL(node.href, window.location.href);
+          return link.origin === window.location.origin && /\/checkout\/?$/.test(link.pathname);
+        } catch (_) {
+          return false;
+        }
+      }
       if (node.getAttribute("name") === "checkout") return true;
       if (node.id === "checkout" || node.id === "CartDrawer-Checkout") return true;
       if (node.classList && node.classList.contains("cart__checkout-button")) return true;
@@ -516,6 +525,10 @@
         "click",
         function (event) {
           if (isCheckoutElement(event.target)) {
+            const button = event.target.closest('button, input[type="submit"]');
+            // Let the theme validate shipping and save Dropship first. Its
+            // requestSubmit() is intercepted by the submit listener below.
+            if (button?.form?.dataset.sapCheckoutValidation === "true") return;
             handleCheckoutClick(event);
             return;
           }
@@ -525,6 +538,14 @@
         },
         true
       );
+
+      // Runs after the theme's capture-phase validation, including the
+      // requestSubmit() path, which does not dispatch another click event.
+      document.addEventListener("submit", function (event) {
+        if (event.defaultPrevented || event.target.id !== "cart") return;
+        if (event.submitter && !isCheckoutElement(event.submitter)) return;
+        handleCheckoutClick(event);
+      });
 
       console.log("[SAP Checkout] Delegated click listener active (cart checkout + product Buy Now)");
       console.log("[SAP Checkout] Customer addresses:", CUSTOMER_ADDRESSES);
